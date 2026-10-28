@@ -16,11 +16,12 @@ Future geocoding, map-tile, CRM, and third-party source credentials must be supp
 
 ## Website discovery and Jev classification
 
-- `OPENAI_API_KEY`: required for official-website discovery and evidence-based summary generation using web search.
+- `BRAVE_API_KEY`: optional but strongly recommended. Enables Brave Search as the primary website-discovery path, which is faster and cheaper than OpenAI for clear-match cases. When absent, every record falls through to the OpenAI path. Get a key at https://brave.com/search/api/.
+- `OPENAI_API_KEY`: required. Used as the fallback website-discovery path when Brave returns no confident match, and for any record processed without a Brave key.
 - `OPENROUTER_API_KEY`: required for Jev classification through OpenRouter's Decisions API.
 - `OPENAI_MODEL`: optional website-search model override; defaults to `gpt-5.4-mini`.
 - `JEV_MODEL`: optional Jev override; defaults to the pinned `typesafe/jev-1.13` model.
 - `JEV_BASE_URL`: optional Decisions API override; defaults to `https://openrouter.ai/api/alpha/decisions`.
 
-Neither key may appear in browser code, generated GeoJSON, caches, command output, or version control. Start with `--enrichment-limit` because website discovery and Jev calls consume external API services.
+No key may appear in browser code, generated GeoJSON, caches, command output, or version control. Start with `--enrichment-limit` because discovery and Jev calls consume external API services.
 

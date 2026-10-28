@@ -1,12 +1,13 @@
 # Current Blockers and Remaining Work
 
-Last reviewed: 2026-09-27
+Last reviewed: 2026-10-28
 
 ## Current status
 
-The local IRS-based prototype is operational. `python main.py --no-serve`
-successfully validates 20,577 organization records and 20,577 map points, and the
-automated test suite currently passes all 18 tests.
+The prototype is operational and deployed. `python main.py --no-serve` validates
+20,577 organization records and 20,577 map points. The map is live on GitHub Pages
+and auto-deploys on push to `main`/`master` via GitHub Actions. The automated test
+suite passes all 19 tests.
 
 The items below do not prevent the existing prototype from opening. They block
 accurate locations, enriched organization profiles, additional data sources,
@@ -46,26 +47,27 @@ python main.py --use-census --limit 100 --no-serve
 
 ### 2. Website discovery and Jev enrichment
 
-**Status:** Blocked pending API credentials and a live pilot.
+**Status:** Pipeline implemented; blocked pending API credentials and a live pilot.
+
+The full three-stage enrichment pipeline is implemented and unit-tested:
+- **Brave Search** (primary) — `scripts/website_discovery.py`; scores results by name, city, state, and `.org` domain; accepts matches ≥ 0.5 confidence.
+- **OpenAI web search** (fallback) — called only when Brave returns no confident match or `BRAVE_API_KEY` is absent.
+- **Deterministic crawler** — checks `robots.txt`, fetches homepage + contact page, extracts `email`, `phone`, `contact_page_url`.
+- **Jev classification** — all eight schema fields in one OpenRouter Decisions API call.
 
 Current dataset evidence:
 
-- `OPENAI_API_KEY` is not configured.
-- `OPENROUTER_API_KEY` is not configured.
-- 0 organization websites have been added.
-- 0 organization summaries have been added.
-- 0 organizations have been classified by Jev.
-- No website-discovery or Jev cache exists yet.
+- API credentials are not yet configured in `.env`.
+- 0 organizations have websites, emails, phones, or Jev classifications.
+- No discovery or Jev cache exists yet.
 
 Remaining work:
 
-- [ ] Populate `OPENAI_API_KEY` and `OPENROUTER_API_KEY` in `.env`.
-- [ ] Confirm the configured OpenAI search model can perform web search.
-- [ ] Confirm `typesafe/jev-1.13` is accessible through the configured OpenRouter
-      Decisions endpoint.
+- [ ] Populate `BRAVE_API_KEY`, `OPENAI_API_KEY`, and `OPENROUTER_API_KEY` in `.env`.
+- [ ] Confirm the configured OpenAI search model supports web search.
+- [ ] Confirm `typesafe/jev-1.13` is accessible through the OpenRouter Decisions endpoint.
 - [ ] Run a 10-record paid enrichment pilot.
-- [ ] Review official-site identity matches, evidence, summaries, and all eight
-      schema classifications.
+- [ ] Review Brave identity matches, crawled contacts, evidence, summaries, and all eight schema classifications.
 - [ ] Confirm repeated runs skip completed records and do not repeat paid calls.
 - [ ] Estimate cost and elapsed time from the pilot before increasing the limit.
 
@@ -138,9 +140,10 @@ Remaining work:
 
 ### 6. Dataset delivery and browser performance
 
-The current browser downloads one approximately 36.58 MB GeoJSON file and
-performs all filtering locally. This is acceptable for the present prototype but
-will become increasingly expensive as enriched fields and sources are added.
+The current browser downloads one approximately 26 MB GeoJSON file (reduced from
+~37 MB after removing redundant and internal-only fields) and performs all
+filtering locally. This is acceptable for the present prototype but will become
+increasingly expensive as enriched fields and sources are added.
 
 - [ ] Measure initial load, parsing, filtering, and map-rendering performance on
       typical desktop and mobile devices.
@@ -202,17 +205,20 @@ than an application database.
 
 - [x] IRS source discovery and exact NTEE filtering.
 - [x] Normalized source-agnostic map fields.
-- [x] Deterministic IRS-to-schema category alignment.
+- [x] Deterministic IRS-to-schema category alignment via versioned crosswalk.
 - [x] Deterministic external-source normalizer.
 - [x] Stable organization IDs with no duplicates in the current output.
 - [x] Geocoder-owned coordinate assignment and labeled state fallbacks.
 - [x] OpenStreetMap basemap rendered through MapLibre.
 - [x] Client-side search and schema-aligned filters.
 - [x] Clustered markers and organization tooltips.
-- [x] Optional website, summary, and verification-link tooltip support.
+- [x] Optional website, summary, email, phone, and verification-link tooltip support.
+- [x] Brave Search primary discovery with OpenAI fallback.
+- [x] Deterministic contact crawler (email, phone, contact page) respecting robots.txt.
 - [x] Incremental cache and skip logic in the enrichment implementation.
 - [x] One orchestration entry point in `main.py`.
-- [x] Dataset validation and 18 passing automated tests.
+- [x] GitHub Actions auto-deploy to GitHub Pages on push.
+- [x] Dataset validation and 19 passing automated tests.
 
 ## Related documentation
 

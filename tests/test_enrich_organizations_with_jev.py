@@ -117,16 +117,19 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
             discovery_cache = root / "discovery.jsonl"
             jev_cache = root / "jev.jsonl"
             source.write_text(json.dumps(collection), encoding="utf-8")
+            no_contacts = lambda *_: {"email": "", "phone": "", "contact_page_url": ""}
             stats = enrich_geojson(
                 source, output, "openai-key", "openrouter-key",
                 discovery_cache, jev_cache,
                 discovery_caller=discover, jev_caller=decide,
+                contact_caller=no_contacts,
             )
             self.assertEqual(stats["classified"], 1)
             stats = enrich_geojson(
                 output, output, "openai-key", "openrouter-key",
                 discovery_cache, jev_cache,
                 discovery_caller=discover, jev_caller=decide,
+                contact_caller=no_contacts,
             )
             self.assertEqual(stats["classified"], 0)
             self.assertEqual(stats["skipped_existing"], 1)

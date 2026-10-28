@@ -1,4 +1,24 @@
-# Website contact discovery and extraction plan
+# Website contact discovery and extraction
+
+## Implementation status (2026-10-28)
+
+The core pipeline described in this document is implemented in `scripts/website_discovery.py` and wired into `scripts/enrich_organizations_with_jev.py`.
+
+**Done:**
+- Brave Search primary discovery with name/city/state/`.org` identity scoring.
+- OpenAI web-search fallback for records where Brave returns no confident match (website discovery).
+- `robots.txt` compliance check before every crawl fetch.
+- Deterministic extraction of `email` (prefers `mailto:` links, falls back to text regex with org-prefix priority), `phone` (prefers `tel:` links, falls back to regex), and `contact_page_url` (by link-text/path keyword match).
+- Homepage + one same-domain contact-page crawl per record.
+- OpenAI web-search contact fallback: fires when `crawl_for_contacts` returns `accessible=False` (blocked by `robots.txt` or site unreachable). Uses `contact_search_payload` with `search_context_size: low` to surface contacts from OpenAI's index.
+
+**Pending / simplified vs. this spec:**
+- Schema.org `Organization`/`ContactPoint` JSON-LD parsing (spec step 6.1) — not yet implemented; mailto/tel links and text regex cover the common case.
+- Crawl delay from `robots.txt` `Crawl-delay` directive — not yet honored; add when pilot evidence shows a site throttling requests.
+- Up to five-page crawl budget (spec step 5) — current implementation crawls homepage + one contact page only.
+- Contact observation provenance store (spec step 7) — not yet implemented; current implementation writes the best-match value directly.
+
+---
 
 ## Project goal
 

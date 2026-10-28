@@ -30,8 +30,11 @@ flowchart LR
     end
 
     subgraph Enrich["4. Optional AI enrichment: --enrich-with-jev"]
-        Discovery["OpenAI web search<br/>official website, summary, evidence"]
+        BraveSearch["Brave Search<br/>primary website discovery"]
+        Discovery["OpenAI web search<br/>fallback for low-confidence cases"]
         DiscoveryCache[(Website discovery cache)]
+        Crawl["Deterministic crawler<br/>email, phone, contact page"]
+        ContactFallback["OpenAI web search<br/>contact fallback when site blocked"]
         Jev["System One Jev via OpenRouter<br/>all 8 schema choices in one request"]
         JevCache[(Jev classification cache)]
     end
@@ -64,11 +67,18 @@ flowchart LR
     Geocode -->|"missing or failed match"| Fallback
     Fallback --> GeoJSON
 
-    GeoJSON -.->|"records not already enriched"| Discovery
+    GeoJSON -.->|"records not already enriched"| BraveSearch
+    Env -.-> BraveSearch
+    BraveSearch -->|"confident match"| DiscoveryCache
+    BraveSearch -.->|"no confident match"| Discovery
     Env -.-> Discovery
     DiscoveryCache --> Discovery
     Discovery --> DiscoveryCache
-    Discovery -->|"official site found"| Jev
+    DiscoveryCache -->|"official site found"| Crawl
+    Crawl -->|"accessible: contacts extracted"| GeoJSON
+    Crawl -.->|"blocked or unreachable"| ContactFallback
+    ContactFallback -->|"email, phone, contact page"| GeoJSON
+    DiscoveryCache -->|"official site found"| Jev
     Env -.-> Jev
     JevCache --> Jev
     Jev --> JevCache
@@ -130,17 +140,21 @@ python main.py --use-census
 
 ### Website enrichment and Jev classification
 
-Run a small paid pilot before scaling to the complete dataset:
+Run a small paid pilot before scaling to the complete dataset.
 
-Populate `OPENAI_API_KEY` and `OPENROUTER_API_KEY` in `.env`, then run:
+Populate `OPENAI_API_KEY` and `OPENROUTER_API_KEY` in `.env`. Optionally add `BRAVE_API_KEY` to enable the cheaper Brave Search primary path. Then run:
 
 ```powershell
 python main.py --enrich-with-jev --enrichment-limit 10
 ```
 
-For each selected organization, the OpenAI web-search stage identifies the official website and produces a source-grounded summary and evidence package. The complete evidence package is then sent to `typesafe/jev-1.13` through OpenRouter's Decisions API. Jev answers all eight controlled schema questions in one request. It is the sole model classifier in this enrichment path; the search model does not assign filter values.
+For each selected organization, the enrichment pipeline:
 
-Website-search and Jev responses are cached separately under `Data/Website Enrichment/` and `Data/Jev Classification/`. Rebuilding through `main.py` preserves successful enrichment, and unchanged records are not billed again. Review a representative labeled pilot before increasing the limit because model confidence is not the same as domain accuracy.
+1. **Website discovery** — queries Brave Search (when `BRAVE_API_KEY` is set) and accepts the top result when it scores ≥ 0.5 on name, city, state, and `.org` domain signals. Falls back to OpenAI web search for low-confidence cases.
+2. **Contact extraction** — deterministically crawls the accepted website (respecting `robots.txt`) to extract a public organizational email, phone number, and contact-page URL. If the crawler is blocked by `robots.txt` or the site is unreachable, an OpenAI web-search call is used as a fallback to surface contact details from its cached index.
+3. **Jev classification** — sends the full evidence package to `typesafe/jev-1.13` through OpenRouter's Decisions API. Jev answers all eight controlled schema questions in one request. It is the sole model classifier in this enrichment path.
+
+Discovery, crawl results, and Jev responses are cached separately under `Data/Website Enrichment/` and `Data/Jev Classification/`. Rebuilt runs reuse successful enrichment and do not repeat paid calls. Review a representative labeled pilot before increasing the limit because model confidence is not the same as domain accuracy.
 
 The pipeline is incremental by default. If `app/data/organizations.geojson` already exists, `main.py` reuses it instead of rescanning IRS files. Completed coordinates are also reused. Enrichment excludes records already completed with the current discovery version, search model, Jev question version, and Jev model before applying `--enrichment-limit`. Use `python main.py --rebuild` only when the IRS source data or normalization logic has changed.
 
@@ -220,7 +234,7 @@ node --check app/app.js
 
 ## Environment and secrets
 
-Website discovery requires `OPENAI_API_KEY`, and Jev classification requires `OPENROUTER_API_KEY`. `OPENAI_MODEL` and `OPENAI_BASE_URL` configure discovery. `JEV_MODEL` defaults to `typesafe/jev-1.13`, and `JEV_BASE_URL` defaults to OpenRouter's Decisions API. Never commit either key or paste it into a source file.
+`BRAVE_API_KEY` is optional but recommended: it enables the cheaper Brave Search primary discovery path. `OPENAI_API_KEY` is required for the fallback OpenAI web-search path (used when Brave returns no confident match, or when no Brave key is set). `OPENROUTER_API_KEY` is required for Jev classification. `OPENAI_MODEL` and `OPENAI_BASE_URL` configure the OpenAI fallback. `JEV_MODEL` defaults to `typesafe/jev-1.13`, and `JEV_BASE_URL` defaults to OpenRouter's Decisions API. Never commit any key or paste it into a source file.
 
 ## Known limitations
 

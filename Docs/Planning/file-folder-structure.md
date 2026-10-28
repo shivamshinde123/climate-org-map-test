@@ -2,29 +2,39 @@
 
 ```text
 Climate Org Mapping/
-|-- .env                           # local secrets; ignored
-|-- .env.example                   # safe configuration template
+|-- .env                              # local secrets; ignored
+|-- .env.example                      # safe configuration template
 |-- .gitignore
-|-- main.py                        # complete build, geocode, validate, and serve entry point
+|-- main.py                           # complete build, geocode, validate, and serve entry point
+|-- .github/
+|   `-- workflows/
+|       `-- deploy.yml                # GitHub Actions: auto-deploys app/ to GitHub Pages on push
 |-- app/
 |   |-- data/
-|   |   `-- organizations.geojson  # generated
-|   |   `-- map-schema.json         # filter and field vocabulary
+|   |   |-- organizations.geojson     # generated
+|   |   `-- map-schema.json           # filter and field vocabulary
 |   |-- app.js
 |   |-- index.html
 |   `-- styles.css
-|-- Data/                           # supplied IRS CSV files
+|-- Data/
+|   |-- IRS EO BMF/                   # supplied IRS state CSV files (gitignored, 324 MB)
+|   `-- ProPublica/
+|       |-- category-crosswalk.json   # versioned NTEE-to-GCC mappings (single source of truth)
+|       `-- README.md
 |-- Docs/
-|   |-- Planning/                   # living project documentation
-|   `-- Research and Requirements/  # supplied source material
+|   |-- Planning/                     # living project documentation
+|   `-- Research and Requirements/    # supplied source material
 |-- scripts/
-|   |-- build_irs_dataset.py
-|   |-- geocode_organizations.py
-|   |-- normalize_external_data_without_llm.py
-|   |-- enrich_organizations_with_jev.py
-|   `-- load_environment.py
+|   |-- build_irs_dataset.py          # IRS filter, normalize, stable IDs, provisional GCC fields
+|   |-- category_crosswalk.py         # shared NTEE→GCC resolver used by all ingestion scripts
+|   |-- geocode_organizations.py      # Census batch geocoding and state-level fallback
+|   |-- normalize_external_data_without_llm.py  # generic external-source adapter
+|   |-- enrich_organizations_with_jev.py         # Brave/OpenAI discovery + Jev classification
+|   |-- website_discovery.py          # Brave Search discovery and deterministic contact crawling
+|   `-- load_environment.py           # .env loader
 |-- tests/
 |   |-- test_build_irs_dataset.py
+|   |-- test_enrich_organizations_with_jev.py
 |   `-- test_geocode_organizations.py
 `-- README.md
 ```

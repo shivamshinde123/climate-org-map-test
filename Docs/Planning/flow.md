@@ -27,8 +27,11 @@ flowchart LR
     end
 
     subgraph Enrich["4. Optional AI enrichment: --enrich-with-jev"]
-        Discovery["OpenAI web search<br/>official website, summary, evidence"]
+        BraveSearch["Brave Search<br/>primary website discovery"]
+        Discovery["OpenAI web search<br/>fallback for low-confidence cases"]
         DiscoveryCache[(Website discovery cache)]
+        Crawl["Deterministic crawler<br/>email, phone, contact page"]
+        ContactFallback["OpenAI web search<br/>contact fallback when site blocked"]
         Jev["System One Jev via OpenRouter<br/>all 8 schema choices in one request"]
         JevCache[(Jev classification cache)]
     end
@@ -63,11 +66,18 @@ flowchart LR
     Geocode -->|"missing or failed match"| Fallback
     Fallback --> GeoJSON
 
-    GeoJSON -.->|"records not already enriched"| Discovery
+    GeoJSON -.->|"records not already enriched"| BraveSearch
+    Env -.-> BraveSearch
+    BraveSearch -->|"confident match"| DiscoveryCache
+    BraveSearch -.->|"no confident match"| Discovery
     Env -.-> Discovery
     DiscoveryCache --> Discovery
     Discovery --> DiscoveryCache
-    Discovery -->|"official site found"| Jev
+    DiscoveryCache -->|"official site found"| Crawl
+    Crawl -->|"accessible: contacts extracted"| GeoJSON
+    Crawl -.->|"blocked or unreachable"| ContactFallback
+    ContactFallback -->|"email, phone, contact page"| GeoJSON
+    DiscoveryCache -->|"official site found"| Jev
     Env -.-> Jev
     JevCache --> Jev
     Jev --> JevCache
@@ -101,13 +111,15 @@ and Jev classification unless their inputs or version keys change.
 ## Website and Jev enrichment flow
 
 1. Identify an organization using its name, IRS address, location, EIN, and NTEE context.
-2. Use an OpenAI Responses API web-search call to find the official website and return a structured summary, evidence text, supporting URLs, match confidence, and match status.
-3. Cache the discovery result by immutable organization identity, prompt version, and search model, and mark the record with those versions.
-4. When an official site is found, pass the organization identity and extracted website evidence to OpenRouter's Decisions API.
-5. Ask `typesafe/jev-1.13` all eight schema questions as independent `choice` decisions over one shared state and one API request.
-6. Validate every Jev choice against the controlled schema, persist the probability distributions and request metadata, and update the public filter fields.
-7. On later runs, exclude records already complete for the active discovery and Jev versions before applying the requested processing limit.
-8. Keep website discovery separate from verification; an official website does not make a record Verified.
+2. If a `BRAVE_API_KEY` is configured, query Brave Search with the organization name, city, state, and `nonprofit`. Score each result by name-word overlap, city/state match, and `.org` domain signal. Accept the top result when its score is ≥ 0.5; return it as a discovery dict.
+3. If Brave returns no confident match (or is not configured), call the OpenAI Responses API with web search to find the official website and return a structured summary, evidence text, supporting URLs, match confidence, and match status.
+4. Cache the discovery result by immutable organization identity, prompt version, and search model, and mark the record with those versions.
+5. When an official site is found, run the deterministic crawler: check `robots.txt`, fetch the homepage, extract `email` and `phone` from `mailto:` and `tel:` links (falling back to regex), and find a same-domain contact page link. If a contact page is found and robots-allowed, crawl it and fill any blank contact fields from it. If the crawler was blocked by `robots.txt` or the site was unreachable (`accessible=False`), call the OpenAI Responses API as a contact-extraction fallback — it may surface contact details from its cached index.
+6. Pass the organization identity and extracted website evidence to OpenRouter's Decisions API.
+7. Ask `typesafe/jev-1.13` all eight schema questions as independent `choice` decisions over one shared state and one API request.
+8. Validate every Jev choice against the controlled schema, persist the probability distributions and request metadata, and update the public filter fields.
+9. On later runs, exclude records already complete for the active discovery and Jev versions before applying the requested processing limit.
+10. Keep website discovery separate from verification; an official website does not make a record Verified.
 
 ## Build flow
 

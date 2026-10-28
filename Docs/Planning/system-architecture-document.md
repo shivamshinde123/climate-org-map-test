@@ -12,11 +12,18 @@ main.py orchestration
         |
         +--> Census match or state fallback assignment
         |
-        v
-Generated GeoJSON with source metadata
+        +--> Brave Search / OpenAI discovery + deterministic contact crawling
+        |
+        +--> Jev classification (OpenRouter Decisions API)
         |
         v
-Static MapLibre web application
+Generated GeoJSON (app/data/organizations.geojson)
+        |
+        v
+GitHub Actions → GitHub Pages (auto-deploy on push)
+        |
+        v
+Static MapLibre web application (public URL)
 ```
 
 ## Future architecture boundary

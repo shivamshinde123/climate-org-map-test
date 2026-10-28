@@ -64,6 +64,18 @@ The generative search model is limited to official-website discovery, evidence e
 
 Normal runs reuse an existing normalized dataset and complete coordinates. Website and Jev enrichment records the prompt and model versions on each organization and removes completed records before applying a run limit. Content-addressed caches remain a second protection against duplicate external calls. Reprocessing requires a changed version/model, an incomplete or failed record, or the explicit `--rebuild` option for base ingestion.
 
+## 2026-10-28 — Deploy the map to GitHub Pages via GitHub Actions
+
+The `app/` directory is deployed automatically to GitHub Pages on every push to `main` or `master` using the official GitHub `actions/deploy-pages` workflow. The site is publicly accessible even though the source repository is private. URL-based cache-busting (`?v=...`) is used instead of `cache: "no-store"` so that browsers cache the GeoJSON normally but still receive the correct version when the query string changes. The GeoJSON payload was reduced from ~37 MB to ~26 MB by removing 17 redundant and internal-only fields from the IRS pipeline output.
+
+## 2026-10-28 — Use Brave Search as the primary discovery path with OpenAI as fallback
+
+`scripts/website_discovery.py` implements Brave Search as the main website-discovery method. Brave is cheaper and faster for unambiguous cases. The existing OpenAI web-search path is retained as the fallback: when Brave returns no result with a confidence score ≥ 0.5, the record is passed to the OpenAI Responses API. Both paths write to the same content-addressed cache, so no record is ever searched twice for the same identity and model configuration. A `BRAVE_API_KEY` is optional; when absent, the pipeline uses OpenAI for all records as before.
+
+## 2026-10-28 — Extract contact details with a deterministic crawler and OpenAI fallback
+
+After a website is confirmed, `website_discovery.crawl_for_contacts` fetches the homepage and the first same-domain contact page found through link-text matching. It checks `robots.txt` before each fetch and extracts `email`, `phone`, and `contact_page_url` from `mailto:` and `tel:` links first, then falls back to text regex. The function returns `accessible=False` when `robots.txt` denies the crawler or the site is unreachable. In that case, `enrich_organizations_with_jev` makes a second OpenAI web-search call using `contact_search_payload` and the low-cost `search_context_size: low` setting to surface contacts from OpenAI's cached index. No contact details are inferred or guessed. Named individual contacts are not stored. Contact fields remain blank when neither path finds a public organizational contact.
+
 ## 2026-10-28 — Make one versioned crosswalk authoritative across sources
 
 IRS ingestion, ProPublica analysis, and generic external normalization now resolve category-level mappings through `Data/ProPublica/category-crosswalk.json` via `scripts/category_crosswalk.py`. Exact NTEE codes, code-bearing labels, and equivalent normalized NTEE labels share one classification lineage and record their mapping basis and version. Unsupported target dimensions remain `Unknown`. This supersedes the duplicated hard-coded category derivations in individual adapters while preserving separate evidence-based inference for organization type, audience, reach, and narrow climate keywords.

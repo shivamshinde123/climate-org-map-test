@@ -26,9 +26,11 @@ from typing import Callable
 try:
     from .normalize_external_data_without_llm import CATEGORY_OPTIONS
     from .load_environment import load_environment
+    from .website_discovery import brave_discover, crawl_for_contacts
 except ImportError:  # Allows direct execution from the repository root.
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
+    from website_discovery import brave_discover, crawl_for_contacts  # type: ignore
 
 
 OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
@@ -170,6 +172,54 @@ def website_discovery_payload(properties: dict, model: str) -> dict:
                 "name": "organization_website_discovery",
                 "strict": True,
                 "schema": discovery_schema(),
+            }
+        },
+    }
+
+
+def contact_schema() -> dict:
+    """Return the structured-output contract for OpenAI contact extraction."""
+    return {
+        "type": "object",
+        "properties": {
+            "email": {"type": "string"},
+            "phone": {"type": "string"},
+            "contact_page_url": {"type": "string"},
+        },
+        "required": ["email", "phone", "contact_page_url"],
+        "additionalProperties": False,
+    }
+
+
+def contact_search_payload(properties: dict, website_url: str, model: str) -> dict:
+    """Build an OpenAI web-search request to find public contact details.
+
+    Used only when the deterministic crawler was blocked or unreachable.
+    """
+    identity = {
+        "name": properties.get("name", ""),
+        "city": properties.get("city", ""),
+        "state": properties.get("state", ""),
+        "website": website_url,
+    }
+    return {
+        "model": model,
+        "store": False,
+        "tools": [{"type": "web_search", "search_context_size": "low"}],
+        "instructions": (
+            "Find the public organizational email address, phone number, and contact page URL "
+            "for the identified nonprofit organization from its official website. "
+            "Return only general organizational contacts such as info@, contact@, or office@. "
+            "Do not return named staff personal addresses or direct personal phone numbers. "
+            "Return empty strings for any field not confirmed on the official site."
+        ),
+        "input": json.dumps(identity, ensure_ascii=False, separators=(",", ":")),
+        "text": {
+            "format": {
+                "type": "json_schema",
+                "name": "organization_contact_details",
+                "strict": True,
+                "schema": contact_schema(),
             }
         },
     }
@@ -448,7 +498,9 @@ def enrich_geojson(
     limit: int | None = None,
     discovery_caller: Callable[[dict, str, str], dict] | None = None,
     jev_caller: Callable[[dict, str, str], dict] | None = None,
+    contact_caller: Callable[[dict, str, str], dict] | None = None,
     fail_on_error: bool = False,
+    brave_key: str | None = None,
 ) -> dict[str, int]:
     """Research and classify only records not already complete.
 
@@ -463,6 +515,7 @@ def enrich_geojson(
     jev_cache = load_cache(jev_cache_path)
     search = discovery_caller or (lambda body, key, endpoint: call_openai(body, key, endpoint))
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
+    contact_search = contact_caller or search
     # Completion checks happen before limiting, which makes small resumable runs
     # advance through the dataset instead of revisiting its first records.
     pending = [
@@ -493,7 +546,12 @@ def enrich_geojson(
             # change to any of them forces fresh evidence collection.
             discovery = discovery_cache.get(discovery_key)
             if discovery is None:
-                discovery = search(website_discovery_payload(properties, search_model), openai_key, openai_endpoint)
+                # Brave Search is the cost-effective primary path; OpenAI is the
+                # fallback when Brave returns None (no confident match found).
+                if brave_key:
+                    discovery = brave_discover(properties, brave_key)
+                if discovery is None:
+                    discovery = search(website_discovery_payload(properties, search_model), openai_key, openai_endpoint)
                 validate_discovery(discovery)
                 discovery_cache[discovery_key] = discovery
                 append_cache(discovery_cache_path, discovery_key, discovery)
@@ -511,6 +569,23 @@ def enrich_geojson(
             properties["website_url"] = discovery["website_url"]
             properties["summary"] = discovery["summary"]
             properties["website_evidence_urls"] = discovery["source_urls"]
+            # Crawl the accepted site for contact details.
+            # When the crawler was blocked or the site unreachable, fall back to
+            # OpenAI web search, which may surface contacts from its cached index.
+            contacts = crawl_for_contacts(discovery["website_url"])
+            if not contacts["accessible"]:
+                try:
+                    raw = contact_search(
+                        contact_search_payload(properties, discovery["website_url"], search_model),
+                        openai_key, openai_endpoint,
+                    )
+                    contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
+                except Exception:
+                    contacts = {"email": "", "phone": "", "contact_page_url": ""}
+            properties["email"] = contacts["email"]
+            properties["phone"] = contacts["phone"]
+            if contacts.get("contact_page_url"):
+                properties["contact_page_url"] = contacts["contact_page_url"]
 
             jev_key = cache_key({
                 "version": JEV_QUESTIONS_VERSION,
@@ -560,6 +635,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jev-endpoint", default=os.environ.get("JEV_BASE_URL", OPENROUTER_DECISIONS_ENDPOINT))
     parser.add_argument("--openai-api-key-env", default="OPENAI_API_KEY")
     parser.add_argument("--openrouter-api-key-env", default="OPENROUTER_API_KEY")
+    parser.add_argument("--brave-api-key-env", default="BRAVE_API_KEY")
     parser.add_argument("--discovery-cache", type=Path, default=Path("Data/Website Enrichment/discovery-cache.jsonl"))
     parser.add_argument("--jev-cache", type=Path, default=Path("Data/Jev Classification/classification-cache.jsonl"))
     parser.add_argument("--fail-on-error", action="store_true")
@@ -575,6 +651,7 @@ def main() -> None:
     args = parse_args()
     openai_key = os.environ.get(args.openai_api_key_env)
     openrouter_key = os.environ.get(args.openrouter_api_key_env)
+    brave_key = os.environ.get(args.brave_api_key_env)
     if not openai_key:
         raise SystemExit(f"Missing API key environment variable: {args.openai_api_key_env}")
     if not openrouter_key:
@@ -583,7 +660,7 @@ def main() -> None:
         args.input, args.output, openai_key, openrouter_key,
         args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
         args.openai_endpoint, args.jev_endpoint, args.limit,
-        fail_on_error=args.fail_on_error,
+        fail_on_error=args.fail_on_error, brave_key=brave_key or None,
     )
     print(f"Organizations processed: {stats['processed']:,}")
     print(f"Official websites found: {stats['websites_found']:,}")

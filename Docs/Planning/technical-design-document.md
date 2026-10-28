@@ -12,11 +12,11 @@ Category-level classification is resolved by `scripts/category_crosswalk.py` fro
 
 The browser loads one GeoJSON file, applies client-side search and filters, and replaces the MapLibre source data with the filtered feature collection. MapLibre clusters points at lower zoom levels. A bounded result list avoids rendering thousands of DOM rows.
 
-Popups intentionally expose only the organization name, address, the seven public classification values (Type, Audience, Resilience, Activity, Action, Climate, and Reach), an optional HTTP(S) website, an optional escaped summary, and the claim-and-verification link. IRS filing, financial, NTEE, alignment-confidence, and coordinate-precision fields remain in the dataset but are not shown in the popup.
+Popups expose the organization name, address, the eight public classification values (Type, Audience, Resilience, Activity, Action, Climate, Reach, and Verification), an optional HTTP(S) website link, an optional email address, an optional phone number, an optional escaped summary, and the claim-and-verification link. IRS filing, financial, NTEE, alignment-confidence, coordinate-precision, and contact-page fields remain in the dataset but are not shown in the popup.
 
 Popup content is height-constrained to the visible viewport and scrolls independently. Wheel, touch, and pointer gestures inside a popup do not propagate to the map, so users can reach long organization details without changing map zoom or position.
 
-Runtime schema and GeoJSON requests bypass the browser cache and carry a version query. Filter values are normalized and deduplicated case-insensitively in the browser as a final defense against mixed-version or stale artifacts.
+GeoJSON and schema requests carry a version query string for cache busting. Filter values are normalized and deduplicated case-insensitively in the browser as a final defense against mixed-version or stale artifacts.
 
 ## Future compatibility
 
