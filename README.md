@@ -8,6 +8,10 @@ The IRS data is a placeholder base layer. The build stage does not invent coordi
 
 ![GCC Climate Org Map — Data Pipeline](Docs/diagrams/data-flow.svg)
 
+### More detailed view
+
+![GCC Climate Org Map — Detailed Pipeline](Docs/diagrams/data-flow-detail.svg)
+
 <details>
 <summary>Full pipeline diagram (Mermaid source)</summary>
 

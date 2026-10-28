@@ -1,0 +1,238 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340"
+     role="img" aria-labelledby="dfd-title dfd-desc"
+     style="background:#f5f5f5;font-family:'Segoe UI',system-ui,-apple-system,sans-serif">
+  <title id="dfd-title">GCC Climate Org Map — Detailed Data Pipeline</title>
+  <desc id="dfd-desc">Detailed view of the six-stage pipeline, showing the individual scripts, data files, and services inside each stage: IRS CSVs, Build and Geocode, GeoJSON store, optional AI Enrichment, GitHub Actions, and the MapLibre browser map.</desc>
+
+  <defs>
+    <pattern id="dfd-dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="0.8" fill="rgba(45,49,66,0.08)"/>
+    </pattern>
+    <marker id="dfd-arr-muted" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#4f5d75"/>
+    </marker>
+    <marker id="dfd-arr-link" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+      <path d="M0,0 L6,3 L0,6 Z" fill="#2e5aa8"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="860" height="340" fill="#f5f5f5"/>
+  <rect width="860" height="308" fill="url(#dfd-dots)"/>
+  <line x1="0" y1="308" x2="860" y2="308" stroke="rgba(45,49,66,0.12)" stroke-width="0.8"/>
+
+  <!-- ── ARROWS (before nodes) ── -->
+
+  <!-- N1 → N2  y=90 -->
+  <line x1="136" y1="90" x2="184" y2="90"
+        stroke="#4f5d75" stroke-width="1" marker-end="url(#dfd-arr-muted)"/>
+  <!-- N2 → N3 -->
+  <line x1="324" y1="90" x2="372" y2="90"
+        stroke="#4f5d75" stroke-width="1" marker-end="url(#dfd-arr-muted)"/>
+  <!-- N3 → N5 -->
+  <line x1="492" y1="90" x2="540" y2="90"
+        stroke="#4f5d75" stroke-width="1" marker-end="url(#dfd-arr-muted)"/>
+  <!-- N5 → N6  published -->
+  <line x1="676" y1="90" x2="724" y2="90"
+        stroke="#2e5aa8" stroke-width="1" marker-end="url(#dfd-arr-link)"/>
+  <!-- N3 → N4  optional dashed vertical: N3 bottom=(432,140) → N4 top=(432,196) -->
+  <line x1="432" y1="140" x2="432" y2="196"
+        stroke="#4f5d75" stroke-width="1" stroke-dasharray="5,4"
+        marker-end="url(#dfd-arr-muted)"/>
+  <!-- OPTIONAL label beside stroke (≥6 px gap from x=432) -->
+  <rect x="440" y="159" width="54" height="12" rx="2" fill="#f5f5f5"/>
+  <text x="467" y="168.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" font-weight="700" fill="#4f5d75" letter-spacing="0.6">OPTIONAL</text>
+
+  <!-- ── NODES (main row: y=40, h=100) ── -->
+
+  <!-- ── N1: IRS CSVs ── -->
+  <rect x="16" y="40" width="120" height="100" rx="6"
+        fill="#f5f5f5" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+  <!-- chip -->
+  <rect x="20" y="44" width="28" height="10" rx="2" fill="rgba(45,49,66,0.10)"/>
+  <text x="34" y="51.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#4f5d75">INPUT</text>
+  <!-- name -->
+  <text x="76" y="66" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">IRS CSVs</text>
+  <!-- divider -->
+  <line x1="24" y1="74" x2="132" y2="74" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <!-- items -->
+  <text x="76" y="88" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· IRS EO BMF CSVs</text>
+  <text x="76" y="99" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· NTEE code filter</text>
+  <text x="76" y="110" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· crosswalk.json</text>
+  <text x="76" y="121" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· .env config</text>
+
+  <!-- ── N2: Build + Geocode ── -->
+  <rect x="184" y="40" width="140" height="100" rx="6"
+        fill="rgba(45,49,66,0.04)" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+  <rect x="188" y="44" width="32" height="10" rx="2" fill="rgba(45,49,66,0.10)"/>
+  <text x="204" y="51.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#4f5d75">PROCESS</text>
+  <text x="254" y="66" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">Build + Geocode</text>
+  <line x1="192" y1="74" x2="320" y2="74" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="254" y="88" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· build_irs_dataset.py</text>
+  <text x="254" y="99" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· geocode_organizations.py</text>
+  <text x="254" y="110" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· Census batch geocoder</text>
+  <text x="254" y="121" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· State-level fallback</text>
+
+  <!-- ── N3: GeoJSON ── -->
+  <rect x="372" y="40" width="120" height="100" rx="6"
+        fill="rgba(46,90,168,0.06)" stroke="rgba(46,90,168,0.35)" stroke-width="1"/>
+  <rect x="376" y="44" width="26" height="10" rx="2" fill="rgba(46,90,168,0.15)"/>
+  <text x="389" y="51.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#2e5aa8">STORE</text>
+  <text x="432" y="66" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">GeoJSON</text>
+  <line x1="380" y1="74" x2="488" y2="74" stroke="rgba(46,90,168,0.15)" stroke-width="0.8"/>
+  <text x="432" y="88" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· organizations.geojson</text>
+  <text x="432" y="99" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· Discovery cache</text>
+  <text x="432" y="110" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· Jev cache</text>
+
+  <!-- ── N5: GitHub Actions ── -->
+  <rect x="540" y="40" width="136" height="100" rx="6"
+        fill="rgba(45,49,66,0.04)" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+  <rect x="544" y="44" width="32" height="10" rx="2" fill="rgba(45,49,66,0.10)"/>
+  <text x="560" y="51.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#4f5d75">CI / CD</text>
+  <text x="608" y="66" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">GitHub Actions</text>
+  <line x1="548" y1="74" x2="672" y2="74" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="608" y="88" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· deploy.yml workflow</text>
+  <text x="608" y="99" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· push → main / master</text>
+  <text x="608" y="110" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· actions/deploy-pages</text>
+
+  <!-- ── N6: Browser Map ── -->
+  <rect x="724" y="40" width="120" height="100" rx="6"
+        fill="#f5f5f5" stroke="#bfc0c0" stroke-width="1"/>
+  <rect x="728" y="44" width="24" height="10" rx="2" fill="rgba(45,49,66,0.08)"/>
+  <text x="740" y="51.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#4f5d75">MAP</text>
+  <text x="784" y="66" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">Browser Map</text>
+  <line x1="732" y1="74" x2="840" y2="74" stroke="rgba(45,49,66,0.10)" stroke-width="0.8"/>
+  <text x="784" y="88" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· MapLibre GL JS</text>
+  <text x="784" y="99" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· OpenStreetMap tiles</text>
+  <text x="784" y="110" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· Search + filter UI</text>
+  <text x="784" y="121" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· map-schema.json</text>
+
+  <!-- ── N4: AI Enrichment — FOCAL (y=196, h=100) ── -->
+  <rect x="342" y="196" width="180" height="100" rx="6"
+        fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.5"/>
+  <rect x="346" y="200" width="40" height="10" rx="2" fill="rgba(191,69,32,0.18)"/>
+  <text x="366" y="207.5" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="5.5" font-weight="700" fill="#bf4520">ENRICH</text>
+  <text x="432" y="222" text-anchor="middle"
+        font-size="9" font-weight="600" fill="#2d3142">AI Enrichment</text>
+  <line x1="350" y1="230" x2="518" y2="230" stroke="rgba(191,69,32,0.15)" stroke-width="0.8"/>
+  <text x="432" y="244" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· Brave Search (primary)</text>
+  <text x="432" y="255" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#4f5d75">· OpenAI web search (fallback)</text>
+  <text x="432" y="266" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· Crawler: email · phone · contact</text>
+  <text x="432" y="277" text-anchor="middle"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6.5" fill="#5a6580">· Jev via OpenRouter (8 choices)</text>
+
+  <!-- ── LEGEND ── -->
+  <text x="16" y="322"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" font-weight="700" fill="#4f5d75" letter-spacing="0.6">NODE TYPE</text>
+
+  <rect x="75" y="315" width="12" height="12" rx="2"
+        fill="#f5f5f5" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+  <text x="92" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Input</text>
+
+  <rect x="120" y="315" width="12" height="12" rx="2"
+        fill="rgba(45,49,66,0.04)" stroke="rgba(45,49,66,0.25)" stroke-width="1"/>
+  <text x="137" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Process</text>
+
+  <rect x="178" y="315" width="12" height="12" rx="2"
+        fill="rgba(46,90,168,0.06)" stroke="rgba(46,90,168,0.35)" stroke-width="1"/>
+  <text x="195" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Store</text>
+
+  <rect x="227" y="315" width="12" height="12" rx="2"
+        fill="rgba(191,69,32,0.08)" stroke="#bf4520" stroke-width="1.5"/>
+  <text x="244" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Enrich (optional)</text>
+
+  <text x="350" y="322"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" font-weight="700" fill="#4f5d75" letter-spacing="0.6">FLOW</text>
+
+  <line x1="386" y1="321" x2="406" y2="321"
+        stroke="#4f5d75" stroke-width="1" marker-end="url(#dfd-arr-muted)"/>
+  <text x="412" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Pipeline step</text>
+
+  <line x1="480" y1="321" x2="500" y2="321"
+        stroke="#2e5aa8" stroke-width="1" marker-end="url(#dfd-arr-link)"/>
+  <text x="506" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Published</text>
+
+  <line x1="558" y1="321" x2="578" y2="321"
+        stroke="#4f5d75" stroke-width="1" stroke-dasharray="5,4"
+        marker-end="url(#dfd-arr-muted)"/>
+  <text x="584" y="324"
+        font-family="'Courier New',Consolas,monospace"
+        font-size="6" fill="#5a6580">Optional step</text>
+
+</svg>
