@@ -6,6 +6,11 @@ The IRS data is a placeholder base layer. The build stage does not invent coordi
 
 ## Data-to-map flow
 
+![GCC Climate Org Map — Data Pipeline](Docs/diagrams/data-flow.svg)
+
+<details>
+<summary>Full pipeline diagram (Mermaid source)</summary>
+
 ```mermaid
 flowchart LR
     subgraph Inputs["1. Input data and configuration"]
@@ -94,6 +99,8 @@ flowchart LR
     OSM --> MapLibre
     MapLibre --> User
 ```
+
+</details>
 
 Solid arrows show the normal data path. Dashed arrows show optional, incremental, or externally configured work. OpenStreetMap supplies the background tiles; organization coordinates, tooltip content, and filter values come from the generated GeoJSON. See [`Docs/Planning/flow.md`](Docs/Planning/flow.md) for the detailed stage-by-stage description.
 
