@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Explore a prototype nationwide map of climate and environmental organizations from IRS data."
+    />
+    <title>Climate Org Mapping</title>
+    <!-- MapLibre renders the interactive map; local CSS owns product styling. -->
+    <link rel="preconnect" href="https://unpkg.com" />
+    <link
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20260927-7" />
+  </head>
+  <body>
+    <!-- The shell couples a collapsible discovery panel to a full-height map. -->
+    <main class="atlas-shell">
+      <!-- Kept outside the aside so it remains interactive when the panel hides. -->
+      <button
+        id="sidebar-toggle"
+        class="sidebar-toggle"
+        type="button"
+        aria-controls="atlas-panel"
+        aria-expanded="true"
+        aria-label="Hide filters and results"
+      >
+        <span aria-hidden="true">‹</span>
+      </button>
+      <aside id="atlas-panel" class="atlas-panel" aria-label="Organization search and results">
+        <!-- Product identity and concise context for this provisional dataset. -->
+        <header class="masthead reveal reveal-1">
+          <div class="eyebrow"><span>GCC</span> / Research preview 01</div>
+          <h1>Climate<br /><em>Org Mapping</em></h1>
+          <p class="lede">
+            A working census of local environmental action across the United States.
+          </p>
+        </header>
+
+        <!-- Selects declare map property names through data-field; JavaScript
+             supplies options from the schema and counts from the loaded data. -->
+        <form class="filters reveal reveal-3" id="filters" autocomplete="off">
+          <label class="search-field">
+            <span>Search the index</span>
+            <input
+              id="search"
+              type="search"
+              placeholder="Name, city, ZIP, address…"
+              aria-controls="results"
+            />
+          </label>
+          <div class="filter-row">
+            <label>
+              <span>State</span>
+              <select id="state-filter" data-field="state">
+                <option value="">All states</option>
+              </select>
+            </label>
+            <label>
+              <span>NTEE</span>
+              <select id="ntee-filter" data-field="ntee_code">
+                <option value="">All codes</option>
+              </select>
+            </label>
+          </div>
+          <!-- Native details preserves keyboard behavior and supports a compact UI. -->
+          <details class="advanced-filters" open>
+            <summary>Organization filters <span>8</span></summary>
+            <p class="filter-availability">IRS coverage shown by count; unavailable schema values are disabled.</p>
+            <div class="filter-row schema-filter-grid">
+            <label>
+              <span>Organization type</span>
+              <select data-field="gcc_organization_type"><option value="">All types</option></select>
+            </label>
+            <label>
+              <span>Audience focus</span>
+              <select data-field="gcc_audience_focus"><option value="">All audiences</option></select>
+            </label>
+            <label>
+              <span>Resilience</span>
+              <select data-field="gcc_resilience"><option value="">All resilience</option></select>
+            </label>
+            <label>
+              <span>Activity</span>
+              <select data-field="gcc_activity"><option value="">All activity</option></select>
+            </label>
+            <label>
+              <span>Action category</span>
+              <select data-field="gcc_action_category"><option value="">All actions</option></select>
+            </label>
+            <label>
+              <span>Climate category</span>
+              <select data-field="gcc_climate_category"><option value="">All climate topics</option></select>
+            </label>
+            <label>
+              <span>Reach</span>
+              <select data-field="gcc_reach"><option value="">All reach</option></select>
+            </label>
+            <label>
+              <span>Verification</span>
+              <select data-field="gcc_verification"><option value="">All records</option></select>
+            </label>
+            </div>
+          </details>
+          <button type="reset" class="reset-button">Clear filters</button>
+        </form>
+
+        <!-- aria-live announces changing result counts after filtering. -->
+        <section class="index-section reveal reveal-4" aria-live="polite">
+          <div class="index-heading">
+            <div>
+              <span class="section-label">Visible index</span>
+              <strong id="visible-count">—</strong>
+            </div>
+            <span id="total-count">Loading data…</span>
+          </div>
+          <div id="results" class="results" role="list"></div>
+        </section>
+
+        <footer>
+          <span>Source: IRS EO BMF</span>
+          <span>Unverified preview</span>
+        </footer>
+      </aside>
+
+      <!-- MapLibre mounts its canvas and accessibility elements into this node. -->
+      <section class="map-stage" aria-label="Map of climate organizations">
+        <div id="map"></div>
+      </section>
+    </main>
+
+    <!-- Reused client-side for result rows; no record HTML is server-generated. -->
+    <template id="result-template">
+      <button class="result-card" type="button" role="listitem">
+        <span class="result-code"></span>
+        <span class="result-copy">
+          <strong class="result-name"></strong>
+          <span class="result-location"></span>
+        </span>
+        <span class="result-arrow" aria-hidden="true">↗</span>
+      </button>
+    </template>
+
+    <!-- Library loads first; app.js then fetches local schema and GeoJSON assets. -->
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="app.js?v=20260927-7"></script>
+  </body>
+</html>
+
