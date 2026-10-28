@@ -1,0 +1,8 @@
+# API responses and derived reports are reproducible local artifacts.  Keep the
+# directory structure and documentation in Git without committing public filing
+# data or potentially very large full-run outputs.
+raw/*
+!raw/.gitkeep
+fetch-manifest.jsonl
+irs-propublica-comparison.csv
+analysis-summary.json

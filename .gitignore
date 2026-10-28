@@ -1,0 +1,15 @@
+.env
+__pycache__/
+.pytest_cache/
+*.py[cod]
+experimentation/irs_eda_cache.json
+
+# Large raw source data — re-download from IRS as needed
+Data/IRS EO BMF/
+
+# Pipeline caches and generated outputs
+Data/Geocoding/
+Data/Website Enrichment/
+Data/Jev Classification/
+.tmp/
+graphify-out/

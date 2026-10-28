@@ -1,0 +1,93 @@
+{
+  "version": 1,
+  "fields": [
+    "name",
+    "website_url",
+    "source_url",
+    "email",
+    "phone",
+    "address",
+    "city",
+    "state",
+    "postal_code",
+    "latitude",
+    "longitude",
+    "summary",
+    "notes",
+    "irs_category",
+    "gcc_climate_category",
+    "gcc_action_category",
+    "gcc_organization_type",
+    "gcc_audience_focus",
+    "gcc_resilience",
+    "gcc_activity",
+    "gcc_reach",
+    "gcc_verification"
+  ],
+  "filters": [
+    {
+      "label": "Organization Type",
+      "field": "gcc_organization_type",
+      "options": [
+        "Academic",
+        "Business",
+        "Coalition",
+        "Municipal / Government-affiliated",
+        "Municipality",
+        "Nonprofit / Grassroots",
+        "Unknown"
+      ]
+    },
+    {
+      "label": "Audience Focus",
+      "field": "gcc_audience_focus",
+      "options": ["Businesses", "Municipality", "Residents", "Unknown"]
+    },
+    {
+      "label": "Resilience",
+      "field": "gcc_resilience",
+      "options": ["Adaptation", "Both", "Mitigation", "Unknown"]
+    },
+    {
+      "label": "Activity",
+      "field": "gcc_activity",
+      "options": ["Action", "Advocacy", "Both", "Unknown"]
+    },
+    {
+      "label": "Action Category",
+      "field": "gcc_action_category",
+      "options": ["Community Engagement", "Conservation", "Advocacy/Policy", "Other", "Unknown"]
+    },
+    {
+      "label": "Climate Categories",
+      "field": "gcc_climate_category",
+      "options": [
+        "Conservation",
+        "Energy Efficiency",
+        "Environmental",
+        "Food & Food Waste",
+        "Green Economics",
+        "Transportation",
+        "Waste Reduction",
+        "Unknown"
+      ]
+    },
+    {
+      "label": "Reach",
+      "field": "gcc_reach",
+      "options": [
+        "Global",
+        "Municipality",
+        "Regional",
+        "State / National",
+        "Town / City",
+        "Unknown"
+      ]
+    },
+    {
+      "label": "Verification",
+      "field": "gcc_verification",
+      "options": ["Not Verified", "Verified"]
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "observed_at": "2026-10-07",
+  "source": "ProPublica Nonprofit Explorer organization pages backed by the documented v2 API",
+  "records": [
+    {
+      "ein": "202860877",
+      "name": "Alaska Farmland Trust Corporation",
+      "ntee_code": "C34",
+      "ntee_label": "Land Resources Conservation",
+      "subsection": "501(c)(3)",
+      "latest_filing_year_shown": 2024,
+      "latest_filing_type_shown": "Form 990",
+      "target_category_candidates": {
+        "organization_type": "Unknown",
+        "audience_focus": "Unknown",
+        "resilience": "Unknown",
+        "activity": "Unknown",
+        "action_category": "Conservation",
+        "climate_category": "Conservation",
+        "reach": "Unknown",
+        "verification": "Not Verified"
+      },
+      "notes": "501(c)(3) proves nonprofit tax status but does not prove the project's combined Nonprofit / Grassroots label. The NTEE code directly supports conservation as a candidate."
+    },
+    {
+      "ein": "203140552",
+      "name": "Friends of Campbell Tract",
+      "ntee_code": "C30",
+      "ntee_label": "Natural Resources Conservation and Protection",
+      "subsection": "501(c)(3)",
+      "latest_filing_year_shown": 2016,
+      "latest_filing_type_shown": "Form 990-EZ",
+      "target_category_candidates": {
+        "organization_type": "Unknown",
+        "audience_focus": "Unknown",
+        "resilience": "Unknown",
+        "activity": "Unknown",
+        "action_category": "Conservation",
+        "climate_category": "Conservation",
+        "reach": "Unknown",
+        "verification": "Not Verified"
+      },
+      "notes": "The NTEE code supports conservation. The address and filing type do not establish audience, resilience strategy, activity, geographic reach, or project verification."
+    }
+  ]
+}
