@@ -6,6 +6,7 @@
     "source_url",
     "email",
     "phone",
+    "contact_page_url",
     "address",
     "city",
     "state",
