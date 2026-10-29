@@ -182,6 +182,24 @@ def make_address_key(properties: dict) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def _scatter_around(
+    latitude: float, longitude: float, seed: str, spread: float
+) -> tuple[float, float]:
+    """Return a stable point within `spread` degrees of (latitude, longitude).
+
+    Uses the same blake2b hash approach as state_fallback_coordinates so the
+    result is reproducible across pipeline runs.
+    """
+    digest = hashlib.blake2b(seed.encode("utf-8"), digest_size=16).digest()
+    angle_unit = int.from_bytes(digest[:8], "big") / (2**64 - 1)
+    radius_unit = int.from_bytes(digest[8:], "big") / (2**64 - 1)
+    angle = angle_unit * math.tau
+    radius = math.sqrt(radius_unit) * spread
+    latitude += math.sin(angle) * radius
+    longitude += math.cos(angle) * radius / max(math.cos(math.radians(latitude)), 0.35)
+    return round(longitude, 6), round(latitude, 6)
+
+
 def state_fallback_coordinates(state: str, seed: str) -> tuple[float, float] | None:
     """Return a stable state-level fallback point for an ungeocoded record.
 
@@ -192,16 +210,9 @@ def state_fallback_coordinates(state: str, seed: str) -> tuple[float, float] | N
     center = STATE_CENTERS.get(state)
     if center is None:
         return None
-    digest = hashlib.blake2b(seed.encode("utf-8"), digest_size=16).digest()
-    angle_unit = int.from_bytes(digest[:8], "big") / (2**64 - 1)
-    radius_unit = int.from_bytes(digest[8:], "big") / (2**64 - 1)
-    angle = angle_unit * math.tau
-    spread = STATE_SPREAD.get(state, 1.15)
-    radius = math.sqrt(radius_unit) * spread
     latitude, longitude = center
-    latitude += math.sin(angle) * radius
-    longitude += math.cos(angle) * radius / max(math.cos(math.radians(latitude)), 0.35)
-    return round(longitude, 6), round(latitude, 6)
+    spread = STATE_SPREAD.get(state, 1.15)
+    return _scatter_around(latitude, longitude, seed, spread)
 
 
 def apply_state_fallback(
@@ -222,15 +233,17 @@ def apply_state_fallback(
         city_coord = city_centroids.get((city, state_key))
         if city_coord:
             lat, lng = city_coord
-            lng_r, lat_r = round(lng, 6), round(lat, 6)
+            # Scatter slightly so multiple orgs in the same city don't stack.
+            # 0.025° ≈ 2.5 km — stays well within city limits.
+            lng_r, lat_r = _scatter_around(lat, lng, seed, spread=0.025)
             feature["geometry"] = {"type": "Point", "coordinates": [lng_r, lat_r]}
             properties["longitude"] = lng_r
             properties["latitude"] = lat_r
             properties["location_precision"] = "city_level_fallback"
             city_display = properties.get("city", city).title()
             properties["notes"] = (
-                f"Street address geocoding was unavailable; coordinates are the "
-                f"centroid of {city_display}, {state_key}."
+                f"Street address geocoding was unavailable; coordinates are within "
+                f"{city_display}, {state_key} but not the organization's exact location."
             )
             return True
 
