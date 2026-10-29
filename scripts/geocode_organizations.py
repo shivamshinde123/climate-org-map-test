@@ -16,10 +16,12 @@ import hashlib
 import io
 import json
 import math
+import re
 import time
 import urllib.error
 import urllib.request
 import uuid
+import zipfile
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -28,6 +30,10 @@ from typing import Iterable
 
 DEFAULT_ENDPOINT = (
     "https://geocoding.geo.census.gov/geocoder/locations/addressbatch"
+)
+GAZETTEER_URL = (
+    "https://www2.census.gov/geo/docs/maps-data/data/gazetteer/"
+    "2023_Gazetteer/2023_Gaz_place_national.zip"
 )
 USER_AGENT = "GCC-Climate-Organization-Map/0.1 (batch geocoding)"
 
@@ -87,6 +93,81 @@ class GeocodeResult:
     geocoded_at: str = ""
 
 
+def load_city_centroids(
+    cache_path: Path,
+) -> dict[tuple[str, str], tuple[float, float]]:
+    """Return (CITY_UPPER, STATE) → (latitude, longitude) from the Census Gazetteer.
+
+    Downloads and caches on first use. Returns an empty dict when the download
+    fails so the pipeline degrades to state-level scatter instead of crashing.
+    """
+    if cache_path.exists():
+        centroids: dict[tuple[str, str], tuple[float, float]] = {}
+        with cache_path.open("r", encoding="utf-8", newline="") as fh:
+            for row in csv.DictReader(fh):
+                centroids[(row["city"], row["state"])] = (
+                    float(row["latitude"]),
+                    float(row["longitude"]),
+                )
+        return centroids
+
+    print("Downloading US city centroids (Census Gazetteer)...", flush=True)
+    try:
+        req = urllib.request.Request(GAZETTEER_URL, headers={"User-Agent": USER_AGENT})
+        with urllib.request.urlopen(req, timeout=90) as resp:
+            raw = resp.read()
+        with zipfile.ZipFile(io.BytesIO(raw)) as zf:
+            txt_name = next(n for n in zf.namelist() if n.endswith(".txt"))
+            content = zf.read(txt_name).decode("latin-1")
+    except Exception as exc:
+        print(
+            f"      Warning: city centroids unavailable ({exc}); state fallback will be used.",
+            flush=True,
+        )
+        return {}
+
+    # The Gazetteer header has trailing whitespace on the last column, which
+    # corrupts DictReader keys.  Strip every field name before parsing.
+    lines = content.splitlines()
+    if not lines:
+        return {}
+    fieldnames = [f.strip() for f in lines[0].split("\t")]
+    body_text = "\n".join(lines[1:])
+
+    # LSAD type suffixes appended to NAME (e.g. "Beverly city", "Abanda CDP").
+    # We strip the most common ones so "BEVERLY CITY" matches as "BEVERLY".
+    _PLACE_SUFFIXES = re.compile(
+        r"\s+(city|town|village|borough|township|cdp|municipality"
+        r"|plantation|gore|grant|location|reservation|district)$",
+        re.IGNORECASE,
+    )
+
+    centroids = {}
+    for row in csv.DictReader(io.StringIO(body_text), fieldnames=fieldnames, delimiter="\t"):
+        state = row.get("USPS", "").strip().upper()
+        raw_name = row.get("NAME", "").strip()
+        name = _PLACE_SUFFIXES.sub("", raw_name).strip().upper()
+        try:
+            lat = float(row.get("INTPTLAT", "").strip())
+            lng = float(row.get("INTPTLONG", "").strip())
+        except (ValueError, AttributeError):
+            continue
+        if state and name:
+            # Keep the first entry when a name appears more than once in a state
+            # (e.g. there may be an "incorporated" and a "CDP" variant — we
+            # prefer whichever comes first alphabetically in the file).
+            centroids.setdefault((name, state), (lat, lng))
+
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    with cache_path.open("w", encoding="utf-8", newline="") as fh:
+        writer = csv.DictWriter(fh, fieldnames=["city", "state", "latitude", "longitude"])
+        writer.writeheader()
+        for (city, state), (lat, lng) in sorted(centroids.items()):
+            writer.writerow({"city": city, "state": state, "latitude": lat, "longitude": lng})
+    print(f"      Cached {len(centroids):,} city centroids.", flush=True)
+    return centroids
+
+
 def normalized_address(properties: dict) -> tuple[str, str, str, str]:
     """Return normalized street, city, state, and ZIP values for matching."""
     return tuple(
@@ -123,10 +204,36 @@ def state_fallback_coordinates(state: str, seed: str) -> tuple[float, float] | N
     return round(longitude, 6), round(latitude, 6)
 
 
-def apply_state_fallback(feature: dict) -> bool:
-    """Apply labeled fallback geometry, or clear geometry for an unknown state."""
+def apply_state_fallback(
+    feature: dict,
+    city_centroids: dict[tuple[str, str], tuple[float, float]] | None = None,
+) -> bool:
+    """Apply labeled fallback geometry, preferring a city centroid when available.
+
+    Tries (in order): city centroid from the Census Gazetteer, deterministic
+    state-level scatter, then null geometry for completely unknown states.
+    """
     properties = feature["properties"]
     seed = str(properties.get("source_id") or properties.get("id") or properties.get("name"))
+
+    city = str(properties.get("city", "")).strip().upper()
+    state_key = str(properties.get("state", "")).strip().upper()
+    if city_centroids and city and state_key:
+        city_coord = city_centroids.get((city, state_key))
+        if city_coord:
+            lat, lng = city_coord
+            lng_r, lat_r = round(lng, 6), round(lat, 6)
+            feature["geometry"] = {"type": "Point", "coordinates": [lng_r, lat_r]}
+            properties["longitude"] = lng_r
+            properties["latitude"] = lat_r
+            properties["location_precision"] = "city_level_fallback"
+            city_display = properties.get("city", city).title()
+            properties["notes"] = (
+                f"Street address geocoding was unavailable; coordinates are the "
+                f"centroid of {city_display}, {state_key}."
+            )
+            return True
+
     coordinates = state_fallback_coordinates(str(properties.get("state", "")), seed)
     if coordinates is None:
         feature["geometry"] = None
@@ -349,8 +456,10 @@ def geocode_dataset(
         save_cache(cache_path, cache)
         print(f"Cached {len(cache):,} total geocoding results", flush=True)
 
+    city_centroids = load_city_centroids(cache_path.parent / "city_centroids.csv")
+
     # Resolve every feature through the same precedence chain: current cached
-    # Census result first, then a clearly labeled state-level fallback.
+    # Census result first, then city centroid, then state-level scatter.
     matched = 0
     unmatched = 0
     fallbacks = 0
@@ -359,19 +468,20 @@ def geocode_dataset(
         result = cache.get(properties["id"])
         if result is None or result.address_key != make_address_key(properties):
             properties.setdefault("geocoding_status", "Not_Submitted")
-            if apply_state_fallback(feature):
+            if apply_state_fallback(feature, city_centroids):
                 fallbacks += 1
         elif apply_result(feature, result):
             matched += 1
         else:
             unmatched += 1
-            if apply_state_fallback(feature):
+            if apply_state_fallback(feature, city_centroids):
                 fallbacks += 1
 
     metadata = payload.setdefault("metadata", {})
     metadata["location_notice"] = (
         "Coordinates were assigned by geocode_organizations.py. Census address-range "
-        "matches are preferred; remaining points are labeled state-level fallbacks."
+        "matches are preferred; organizations without a usable street address fall back "
+        "to their city centroid, and finally to a deterministic state-level scatter point."
     )
     metadata["geocoding"] = {
         "provider": "US Census Geocoder",

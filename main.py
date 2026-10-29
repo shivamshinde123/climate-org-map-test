@@ -228,7 +228,7 @@ def dataset_has_complete_coordinates(path: Path) -> bool:
     return bool(features) and all(
         (feature.get("geometry") or {}).get("type") == "Point"
         and feature.get("properties", {}).get("location_precision")
-        in {"census_address_range", "state_level_fallback"}
+        in {"census_address_range", "city_level_fallback", "state_level_fallback"}
         for feature in features
     )
 
