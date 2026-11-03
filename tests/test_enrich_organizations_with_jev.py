@@ -9,6 +9,7 @@ from scripts.enrich_organizations_with_jev import (
     CLASSIFICATION_FIELDS,
     apply_enrichment,
     enrich_geojson,
+    extract_chat_output,
     jev_request_payload,
     website_discovery_payload,
 )
@@ -66,12 +67,21 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
             },
         }
 
-    def test_discovery_uses_openai_web_search_and_structured_output(self):
+    def test_discovery_uses_openrouter_web_search_and_structured_output(self):
         """Discovery requests web search and a strict machine-readable response."""
         payload = website_discovery_payload(self.properties, "search-model")
-        self.assertEqual(payload["tools"], [{"type": "web_search", "search_context_size": "medium"}])
-        self.assertTrue(payload["text"]["format"]["strict"])
-        self.assertIn("New Hampshire Climate Action Network", payload["input"])
+        self.assertEqual(payload["plugins"], [{"id": "web"}])
+        self.assertTrue(payload["response_format"]["json_schema"]["strict"])
+        self.assertIn("New Hampshire Climate Action Network", payload["messages"][1]["content"])
+
+    def test_extract_chat_output_decodes_json_and_rejects_refusals(self):
+        """Chat completion content is parsed; refusals and empty replies raise."""
+        reply = {"choices": [{"message": {"content": json.dumps(self.discovery)}}]}
+        self.assertEqual(extract_chat_output(reply), self.discovery)
+        with self.assertRaises(RuntimeError):
+            extract_chat_output({"choices": [{"message": {"refusal": "no"}}]})
+        with self.assertRaises(RuntimeError):
+            extract_chat_output({"choices": []})
 
     def test_jev_receives_all_schema_filters_in_one_request(self):
         """All eight category decisions share one evidence state and API call."""
@@ -119,14 +129,14 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
             source.write_text(json.dumps(collection), encoding="utf-8")
             no_contacts = lambda *_: {"email": "", "phone": "", "contact_page_url": ""}
             stats = enrich_geojson(
-                source, output, "openai-key", "openrouter-key",
+                source, output, "openrouter-key",
                 discovery_cache, jev_cache,
                 discovery_caller=discover, jev_caller=decide,
                 contact_caller=no_contacts,
             )
             self.assertEqual(stats["classified"], 1)
             stats = enrich_geojson(
-                output, output, "openai-key", "openrouter-key",
+                output, output, "openrouter-key",
                 discovery_cache, jev_cache,
                 discovery_caller=discover, jev_caller=decide,
                 contact_caller=no_contacts,

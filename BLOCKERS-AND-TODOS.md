@@ -17,27 +17,26 @@ verified records, or production-scale operation.
 
 ### 1. Street-level location accuracy
 
-**Status:** Blocked pending live Census geocoding.
+**Status:** Mostly resolved (2026-11-03 full Census run).
 
 Current dataset evidence:
 
 - 20,577 total organization records.
-- 0 Census address-range matches.
-- 20,577 deterministic state-level fallback points.
-- No `Data/Geocoding/census_geocodes.csv` cache exists yet.
-
-The source street, city, state, and ZIP fields are present, but the displayed
-points are currently approximate state-level placements rather than organization
-street locations.
+- 14,380 Census address-range matches.
+- 4,815 ZIP-centroid and 1,139 city-centroid fallback points (scatter ≤ 0.005°).
+- 243 records with no map point (PO-box ZIPs plus city names that miss the
+  Census list, e.g. IRS's 13-character truncations like `SALT LAKE CTY`).
+- The state-level fallback was removed: it put pins up to ~100 km from the
+  organization, including in the sea.
 
 Remaining work:
 
-- [ ] Run a small live Census geocoding pilot.
+- [x] Run Census geocoding for the complete dataset.
 - [ ] Review match and non-match quality manually.
 - [ ] Confirm that address changes invalidate cached results correctly.
-- [ ] Run Census geocoding for the complete dataset after pilot approval.
-- [ ] Review the remaining fallback locations and determine whether another
-      approved geocoding source is needed.
+- [ ] Recover the 243 no-point records with city-name normalization
+      (`CTY`→`CITY`, `SPGS`→`SPRINGS`, `ST`↔`SAINT`) and a short alias list
+      (e.g. Boise → Boise City).
 
 Suggested pilot command:
 
@@ -51,7 +50,7 @@ python main.py --use-census --limit 100 --no-serve
 
 The full three-stage enrichment pipeline is implemented and unit-tested:
 - **Brave Search** (primary) — `scripts/website_discovery.py`; scores results by name, city, state, and `.org` domain; accepts matches ≥ 0.5 confidence.
-- **OpenAI web search** (fallback) — called only when Brave returns no confident match or `BRAVE_API_KEY` is absent.
+- **OpenRouter web search** (fallback) — called only when Brave returns no confident match or `BRAVE_API_KEY` is absent.
 - **Deterministic crawler** — checks `robots.txt`, fetches homepage + contact page, extracts `email`, `phone`, `contact_page_url`.
 - **Jev classification** — all eight schema fields in one OpenRouter Decisions API call.
 
@@ -63,8 +62,8 @@ Current dataset evidence:
 
 Remaining work:
 
-- [ ] Populate `BRAVE_API_KEY`, `OPENAI_API_KEY`, and `OPENROUTER_API_KEY` in `.env`.
-- [ ] Confirm the configured OpenAI search model supports web search.
+- [ ] Populate `BRAVE_API_KEY` and `OPENROUTER_API_KEY` in `.env`.
+- [ ] Confirm the configured `SEARCH_MODEL` supports OpenRouter's `web` plugin with strict `json_schema` output.
 - [ ] Confirm `typesafe/jev-1.13` is accessible through the OpenRouter Decisions endpoint.
 - [ ] Run a 10-record paid enrichment pilot.
 - [ ] Review Brave identity matches, crawled contacts, evidence, summaries, and all eight schema classifications.
@@ -178,7 +177,7 @@ than an application database.
 
 ### 9. Testing and operational readiness
 
-- [ ] Add a live API smoke test for OpenAI website discovery.
+- [ ] Add a live API smoke test for OpenRouter website discovery.
 - [ ] Add a live API smoke test for Jev through OpenRouter.
 - [ ] Add a controlled Census geocoding integration test.
 - [ ] Add browser tests for filtering, clusters, popup scrolling, website links,
@@ -213,7 +212,7 @@ than an application database.
 - [x] Client-side search and schema-aligned filters.
 - [x] Clustered markers and organization tooltips.
 - [x] Optional website, summary, email, phone, and verification-link tooltip support.
-- [x] Brave Search primary discovery with OpenAI fallback.
+- [x] Brave Search primary discovery with OpenRouter web-search fallback.
 - [x] Deterministic contact crawler (email, phone, contact page) respecting robots.txt.
 - [x] Incremental cache and skip logic in the enrichment implementation.
 - [x] One orchestration entry point in `main.py`.

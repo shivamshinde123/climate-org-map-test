@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20260927-7";
+const ASSET_VERSION = "20261103-1";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -372,7 +372,8 @@ async function start() {
         uniqueCanonicalOptions(definition.field, definition.options),
       ]),
     );
-    allFeatures = data.features ?? [];
+    // Records without a ZIP or city match carry null geometry and cannot be shown.
+    allFeatures = (data.features ?? []).filter((feature) => feature.geometry);
     // Canonicalize records once at startup so filtering remains a cheap equality
     // comparison on every keystroke or select change.
     schema.filters.forEach(({ field }) => {

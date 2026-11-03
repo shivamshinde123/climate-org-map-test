@@ -16,10 +16,10 @@ Future geocoding, map-tile, CRM, and third-party source credentials must be supp
 
 ## Website discovery and Jev classification
 
-- `BRAVE_API_KEY`: optional but strongly recommended. Enables Brave Search as the primary website-discovery path, which is faster and cheaper than OpenAI for clear-match cases. When absent, every record falls through to the OpenAI path. Get a key at https://brave.com/search/api/.
-- `OPENAI_API_KEY`: required. Used as the fallback website-discovery path when Brave returns no confident match, and for any record processed without a Brave key.
-- `OPENROUTER_API_KEY`: required for Jev classification through OpenRouter's Decisions API.
-- `OPENAI_MODEL`: optional website-search model override; defaults to `gpt-5.4-mini`.
+- `BRAVE_API_KEY`: optional but strongly recommended. Enables Brave Search as the primary website-discovery path, which is faster and cheaper than LLM web search for clear-match cases. When absent, every record falls through to the OpenRouter web-search path. Get a key at https://brave.com/search/api/.
+- `OPENROUTER_API_KEY`: required. The only LLM key: used for fallback web-search discovery and contact extraction (Chat Completions + `web` plugin) and for Jev classification (Decisions API).
+- `SEARCH_MODEL`: optional website-search model override; defaults to `openai/gpt-5.4-mini` (an OpenRouter model ID).
+- `SEARCH_BASE_URL`: optional chat-completions override; defaults to `https://openrouter.ai/api/v1/chat/completions`.
 - `JEV_MODEL`: optional Jev override; defaults to the pinned `typesafe/jev-1.13` model.
 - `JEV_BASE_URL`: optional Decisions API override; defaults to `https://openrouter.ai/api/alpha/decisions`.
 

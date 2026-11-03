@@ -23,15 +23,15 @@ flowchart LR
         Geocode["geocode_organizations.py"]
         GeoCache[(Census geocode cache)]
         Census["U.S. Census batch geocoder"]
-        Fallback["Deterministic state-level fallback"]
+        Fallback["ZIP / city centroid fallback"]
     end
 
     subgraph Enrich["4. Optional AI enrichment: --enrich-with-jev"]
         BraveSearch["Brave Search<br/>primary website discovery"]
-        Discovery["OpenAI web search<br/>fallback for low-confidence cases"]
+        Discovery["OpenRouter web search<br/>fallback for low-confidence cases"]
         DiscoveryCache[(Website discovery cache)]
         Crawl["Deterministic crawler<br/>email, phone, contact page"]
-        ContactFallback["OpenAI web search<br/>contact fallback when site blocked"]
+        ContactFallback["OpenRouter web search<br/>contact fallback when site blocked"]
         Jev["System One Jev via OpenRouter<br/>all 8 schema choices in one request"]
         JevCache[(Jev classification cache)]
     end
@@ -112,9 +112,9 @@ and Jev classification unless their inputs or version keys change.
 
 1. Identify an organization using its name, IRS address, location, EIN, and NTEE context.
 2. If a `BRAVE_API_KEY` is configured, query Brave Search with the organization name, city, state, and `nonprofit`. Score each result by name-word overlap, city/state match, and `.org` domain signal. Accept the top result when its score is ≥ 0.5; return it as a discovery dict.
-3. If Brave returns no confident match (or is not configured), call the OpenAI Responses API with web search to find the official website and return a structured summary, evidence text, supporting URLs, match confidence, and match status.
+3. If Brave returns no confident match (or is not configured), call OpenRouter chat completions with the `web` plugin to find the official website and return a structured summary, evidence text, supporting URLs, match confidence, and match status.
 4. Cache the discovery result by immutable organization identity, prompt version, and search model, and mark the record with those versions.
-5. When an official site is found, run the deterministic crawler: check `robots.txt`, fetch the homepage, extract `email` and `phone` from `mailto:` and `tel:` links (falling back to regex), and find a same-domain contact page link. If a contact page is found and robots-allowed, crawl it and fill any blank contact fields from it. If the crawler was blocked by `robots.txt` or the site was unreachable (`accessible=False`), call the OpenAI Responses API as a contact-extraction fallback — it may surface contact details from its cached index.
+5. When an official site is found, run the deterministic crawler: check `robots.txt`, fetch the homepage, extract `email` and `phone` from `mailto:` and `tel:` links (falling back to regex), and find a same-domain contact page link. If a contact page is found and robots-allowed, crawl it and fill any blank contact fields from it. If the crawler was blocked by `robots.txt` or the site was unreachable (`accessible=False`), call OpenRouter web search as a contact-extraction fallback — it may surface contact details from its cached index.
 6. Pass the organization identity and extracted website evidence to OpenRouter's Decisions API.
 7. Ask `typesafe/jev-1.13` all eight schema questions as independent `choice` decisions over one shared state and one API request.
 8. Validate every Jev choice against the controlled schema, persist the probability distributions and request metadata, and update the public filter fields.
@@ -142,7 +142,7 @@ and Jev classification unless their inputs or version keys change.
 3. Unless `--fallback-only` is active, select uncached complete addresses and submit batches of up to 5,000 to the official U.S. Census Geocoder.
 4. Persist each submitted batch immediately, including non-matches.
 5. Assign Census address-range geometry to matched records.
-6. Generate labeled deterministic state-level fallback geometry for all remaining records with supported states.
+6. Place remaining records near their ZIP centroid, else their city centroid (scatter ≤ 0.005°); records matching neither get null geometry and `location_precision=unavailable`.
 7. Write precision, provider, status, match type, normalized address, and timestamp metadata.
 
 ## Browser flow

@@ -19,7 +19,7 @@
 
 ## Coordinates
 
-The IRS builder assigns no coordinates. It emits `geometry=null`, empty latitude and longitude values, and `location_precision=ungeocoded`. Coordinate assignment is exclusively the responsibility of `geocode_organizations.py`. Census matches use `location_precision=census_address_range`; records requiring a map fallback use `location_precision=state_level_fallback` and remain `validated=false`.
+The IRS builder assigns no coordinates. It emits `geometry=null`, empty latitude and longitude values, and `location_precision=ungeocoded`. Coordinate assignment is exclusively the responsibility of `geocode_organizations.py`. Census matches use `location_precision=census_address_range`; records requiring a map fallback use `location_precision=zip_level_fallback` or `city_level_fallback`, or `unavailable` with null geometry when neither matches, and remain `validated=false`.
 
 ## Initial GCC classification
 
@@ -49,13 +49,13 @@ GeoJSON in `app/data/organizations.geojson`. The builder does not skip otherwise
 
 ## Geocoding
 
-The normalized `address`, `city`, `state`, and `postal_code` values are submitted to the U.S. Census batch geocoder only when the geocoding command is run without `--fallback-only`. Successful matches receive `location_precision=census_address_range`. Cached matches are reusable in either mode. Missing, unmatched, or unsubmitted addresses receive deterministic state-level geometry with `location_precision=state_level_fallback`. The cache prevents repeat submission of unchanged addresses.
+The normalized `address`, `city`, `state`, and `postal_code` values are submitted to the U.S. Census batch geocoder only when the geocoding command is run without `--fallback-only`. Successful matches receive `location_precision=census_address_range`. Cached matches are reusable in either mode. Missing, unmatched, or unsubmitted addresses are placed near their ZIP centroid, then city centroid, with a deterministic scatter of at most 0.005°; records matching neither receive null geometry. The cache prevents repeat submission of unchanged addresses.
 
 ## Future extraction
 
 Website enrichment must persist the accepted official URL in `website_url` and an evidence-based plain-text description in `summary`. Website discovery, page extraction, and schema classification are separate stages so each accepted URL and summary can retain source evidence. Cross-source matching and canonical merging remain TBD.
 
-The implemented enrichment stage uses OpenAI web search only for official-site identity resolution, evidence extraction, and summary generation. It must not produce the filter classifications. The evidence is supplied as shared state to Jev through OpenRouter, where all eight controlled fields are evaluated as `choice` questions in one Decisions API request. Jev choices, confidence values, complete probability distributions, served model version, provider, request ID, and question version are retained for audit. Both stages use content-addressed caches.
+The implemented enrichment stage uses OpenRouter web search only for official-site identity resolution, evidence extraction, and summary generation. It must not produce the filter classifications. The evidence is supplied as shared state to Jev through OpenRouter, where all eight controlled fields are evaluated as `choice` questions in one Decisions API request. Jev choices, confidence values, complete probability distributions, served model version, provider, request ID, and question version are retained for audit. Both stages use content-addressed caches.
 
 ## External source normalization
 

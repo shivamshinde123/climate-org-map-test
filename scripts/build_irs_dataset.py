@@ -363,7 +363,7 @@ def build_dataset(
             "selected_ntee_codes": sorted(selected_codes),
             "location_notice": (
                 "Records are emitted without geometry. Run geocode_organizations.py "
-                "to assign Census coordinates or state-level fallbacks."
+                "to assign Census coordinates or ZIP/city fallbacks."
             ),
         },
         "features": features,

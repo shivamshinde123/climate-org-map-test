@@ -12,7 +12,7 @@ main.py orchestration
         |
         +--> Census match or state fallback assignment
         |
-        +--> Brave Search / OpenAI discovery + deterministic contact crawling
+        +--> Brave Search / OpenRouter discovery + deterministic contact crawling
         |
         +--> Jev classification (OpenRouter Decisions API)
         |

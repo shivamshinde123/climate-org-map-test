@@ -12,10 +12,10 @@
 - GitHub Actions for CI/CD deployment.
 - GitHub Pages for static hosting (public site from a private repository).
 - Brave Search API for primary website discovery.
-- OpenAI Responses API (web search) for fallback website discovery when Brave returns no confident match.
+- OpenRouter Chat Completions API with the `web` plugin (`openai/gpt-5.4-mini`) for fallback website discovery and contact extraction when Brave returns no confident match.
 - OpenRouter Decisions API with `typesafe/jev-1.13` for structured eight-field schema classification.
 
 ## Rationale
 
-The build and enrichment paths have no package-install requirements beyond Python 3.10+. Brave Search is the cost-effective primary discovery path; OpenAI is reserved for ambiguous cases only. Jev handles all classification in a single structured API call so the search model never assigns filter values. GitHub Actions deploys the `app/` directory automatically on every push to `main` or `master`. A production backend, database, geocoder, tile provider, and deployment platform remain TBD.
+The build and enrichment paths have no package-install requirements beyond Python 3.10+. Brave Search is the cost-effective primary discovery path; LLM web search is reserved for ambiguous cases only, and every LLM call goes through one OpenRouter key. Jev handles all classification in a single structured API call so the search model never assigns filter values. GitHub Actions deploys the `app/` directory automatically on every push to `main` or `master`. A production backend, database, geocoder, tile provider, and deployment platform remain TBD.
 

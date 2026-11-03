@@ -6,7 +6,7 @@ The build command recursively discovers `eo_*.csv` below `Data/`, filters exact 
 
 Category-level classification is resolved by `scripts/category_crosswalk.py` from the versioned `Data/ProPublica/category-crosswalk.json`. The same resolver is used by IRS ingestion, ProPublica comparison, and the generic external adapter. It recognizes an explicit NTEE code, a code embedded in a category label, or an exact punctuation-insensitive NTEE label. Unknown source labels produce only `Unknown` target values. Each result carries the resolved code, mapping basis, and crosswalk version so source-to-target edges remain auditable.
 
-`geocode_organizations.py` owns all coordinate assignment. It applies cached or live U.S. Census address-range matches when available, then generates a deterministic state-level fallback for every remaining supported U.S. state record. Fallbacks are marked `state_level_fallback`; Census matches are marked `census_address_range`. The `--fallback-only` mode skips external requests while still producing a usable map.
+`geocode_organizations.py` owns all coordinate assignment. It applies cached or live U.S. Census address-range matches when available, then places remaining records near their ZIP centroid (`zip_level_fallback`) or city centroid (`city_level_fallback`); records matching neither get no point (`unavailable`); Census matches are marked `census_address_range`. The `--fallback-only` mode skips external requests while still producing a usable map.
 
 ## Frontend
 

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Enrich organizations through website research and Jev classification.
 
-The workflow deliberately separates two different responsibilities. OpenAI web
-search finds the official organization website and returns source-grounded facts;
+The workflow deliberately separates two different responsibilities. A web-search
+model (via OpenRouter's web plugin) finds the official organization website and
+returns source-grounded facts;
 it is instructed not to choose project categories. The System One Jev model,
 called through OpenRouter's Decisions API, then assigns all schema categories in
 one request. Versioned caches and per-record completion checks make repeated runs
@@ -33,9 +34,9 @@ except ImportError:  # Allows direct execution from the repository root.
     from website_discovery import brave_discover, crawl_for_contacts  # type: ignore
 
 
-OPENAI_ENDPOINT = "https://api.openai.com/v1/responses"
+OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
-DEFAULT_SEARCH_MODEL = "gpt-5.4-mini"
+DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-mini"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
 DISCOVERY_VERSION = "gcc-website-discovery-v1"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
@@ -135,6 +136,23 @@ def discovery_schema() -> dict:
     }
 
 
+def web_search_payload(model: str, instructions: str, identity: dict, schema_name: str, schema: dict, context_size: str) -> dict:
+    """Build an OpenRouter chat request with live web search and strict JSON output."""
+    return {
+        "model": model,
+        "plugins": [{"id": "web"}],
+        "web_search_options": {"search_context_size": context_size},
+        "messages": [
+            {"role": "system", "content": instructions},
+            {"role": "user", "content": json.dumps(identity, ensure_ascii=False, separators=(",", ":"))},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+        },
+    }
+
+
 def website_discovery_payload(properties: dict, model: str) -> dict:
     """Build a web-search request using the record's available identity signals.
 
@@ -151,11 +169,9 @@ def website_discovery_payload(properties: dict, model: str) -> dict:
         "ein": properties.get("source_id", ""),
         "ntee_label": properties.get("ntee_label", ""),
     }
-    return {
-        "model": model,
-        "store": False,
-        "tools": [{"type": "web_search", "search_context_size": "medium"}],
-        "instructions": (
+    return web_search_payload(
+        model,
+        (
             "Find the official website for the identified organization and collect factual "
             "information about its mission, programs, audience, activities, subject areas, "
             "and geographic reach. Match identity using name and location; do not choose a "
@@ -164,20 +180,15 @@ def website_discovery_payload(properties: dict, model: str) -> dict:
             "summary grounded in the sources. Put the relevant extracted facts in evidence and "
             "include every supporting URL. Do not infer GCC categories in this stage."
         ),
-        "input": json.dumps(identity, ensure_ascii=False, separators=(",", ":")),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "organization_website_discovery",
-                "strict": True,
-                "schema": discovery_schema(),
-            }
-        },
-    }
+        identity,
+        "organization_website_discovery",
+        discovery_schema(),
+        "medium",
+    )
 
 
 def contact_schema() -> dict:
-    """Return the structured-output contract for OpenAI contact extraction."""
+    """Return the structured-output contract for web-search contact extraction."""
     return {
         "type": "object",
         "properties": {
@@ -191,7 +202,7 @@ def contact_schema() -> dict:
 
 
 def contact_search_payload(properties: dict, website_url: str, model: str) -> dict:
-    """Build an OpenAI web-search request to find public contact details.
+    """Build a web-search request to find public contact details.
 
     Used only when the deterministic crawler was blocked or unreachable.
     """
@@ -201,27 +212,20 @@ def contact_search_payload(properties: dict, website_url: str, model: str) -> di
         "state": properties.get("state", ""),
         "website": website_url,
     }
-    return {
-        "model": model,
-        "store": False,
-        "tools": [{"type": "web_search", "search_context_size": "low"}],
-        "instructions": (
+    return web_search_payload(
+        model,
+        (
             "Find the public organizational email address, phone number, and contact page URL "
             "for the identified nonprofit organization from its official website. "
             "Return only general organizational contacts such as info@, contact@, or office@. "
             "Do not return named staff personal addresses or direct personal phone numbers. "
             "Return empty strings for any field not confirmed on the official site."
         ),
-        "input": json.dumps(identity, ensure_ascii=False, separators=(",", ":")),
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "organization_contact_details",
-                "strict": True,
-                "schema": contact_schema(),
-            }
-        },
-    }
+        identity,
+        "organization_contact_details",
+        contact_schema(),
+        "low",
+    )
 
 
 def valid_http_url(value: object) -> bool:
@@ -295,44 +299,20 @@ def jev_request_payload(properties: dict, discovery: dict, model: str) -> dict:
     }
 
 
-def extract_openai_output(response: dict) -> dict:
-    """Extract and decode the structured JSON result from an OpenAI response."""
-    for item in response.get("output", []):
-        if item.get("type") != "message":
-            continue
-        for content in item.get("content", []):
-            if content.get("type") == "output_text" and content.get("text"):
-                return json.loads(content["text"])
-            if content.get("type") == "refusal":
-                raise RuntimeError(f"Website-search model refused: {content.get('refusal', '')}")
-    raise RuntimeError("OpenAI website-search response did not contain output text")
+def extract_chat_output(response: dict) -> dict:
+    """Extract and decode the structured JSON result from a chat completion."""
+    choices = response.get("choices") or []
+    message = choices[0].get("message", {}) if choices else {}
+    if message.get("refusal"):
+        raise RuntimeError(f"Website-search model refused: {message['refusal']}")
+    if not message.get("content"):
+        raise RuntimeError("Website-search response did not contain output text")
+    return json.loads(message["content"])
 
 
-def call_openai(payload: dict, api_key: str, endpoint: str, retries: int = 3) -> dict:
-    """Call website discovery with exponential backoff for transient failures."""
-    request = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        method="POST",
-        headers={
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-            "User-Agent": "GCC-Climate-Organization-Map/0.1",
-        },
-    )
-    for attempt in range(1, retries + 1):
-        try:
-            with urllib.request.urlopen(request, timeout=180) as response:
-                return extract_openai_output(json.loads(response.read().decode("utf-8")))
-        except urllib.error.HTTPError as error:
-            details = error.read().decode("utf-8", errors="replace")
-            if attempt == retries or error.code < 500 and error.code != 429:
-                raise RuntimeError(f"OpenAI website-search API error {error.code}: {details}") from error
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
-            if attempt == retries:
-                raise RuntimeError("OpenAI website-search request failed") from error
-        time.sleep(2**attempt)
-    raise RuntimeError("Unreachable OpenAI retry state")
+def call_web_search(payload: dict, api_key: str, endpoint: str) -> dict:
+    """Run a web-search chat request through OpenRouter and decode its JSON."""
+    return extract_chat_output(post_json(payload, api_key, endpoint))
 
 
 def post_json(
@@ -341,7 +321,7 @@ def post_json(
     endpoint: str,
     retries: int = 3,
 ) -> dict:
-    """Post a Jev decision request to OpenRouter with bounded retries."""
+    """Post a JSON request to OpenRouter with bounded retries."""
     request = urllib.request.Request(
         endpoint,
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -361,10 +341,10 @@ def post_json(
         except urllib.error.HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
             if attempt == retries or error.code < 500 and error.code != 429:
-                raise RuntimeError(f"OpenRouter Jev API error {error.code}: {details}") from error
+                raise RuntimeError(f"OpenRouter API error {error.code}: {details}") from error
         except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
             if attempt == retries:
-                raise RuntimeError("OpenRouter Jev request failed") from error
+                raise RuntimeError("OpenRouter request failed") from error
         time.sleep(2**attempt)
     raise RuntimeError("Unreachable OpenRouter retry state")
 
@@ -486,13 +466,12 @@ def write_geojson(path: Path, payload: dict) -> None:
 def enrich_geojson(
     input_path: Path,
     output_path: Path,
-    openai_key: str,
     openrouter_key: str,
     discovery_cache_path: Path,
     jev_cache_path: Path,
     search_model: str = DEFAULT_SEARCH_MODEL,
     jev_model: str = DEFAULT_JEV_MODEL,
-    openai_endpoint: str = OPENAI_ENDPOINT,
+    search_endpoint: str = OPENROUTER_CHAT_ENDPOINT,
     jev_endpoint: str = OPENROUTER_DECISIONS_ENDPOINT,
     limit: int | None = None,
     discovery_caller: Callable[[dict, str, str], dict] | None = None,
@@ -512,7 +491,7 @@ def enrich_geojson(
     features = payload.get("features", [])
     discovery_cache = load_cache(discovery_cache_path)
     jev_cache = load_cache(jev_cache_path)
-    search = discovery_caller or (lambda body, key, endpoint: call_openai(body, key, endpoint))
+    search = discovery_caller or call_web_search
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
     contact_search = contact_caller or search
     # Completion checks happen before limiting, which makes small resumable runs
@@ -545,12 +524,12 @@ def enrich_geojson(
             # change to any of them forces fresh evidence collection.
             discovery = discovery_cache.get(discovery_key)
             if discovery is None:
-                # Brave Search is the cost-effective primary path; OpenAI is the
-                # fallback when Brave returns None (no confident match found).
+                # Brave Search is the cost-effective primary path; LLM web search
+                # is the fallback when Brave returns None (no confident match found).
                 if brave_key:
                     discovery = brave_discover(properties, brave_key)
                 if discovery is None:
-                    discovery = search(website_discovery_payload(properties, search_model), openai_key, openai_endpoint)
+                    discovery = search(website_discovery_payload(properties, search_model), openrouter_key, search_endpoint)
                 validate_discovery(discovery)
                 discovery_cache[discovery_key] = discovery
                 append_cache(discovery_cache_path, discovery_key, discovery)
@@ -570,13 +549,13 @@ def enrich_geojson(
             properties["website_evidence_urls"] = discovery["source_urls"]
             # Crawl the accepted site for contact details.
             # When the crawler was blocked or the site unreachable, fall back to
-            # OpenAI web search, which may surface contacts from its cached index.
+            # LLM web search, which may surface contacts from its search index.
             contacts = crawl_for_contacts(discovery["website_url"])
             if not contacts["accessible"]:
                 try:
                     raw = contact_search(
                         contact_search_payload(properties, discovery["website_url"], search_model),
-                        openai_key, openai_endpoint,
+                        openrouter_key, search_endpoint,
                     )
                     contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
                 except Exception:
@@ -628,11 +607,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--output", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--limit", type=int)
-    parser.add_argument("--search-model", default=os.environ.get("OPENAI_MODEL", DEFAULT_SEARCH_MODEL))
+    parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
-    parser.add_argument("--openai-endpoint", default=os.environ.get("OPENAI_BASE_URL", OPENAI_ENDPOINT))
+    parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT))
     parser.add_argument("--jev-endpoint", default=os.environ.get("JEV_BASE_URL", OPENROUTER_DECISIONS_ENDPOINT))
-    parser.add_argument("--openai-api-key-env", default="OPENAI_API_KEY")
     parser.add_argument("--openrouter-api-key-env", default="OPENROUTER_API_KEY")
     parser.add_argument("--brave-api-key-env", default="BRAVE_API_KEY")
     parser.add_argument("--discovery-cache", type=Path, default=Path("Data/Website Enrichment/discovery-cache.jsonl"))
@@ -648,17 +626,14 @@ def main() -> None:
     """Load local configuration, validate secrets, and run enrichment."""
     load_environment(PROJECT_ROOT / ".env")
     args = parse_args()
-    openai_key = os.environ.get(args.openai_api_key_env)
     openrouter_key = os.environ.get(args.openrouter_api_key_env)
     brave_key = os.environ.get(args.brave_api_key_env)
-    if not openai_key:
-        raise SystemExit(f"Missing API key environment variable: {args.openai_api_key_env}")
     if not openrouter_key:
         raise SystemExit(f"Missing API key environment variable: {args.openrouter_api_key_env}")
     stats = enrich_geojson(
-        args.input, args.output, openai_key, openrouter_key,
+        args.input, args.output, openrouter_key,
         args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
-        args.openai_endpoint, args.jev_endpoint, args.limit,
+        args.search_endpoint, args.jev_endpoint, args.limit,
         fail_on_error=args.fail_on_error, brave_key=brave_key or None,
     )
     print(f"Organizations processed: {stats['processed']:,}")

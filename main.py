@@ -8,7 +8,7 @@ incremental: an existing dataset and completed coordinates are reused, while
 ``--rebuild`` explicitly opts into regenerating the IRS base.
 
 No API key is sent anywhere merely by starting the application.  Census calls
-require ``--use-census`` and paid OpenAI/OpenRouter calls require
+require ``--use-census`` and paid OpenRouter calls require
 ``--enrich-with-jev``.
 """
 
@@ -27,7 +27,7 @@ from scripts.load_environment import load_environment
 from scripts.enrich_organizations_with_jev import (
     DEFAULT_JEV_MODEL,
     DEFAULT_SEARCH_MODEL,
-    OPENAI_ENDPOINT,
+    OPENROUTER_CHAT_ENDPOINT,
     OPENROUTER_DECISIONS_ENDPOINT,
     enrich_geojson,
     write_geojson,
@@ -136,7 +136,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help=(
             "Submit uncached public IRS address fields to the U.S. Census Geocoder; "
-            "otherwise only cached matches and state-level fallbacks are used"
+            "otherwise only cached matches and ZIP/city fallbacks are used"
         ),
     )
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT, help=argparse.SUPPRESS)
@@ -144,16 +144,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--enrich-with-jev",
         action="store_true",
-        help="Discover websites with OpenAI web search, then classify all schema fields with Jev through OpenRouter",
+        help="Discover websites with web search, then classify all schema fields with Jev through OpenRouter",
     )
     parser.add_argument(
         "--enrichment-limit",
         type=int,
         help="Limit paid website-search and Jev enrichment calls for pilot runs",
     )
-    parser.add_argument("--search-model", default=os.environ.get("OPENAI_MODEL", DEFAULT_SEARCH_MODEL))
+    parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
-    parser.add_argument("--openai-endpoint", default=os.environ.get("OPENAI_BASE_URL", OPENAI_ENDPOINT), help=argparse.SUPPRESS)
+    parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT), help=argparse.SUPPRESS)
     parser.add_argument("--jev-endpoint", default=os.environ.get("JEV_BASE_URL", OPENROUTER_DECISIONS_ENDPOINT), help=argparse.SUPPRESS)
     parser.add_argument("--discovery-cache", type=Path, default=DEFAULT_DISCOVERY_CACHE, help=argparse.SUPPRESS)
     parser.add_argument("--jev-cache", type=Path, default=DEFAULT_JEV_CACHE, help=argparse.SUPPRESS)
@@ -183,7 +183,7 @@ def validate_map_dataset(path: Path) -> tuple[int, int, int]:
     The browser expects a non-empty FeatureCollection.  Null geometries are
     tolerated while inspecting individual records, but a published map must
     contain at least one valid Point.  The returned tuple is
-    ``(record_count, point_count, state_fallback_count)``.
+    ``(record_count, point_count, approximate_point_count)``.
     """
     payload = json.loads(path.read_text(encoding="utf-8"))
     if payload.get("type") != "FeatureCollection":
@@ -206,7 +206,7 @@ def validate_map_dataset(path: Path) -> tuple[int, int, int]:
         if not (-180 <= float(longitude) <= 180 and -90 <= float(latitude) <= 90):
             raise ValueError(f"Invalid coordinates: {coordinates}")
         points += 1
-        if feature.get("properties", {}).get("location_precision") == "state_level_fallback":
+        if feature.get("properties", {}).get("location_precision") in {"zip_level_fallback", "city_level_fallback"}:
             fallbacks += 1
 
     if points == 0:
@@ -215,22 +215,27 @@ def validate_map_dataset(path: Path) -> tuple[int, int, int]:
 
 
 def dataset_has_complete_coordinates(path: Path) -> bool:
-    """Return whether every feature already has a supported coordinate type.
+    """Return whether every feature already has a final coordinate outcome.
 
     This inexpensive check is what lets ordinary runs skip the geocoder.  An
-    explicit ``--use-census`` still re-enters geocoding so state fallbacks can be
-    upgraded to address-range matches.
+    explicit ``--use-census`` still re-enters geocoding so fallbacks can be
+    upgraded to address-range matches. ``unavailable`` is final: neither a ZIP
+    nor a city centroid matched, so the record has no point.
     """
     if not path.exists():
         return False
     payload = json.loads(path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
-    return bool(features) and all(
-        (feature.get("geometry") or {}).get("type") == "Point"
-        and feature.get("properties", {}).get("location_precision")
-        in {"census_address_range", "city_level_fallback", "state_level_fallback"}
-        for feature in features
-    )
+
+    def resolved(feature: dict) -> bool:
+        precision = feature.get("properties", {}).get("location_precision")
+        if precision == "unavailable":
+            return True
+        return (feature.get("geometry") or {}).get("type") == "Point" and precision in {
+            "census_address_range", "zip_level_fallback", "city_level_fallback",
+        }
+
+    return bool(features) and all(resolved(feature) for feature in features)
 
 
 def run_pipeline(args: argparse.Namespace) -> None:
@@ -248,7 +253,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
     else:
         print(f"[1/{phase_count}] Reusing existing dataset: {args.output}", flush=True)
 
-    mode = "Census geocoding with state fallback" if args.use_census else "cached coordinates and state fallback"
+    mode = "Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
     # Fallback-only coordinates are complete for map rendering.  Census mode is
     # nevertheless allowed to revisit them because it is an explicit upgrade.
     should_geocode = args.use_census or not dataset_has_complete_coordinates(args.output)
@@ -266,7 +271,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
         print(f"      New addresses submitted: {submitted:,}")
         print(f"      Census coordinates applied: {matched:,}")
         print(f"      Cached non-matches: {unmatched:,}")
-        print(f"      State-level fallbacks applied: {fallbacks:,}")
+        print(f"      ZIP/city fallbacks applied: {fallbacks:,}")
     else:
         print(f"[2/{phase_count}] Reusing existing coordinates", flush=True)
     if should_build:
@@ -279,13 +284,12 @@ def run_pipeline(args: argparse.Namespace) -> None:
         stats = enrich_geojson(
             args.output,
             args.output,
-            os.environ["OPENAI_API_KEY"],
             os.environ["OPENROUTER_API_KEY"],
             args.discovery_cache,
             args.jev_cache,
             args.search_model,
             args.jev_model,
-            args.openai_endpoint,
+            args.search_endpoint,
             args.jev_endpoint,
             args.enrichment_limit if args.enrichment_limit is not None else args.limit,
         )
@@ -299,7 +303,8 @@ def run_pipeline(args: argparse.Namespace) -> None:
     print(f"[{phase_count}/{phase_count}] Validating map dataset...", flush=True)
     records, points, fallback_points = validate_map_dataset(args.output)
     print(f"      Validated {records:,} records and {points:,} map points")
-    print(f"      State-level fallback points: {fallback_points:,}")
+    print(f"      Approximate ZIP/city points: {fallback_points:,}")
+    print(f"      Records without a map point: {records - points:,}")
 
 
 def serve_map(host: str, port: int) -> None:
@@ -321,7 +326,7 @@ def main() -> None:
     load_environment(PROJECT_ROOT / ".env")
     args = parse_args()
     if args.enrich_with_jev:
-        missing = [name for name in ("OPENAI_API_KEY", "OPENROUTER_API_KEY") if not os.environ.get(name)]
+        missing = [name for name in ("OPENROUTER_API_KEY",) if not os.environ.get(name)]
         if missing:
             raise SystemExit(f"Missing required environment variable(s): {', '.join(missing)}")
     run_pipeline(args)

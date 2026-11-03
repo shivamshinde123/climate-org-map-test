@@ -19,7 +19,7 @@ Build a working map from the IRS CSV files in `Data/`. The IRS data is a tempora
 - Ingest all supplied state IRS CSV files.
 - Select records using `Docs/Research and Requirements/NTEE_Codes_to_Consider.txt`.
 - Normalize records into a map-facing schema.
-- Clearly label IRS records as unverified and distinguish Census address-range coordinates from state-level fallback coordinates.
+- Clearly label IRS records as unverified and distinguish Census address-range coordinates from approximate ZIP/city fallback coordinates.
 - Search by name, address, city, state, and ZIP code.
 - Filter by state and NTEE code.
 - Provide the documented Organization Type, Audience Focus, Resilience, Activity, Action Category, Climate Categories, Reach, and Verification filters using the normalized schema.

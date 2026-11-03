@@ -12,14 +12,21 @@ class MainPipelineTests(unittest.TestCase):
     """Protect coordinate reuse and preservation of paid enrichment fields."""
 
     def test_complete_coordinates_are_reusable(self):
-        """A dataset with valid owned points does not require geocoding again."""
+        """Owned points and final no-point records do not require geocoding again."""
         collection = {
             "type": "FeatureCollection",
-            "features": [{
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [-71.5, 43.7]},
-                "properties": {"location_precision": "state_level_fallback"},
-            }],
+            "features": [
+                {
+                    "type": "Feature",
+                    "geometry": {"type": "Point", "coordinates": [-71.5, 43.7]},
+                    "properties": {"location_precision": "zip_level_fallback"},
+                },
+                {
+                    "type": "Feature",
+                    "geometry": None,
+                    "properties": {"location_precision": "unavailable"},
+                },
+            ],
         }
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "organizations.geojson"

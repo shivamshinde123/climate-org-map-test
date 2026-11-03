@@ -3,11 +3,10 @@
 import unittest
 
 from scripts.geocode_organizations import (
-    apply_state_fallback,
+    apply_fallback,
     apply_result,
     make_address_key,
     parse_batch_response,
-    state_fallback_coordinates,
 )
 
 
@@ -40,18 +39,26 @@ class GeocodeOrganizationTests(unittest.TestCase):
             make_address_key(other["properties"]),
         )
 
-    def test_state_fallback_is_deterministic_and_owned_by_geocoder(self):
-        """Fallbacks repeat exactly and advertise state-level precision."""
-        self.assertEqual(
-            state_fallback_coordinates("MA", "org_1"),
-            state_fallback_coordinates("MA", "org_1"),
-        )
-        self.assertIsNone(state_fallback_coordinates("XX", "org_1"))
-        self.assertTrue(apply_state_fallback(self.feature))
-        self.assertEqual(
-            self.feature["properties"]["location_precision"],
-            "state_level_fallback",
-        )
+    def test_fallback_prefers_zip_then_city_then_no_point(self):
+        """ZIP beats city, scatter stays tight and repeatable, and no match means no point."""
+        zips = {"20233": (38.846, -76.927)}
+        cities = {("WASHINGTON", "DC"): (38.9, -77.0)}
+
+        self.assertTrue(apply_fallback(self.feature, cities, zips))
+        self.assertEqual(self.feature["properties"]["location_precision"], "zip_level_fallback")
+        first = list(self.feature["geometry"]["coordinates"])
+        longitude, latitude = first
+        self.assertLess(abs(latitude - 38.846), 0.006)
+        self.assertLess(abs(longitude - -76.927), 0.006 / 0.7)
+        apply_fallback(self.feature, cities, zips)
+        self.assertEqual(self.feature["geometry"]["coordinates"], first)
+
+        self.assertTrue(apply_fallback(self.feature, cities, {}))
+        self.assertEqual(self.feature["properties"]["location_precision"], "city_level_fallback")
+
+        self.assertFalse(apply_fallback(self.feature, {}, {}))
+        self.assertIsNone(self.feature["geometry"])
+        self.assertEqual(self.feature["properties"]["location_precision"], "unavailable")
 
     def test_parse_and_apply_match(self):
         """A valid Census CSV row becomes Point geometry with provider metadata."""

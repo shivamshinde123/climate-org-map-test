@@ -27,9 +27,9 @@ Climate Org Mapping/
 |-- scripts/
 |   |-- build_irs_dataset.py          # IRS filter, normalize, stable IDs, provisional GCC fields
 |   |-- category_crosswalk.py         # shared NTEE→GCC resolver used by all ingestion scripts
-|   |-- geocode_organizations.py      # Census batch geocoding and state-level fallback
+|   |-- geocode_organizations.py      # Census batch geocoding and ZIP/city fallback
 |   |-- normalize_external_data_without_llm.py  # generic external-source adapter
-|   |-- enrich_organizations_with_jev.py         # Brave/OpenAI discovery + Jev classification
+|   |-- enrich_organizations_with_jev.py         # Brave/OpenRouter discovery + Jev classification
 |   |-- website_discovery.py          # Brave Search discovery and deterministic contact crawling
 |   `-- load_environment.py           # .env loader
 |-- tests/

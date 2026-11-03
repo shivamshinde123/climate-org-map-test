@@ -5,8 +5,8 @@
 - `main.py`: runs IRS ingestion, coordinate assignment, output validation, and the local map server in order.
 - `scripts/build_irs_dataset.py`: reads IRS files and emits normalized, ungeocoded GeoJSON with null geometry.
 - `scripts/category_crosswalk.py`: resolves IRS NTEE codes, ProPublica NTEE values, and equivalent external labels through one versioned source-to-GCC taxonomy.
-- `scripts/geocode_organizations.py`: owns coordinate assignment, applying cached or live Census matches and deterministic state-level fallbacks.
-- `scripts/enrich_organizations_with_jev.py`: discovers official websites with OpenAI web search, persists summaries and evidence, and sends all eight bounded schema decisions to Jev through OpenRouter in one request per organization.
+- `scripts/geocode_organizations.py`: owns coordinate assignment, applying cached or live Census matches and ZIP/city-centroid fallbacks.
+- `scripts/enrich_organizations_with_jev.py`: discovers official websites with OpenRouter web search, persists summaries and evidence, and sends all eight bounded schema decisions to Jev through OpenRouter in one request per organization.
 - `scripts/normalize_external_data_without_llm.py`: deterministically converts external CSV, JSON, or GeoJSON records into the GCC schema without an LLM.
 - `Data/ProPublica/category-crosswalk.json`: authoritative machine-readable mapping for category-level IRS, ProPublica, and equivalent external-source classifications.
 - `Docs/Research and Requirements/NTEE_Codes_to_Consider.txt`: filter configuration.
