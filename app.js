@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261105-3";
+const ASSET_VERSION = "20261106-1";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -162,14 +162,14 @@ function popupMarkup(properties) {
       ? `<div><dt>Phone:</dt><dd><a class="popup-link" href="tel:${escapeHtml(phoneDigits)}">${escapeHtml(phone)}</a></dd></div>`
       : "",
     contactUrl
-      ? `<div><dt>Contact:</dt><dd><a class="popup-link" href="${escapeHtml(contactUrl)}" target="_blank" rel="noopener noreferrer">Contact page</a></dd></div>`
+      ? `<div><dt>Contact:</dt><dd><a class="popup-link" href="${escapeHtml(contactUrl)}" target="_blank" rel="noopener noreferrer">Contact page →</a></dd></div>`
       : "",
   ].join("");
   const websiteAndSummary = websiteUrl || facebookUrl || summary || contactRows
     ? `
       <section class="popup-profile">
-        ${websiteUrl ? `<a class="popup-link" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}
-        ${facebookUrl ? `<a class="popup-link" href="${escapeHtml(facebookUrl)}" target="_blank" rel="noopener noreferrer">Facebook page</a>` : ""}
+        ${websiteUrl ? `<a class="popup-link" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website →</a>` : ""}
+        ${facebookUrl ? `<a class="popup-link" href="${escapeHtml(facebookUrl)}" target="_blank" rel="noopener noreferrer">Facebook page →</a>` : ""}
         ${summary ? `<p class="popup-summary">${escapeHtml(summary)}</p>` : ""}
         ${contactRows ? `<dl class="popup-fields">${contactRows}</dl>` : ""}
       </section>
@@ -188,7 +188,7 @@ function popupMarkup(properties) {
       <div><dt>Reach:</dt><dd>${escapeHtml(properties.gcc_reach || "Unknown")}</dd></div>
     </dl>
     ${websiteAndSummary}
-    <a class="popup-link popup-verify" href="${VERIFICATION_FORM_URL}" target="_blank" rel="noopener noreferrer">Click to claim and verify</a>
+    <a class="popup-link popup-verify" href="${VERIFICATION_FORM_URL}" target="_blank" rel="noopener noreferrer">Claim and verify this listing</a>
   `;
 }
 
@@ -312,7 +312,8 @@ function initializeMap(data) {
           id: "basemap",
           type: "raster",
           source: "basemap",
-          paint: { "raster-saturation": -0.78, "raster-opacity": 0.72, "raster-contrast": -0.08 },
+          // Fully neutral basemap: the palette allows no blues, reds or purples.
+          paint: { "raster-saturation": -1, "raster-opacity": 0.62, "raster-contrast": -0.12 },
         },
       ],
     },
@@ -337,10 +338,10 @@ function initializeMap(data) {
       source: "organizations",
       filter: ["has", "point_count"],
       paint: {
-        "circle-color": ["step", ["get", "point_count"], "#e8bd54", 100, "#6f8b62", 750, "#153d32"],
+        "circle-color": ["step", ["get", "point_count"], "#698e79", 100, "#1c3a13"],
         "circle-radius": ["step", ["get", "point_count"], 15, 100, 21, 750, 28],
         "circle-stroke-width": 2,
-        "circle-stroke-color": "#faf6eb",
+        "circle-stroke-color": "#fcfcf7",
       },
     });
 
@@ -354,7 +355,7 @@ function initializeMap(data) {
         "text-font": ["Open Sans Bold"],
         "text-size": 11,
       },
-      paint: { "text-color": "#faf6eb" },
+      paint: { "text-color": "#fcfcf7" },
     });
 
     map.addLayer({
@@ -363,10 +364,11 @@ function initializeMap(data) {
       source: "organizations",
       filter: ["!", ["has", "point_count"]],
       paint: {
-        "circle-color": "#f05a35",
-        "circle-radius": 5,
+        // Lime is reserved for small emphasis: single organizations.
+        "circle-color": "#d3fa99",
+        "circle-radius": 5.5,
         "circle-stroke-width": 1.5,
-        "circle-stroke-color": "#faf6eb",
+        "circle-stroke-color": "#1c3a13",
       },
     });
 

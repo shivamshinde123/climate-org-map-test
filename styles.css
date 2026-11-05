@@ -1,20 +1,21 @@
-/* Shared design tokens keep the paper-atlas palette and typography consistent. */
+/* Flat, editorial green system: hierarchy comes from color, weight and spacing,
+   never from shadows, gradients or decorative borders. */
 :root {
-  --paper: #f1eadb;
-  --paper-light: #faf6eb;
-  --ink: #153d32;
-  --ink-deep: #0b2a23;
-  --moss: #6f8b62;
-  --line: rgba(21, 61, 50, 0.22);
-  --signal: #f05a35;
-  --sun: #e8bd54;
-  --panel-width: min(430px, 38vw);
-  --display: Georgia, "Times New Roman", serif;
-  --body: "Trebuchet MS", "Gill Sans", sans-serif;
-  --mono: "Courier New", monospace;
+  --forest: #1c3a13;      /* primary text, buttons, dark surfaces */
+  --lime: #d3fa99;        /* badges and small emphasis only */
+  --eucalyptus: #698e79;  /* secondary accent */
+  --sage: #757c5d;
+  --pewter: #666666;      /* secondary text */
+  --ash: #b3b3b3;         /* muted borders, disabled */
+  --frost: #c4c7c4;
+  --stone: #eeeee9;       /* subtle panels, hover */
+  --snow: #fcfcf7;        /* canvas; pure white is never used */
+  --panel-width: min(440px, 38vw);
+  --sans: "Inter", "General Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  --pill: 1000px;
 }
 
-/* Predictable sizing prevents borders and padding from expanding fixed panels. */
 * { box-sizing: border-box; }
 
 html, body { height: 100%; }
@@ -22,14 +23,19 @@ html, body { height: 100%; }
 body {
   margin: 0;
   overflow: hidden;
-  color: var(--ink);
-  background: var(--paper);
-  font-family: var(--body);
+  color: var(--forest);
+  background: var(--snow);
+  font-family: var(--sans);
+  font-size: 16px;
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
 }
 
 button, input, select { font: inherit; }
 
-/* Two-column application shell: collapsible index panel plus fluid map canvas. */
+:focus-visible { outline: 1.5px solid var(--forest); outline-offset: 2px; }
+
+/* Two-column shell: collapsible index panel plus fluid map canvas. */
 .atlas-shell {
   position: relative;
   display: grid;
@@ -39,7 +45,6 @@ button, input, select { font: inherit; }
   transition: grid-template-columns 240ms cubic-bezier(.2,.7,.2,1);
 }
 
-/* The complete sidebar scrolls as one document when the viewport is short. */
 .atlas-panel {
   position: relative;
   z-index: 2;
@@ -47,17 +52,12 @@ button, input, select { font: inherit; }
   width: var(--panel-width);
   min-width: 0;
   flex-direction: column;
-  padding: 30px 28px 18px;
+  padding: 32px 24px 16px;
   overflow-x: hidden;
   overflow-y: auto;
-  background:
-    linear-gradient(90deg, transparent 27px, rgba(240, 90, 53, 0.28) 28px, transparent 29px),
-    repeating-linear-gradient(0deg, transparent 0 31px, rgba(21, 61, 50, 0.045) 31px 32px),
-    var(--paper);
-  border-right: 1px solid var(--ink);
-  box-shadow: 12px 0 30px rgba(11, 42, 35, 0.14);
+  background: var(--snow);
   transition: opacity 180ms ease, transform 240ms cubic-bezier(.2,.7,.2,1);
-  scrollbar-color: var(--moss) transparent;
+  scrollbar-color: var(--ash) transparent;
   scrollbar-width: thin;
 }
 
@@ -69,117 +69,117 @@ button, input, select { font: inherit; }
   transform: translateX(-100%);
 }
 
-/* The toggle straddles the panel edge and remains reachable after collapse. */
+/* The toggle straddles the panel edge and stays reachable after collapse. */
 .sidebar-toggle {
   position: absolute;
-  top: 22px;
-  left: calc(var(--panel-width) - 17px);
+  top: 24px;
+  left: calc(var(--panel-width) - 20px);
   z-index: 10;
   display: grid;
-  width: 34px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   padding: 0;
   place-items: center;
-  color: var(--paper-light);
-  background: var(--ink-deep);
-  border: 1px solid var(--paper-light);
-  border-radius: 0;
-  box-shadow: 3px 3px 0 rgba(240,90,53,.5);
+  color: var(--snow);
+  background: var(--forest);
+  border: 0;
+  border-radius: var(--pill);
   cursor: pointer;
   transition: left 240ms cubic-bezier(.2,.7,.2,1), background 160ms ease;
 }
 
-.sidebar-toggle:hover,
-.sidebar-toggle:focus-visible {
-  background: var(--signal);
-  outline: 2px solid var(--paper-light);
-  outline-offset: 2px;
-}
+.sidebar-toggle:hover { background: var(--eucalyptus); }
+.sidebar-toggle span { font-size: 1.5rem; font-weight: 300; line-height: 1; transform: translateY(-1px); }
+.atlas-shell.sidebar-collapsed .sidebar-toggle { left: 16px; }
 
-.sidebar-toggle span { font-family: var(--display); font-size: 1.65rem; line-height: 1; }
-.atlas-shell.sidebar-collapsed .sidebar-toggle { left: 14px; }
-
-/* Editorial masthead and shared small-cap labels establish the atlas hierarchy. */
-.masthead { padding-left: 14px; }
-
-.eyebrow,
-.section-label,
-label > span,
-footer {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
+/* Masthead */
+.masthead { padding-right: 24px; }
 
 .eyebrow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 15px;
+  gap: 8px;
+  margin-bottom: 24px;
+  color: var(--pewter);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .eyebrow span {
-  display: inline-grid;
-  width: 37px;
-  height: 23px;
-  place-items: center;
-  color: var(--paper-light);
-  background: var(--ink);
-  transform: rotate(-2deg);
+  padding: 4px 10px;
+  color: var(--forest);
+  background: var(--lime);
+  border-radius: var(--pill);
+  letter-spacing: 0.06em;
 }
 
 h1 {
   margin: 0;
-  color: var(--ink-deep);
-  font-family: var(--display);
-  font-size: clamp(2.65rem, 4.2vw, 4.35rem);
-  font-weight: 600;
-  line-height: 0.82;
-  letter-spacing: -0.055em;
+  color: var(--forest);
+  font-size: clamp(2.25rem, 3.2vw, 2.75rem);
+  font-weight: 300;
+  line-height: 1.02;
+  letter-spacing: -0.02em;
 }
 
-h1 em {
-  color: var(--signal);
-  font-weight: 400;
-}
+h1 em { color: var(--eucalyptus); font-style: normal; }
 
 .lede {
-  max-width: 31ch;
-  margin: 17px 0 22px;
-  font-family: var(--display);
-  font-size: 0.98rem;
-  line-height: 1.35;
+  max-width: 34ch;
+  margin: 16px 0 32px;
+  color: var(--pewter);
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Labels share one quiet style. */
+.section-label,
+label > span {
+  color: var(--pewter);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* Search and facet controls use native inputs for keyboard and mobile support. */
 .filters {
-  margin-left: 14px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--line);
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--stone);
 }
 
-.filters label { display: grid; gap: 7px; }
+.filters label { display: grid; gap: 8px; }
 
 input, select {
   width: 100%;
-  min-height: 42px;
-  padding: 9px 11px;
-  color: var(--ink-deep);
-  background: rgba(250, 246, 235, 0.7);
-  border: 1px solid var(--line);
-  border-radius: 0;
+  min-height: 44px;
+  padding: 10px 14px;
+  color: var(--forest);
+  background: var(--snow);
+  border: 1.5px solid var(--frost);
+  border-radius: 8px;
   outline: none;
+  transition: border-color 140ms ease;
 }
 
-input:focus, select:focus { border-color: var(--signal); box-shadow: 0 0 0 2px rgba(240,90,53,.15); }
-input::placeholder { color: rgba(21, 61, 50, 0.46); }
+select {
+  appearance: none;
+  padding-right: 36px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%231c3a13' stroke-width='1.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  cursor: pointer;
+}
+
+input:hover, select:hover { border-color: var(--ash); }
+input:focus, select:focus { border-color: var(--forest); }
+input::placeholder { color: var(--ash); }
 
 .filter-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 9px;
-  margin-top: 10px;
+  gap: 8px 8px;
+  margin-top: 16px;
 }
 
 .filter-row label > span {
@@ -188,152 +188,146 @@ input::placeholder { color: rgba(21, 61, 50, 0.46); }
   white-space: nowrap;
 }
 
-/* Less common schema facets are collapsible without removing them from the DOM. */
-.advanced-filters {
-  margin-top: 11px;
-  border-top: 1px solid var(--line);
-}
+/* Less common schema facets collapse without leaving the DOM. */
+.advanced-filters { margin-top: 24px; }
 
 .advanced-filters summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0 0;
-  font-family: var(--mono);
-  font-size: 0.67rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 500;
+  list-style: none;
   cursor: pointer;
 }
 
+.advanced-filters summary::-webkit-details-marker { display: none; }
+
 .advanced-filters summary span {
-  display: grid;
-  width: 20px;
-  height: 20px;
-  place-items: center;
-  color: var(--paper-light);
-  background: var(--ink);
-  border-radius: 50%;
+  min-width: 24px;
+  padding: 2px 8px;
+  color: var(--forest);
+  background: var(--lime);
+  border-radius: var(--pill);
+  font-size: 12px;
+  text-align: center;
 }
 
 .filter-availability {
   margin: 8px 0 0;
-  color: rgba(21, 61, 50, 0.68);
-  font-family: var(--mono);
-  font-size: 0.58rem;
-  line-height: 1.35;
+  color: var(--pewter);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
-select option:disabled { color: #938d80; }
+select option:disabled { color: var(--ash); }
 
-.schema-filter-grid {
-  padding-right: 4px;
-}
-
+/* Inverted light pill button. */
 .reset-button {
-  margin-top: 10px;
-  padding: 0;
-  color: var(--ink);
-  background: none;
-  border: 0;
-  border-bottom: 1px solid currentColor;
-  font-family: var(--mono);
-  font-size: 0.67rem;
-  text-transform: uppercase;
+  margin-top: 16px;
+  padding: 8px 18px;
+  color: var(--forest);
+  background: var(--snow);
+  border: 1.5px solid var(--forest);
+  border-radius: var(--pill);
+  font-size: 14px;
   cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
 }
+
+.reset-button:hover { color: var(--snow); background: var(--forest); }
 
 /* Result index stays bounded so it cannot push the footer beyond the panel. */
 .index-section {
   display: flex;
-  min-height: 0;
   flex: 0 0 auto;
   min-height: 320px;
   flex-direction: column;
-  margin: 16px 0 0 14px;
+  margin-top: 24px;
 }
 
 .index-heading {
   display: flex;
   align-items: end;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 9px;
+  gap: 16px;
+  margin-bottom: 8px;
 }
 
-.index-heading > div { display: grid; }
-.index-heading strong { font-family: var(--display); font-size: 1.8rem; line-height: 1; }
-.index-heading > span { padding-bottom: 2px; font-family: var(--mono); font-size: 0.62rem; text-align: right; }
+.index-heading > div { display: grid; gap: 2px; }
+.index-heading strong { font-size: 32px; font-weight: 300; line-height: 1.1; letter-spacing: -0.02em; }
+.index-heading > span { padding-bottom: 4px; color: var(--pewter); font-family: var(--mono); font-size: 12px; text-align: right; }
 
 .results {
   min-height: 0;
-  overflow-y: auto;
   max-height: 420px;
-  border-top: 1px solid var(--ink);
-  scrollbar-color: var(--moss) transparent;
+  overflow-y: auto;
+  scrollbar-color: var(--ash) transparent;
   scrollbar-width: thin;
 }
 
-/* Each result is a real button with a compact, scannable three-column layout. */
+/* Each result is a real button: code pill, name and place, arrow. */
 .result-card {
   display: grid;
-  grid-template-columns: 43px 1fr 18px;
-  gap: 9px;
+  grid-template-columns: auto 1fr 16px;
+  align-items: center;
+  gap: 12px;
   width: 100%;
-  padding: 11px 3px;
-  color: var(--ink);
+  padding: 12px 8px;
+  color: var(--forest);
   text-align: left;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--stone);
+  border-radius: 0;
   cursor: pointer;
-  transition: padding-left 160ms ease, background 160ms ease;
+  transition: background 140ms ease;
 }
 
 .result-card:hover, .result-card:focus-visible {
-  padding-left: 7px;
-  background: rgba(232, 189, 84, 0.16);
+  background: var(--stone);
+  border-radius: 8px;
   outline: none;
 }
 
-.result-code { font-family: var(--mono); font-size: 0.67rem; }
-.result-copy { display: grid; gap: 3px; min-width: 0; }
-.result-name { overflow: hidden; font-family: var(--display); font-size: 0.9rem; text-overflow: ellipsis; white-space: nowrap; }
-.result-location { overflow: hidden; font-size: 0.67rem; text-overflow: ellipsis; white-space: nowrap; opacity: 0.68; }
-.result-arrow { color: var(--signal); }
+/* Product-code pill. */
+.result-code {
+  padding: 3px 8px;
+  border: 1.5px solid var(--forest);
+  border-radius: var(--pill);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.015em;
+}
 
-.empty-state { padding: 24px 5px; font-family: var(--display); font-style: italic; line-height: 1.5; }
+.result-copy { display: grid; gap: 2px; min-width: 0; }
+.result-name { overflow: hidden; font-size: 15px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.result-location { overflow: hidden; color: var(--pewter); font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.result-arrow { color: var(--forest); transition: transform 140ms ease; }
+.result-card:hover .result-arrow { transform: translateX(3px); }
+
+.empty-state { padding: 24px 8px; color: var(--pewter); line-height: 1.5; }
 
 footer {
   display: flex;
   justify-content: space-between;
-  margin: 12px 0 0 14px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
-  font-size: 0.56rem;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--stone);
+  color: var(--pewter);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.015em;
 }
 
-/* Map stage owns a size container, allowing popups to respond to map height. */
-.map-stage { position: relative; min-width: 0; background: #bdd0bd; container-type: size; }
+/* Map stage owns a size container so popups can respond to map height. */
+.map-stage { position: relative; min-width: 0; background: var(--stone); container-type: size; }
 #map { position: absolute; inset: 0; }
-
-/* A pointer-transparent dot texture visually integrates raster tiles with paper. */
-.map-stage::after {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background-image: radial-gradient(rgba(11,42,35,.1) .7px, transparent .7px);
-  background-size: 5px 5px;
-  mix-blend-mode: multiply;
-  opacity: .22;
-}
-
 
 /* The popup may use nearly the full map height (app.js pans it into view);
    only profiles taller than that scroll inside it. */
 .maplibregl-popup-content {
-  width: min(300px, calc(100vw - 32px));
+  width: min(320px, calc(100vw - 32px));
   max-width: 100%;
   max-height: min(80vh, 640px);
   max-height: min(calc(100cqh - 40px), 640px);
@@ -342,13 +336,24 @@ footer {
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   -webkit-overflow-scrolling: touch;
-  padding: 15px 16px;
-  color: var(--ink-deep);
-  background: var(--paper-light);
-  border: 1px solid var(--ink);
-  border-radius: 0;
-  box-shadow: 6px 6px 0 rgba(21,61,50,.22);
+  padding: 20px;
+  color: var(--forest);
+  background: var(--snow);
+  border: 1.5px solid var(--frost);
+  border-radius: 16px;
+  box-shadow: none;
+  font-family: var(--sans);
 }
+
+/* The tip must match the card on every anchor side. */
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip { border-top-color: var(--frost); }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip { border-bottom-color: var(--frost); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--frost); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--frost); }
 
 /* Sticky positioning keeps the close control available while popup text scrolls. */
 .maplibregl-popup-close-button {
@@ -356,52 +361,100 @@ footer {
   top: 0;
   z-index: 2;
   float: right;
-  margin: -10px -10px 0 6px;
-  background: var(--paper-light);
+  width: 28px;
+  height: 28px;
+  margin: -8px -8px 0 8px;
+  color: var(--forest);
+  background: var(--stone);
+  border-radius: var(--pill);
+  font-size: 18px;
+  line-height: 1;
 }
 
-.popup-name { margin: 6px 0; font-family: var(--display); font-size: 1.15rem; line-height: 1.05; }
-.popup-address { font-size: .75rem; line-height: 1.4; }
-.popup-fields { display: grid; gap: 3px; margin: 12px 0 0; }
-.popup-fields div { display: flex; gap: 4px; font-size: .72rem; line-height: 1.35; }
-.popup-fields dt { flex: 0 0 auto; font-weight: 800; }
-.popup-fields dd { margin: 0; }
-.popup-profile { margin-top: 11px; padding-top: 9px; border-top: 1px solid var(--line); }
-.popup-link { color: #5b257f; font-size: .72rem; font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
-.popup-link:hover, .popup-link:focus-visible { color: var(--signal); }
-.popup-summary { margin: 7px 0 0; font-size: .72rem; line-height: 1.42; }
-.popup-verify { display: inline-block; margin-top: 10px; }
+.maplibregl-popup-close-button:hover { color: var(--snow); background: var(--forest); }
 
-/* Restyle MapLibre's controls to match the square, offset-shadow visual system. */
-.maplibregl-ctrl-group { border-radius: 0; box-shadow: 3px 3px 0 rgba(21,61,50,.2); }
+.popup-name { margin: 0 0 8px; font-size: 22px; font-weight: 350; line-height: 1.15; letter-spacing: -0.02em; }
+.popup-address { color: var(--pewter); font-size: 13px; line-height: 1.5; }
+.popup-fields { display: grid; gap: 4px; margin: 16px 0 0; }
+.popup-fields div { display: flex; gap: 6px; font-size: 13px; line-height: 1.4; }
+.popup-fields dt { flex: 0 0 auto; color: var(--pewter); font-weight: 400; }
+.popup-fields dd { margin: 0; font-weight: 500; }
+.popup-profile { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--stone); }
 
-/* Staggered entrance animation gives the information hierarchy a gentle reveal. */
-.reveal { animation: arrive 560ms both cubic-bezier(.2,.7,.2,1); }
-.reveal-1 { animation-delay: 60ms; }
-.reveal-2 { animation-delay: 140ms; }
-.reveal-3 { animation-delay: 220ms; }
-.reveal-4 { animation-delay: 300ms; }
+/* Text link with a 1.5px underline and trailing arrow. */
+.popup-link {
+  color: var(--forest);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+
+.popup-profile > .popup-link + .popup-link { margin-left: 12px; }
+.popup-link:hover { color: var(--eucalyptus); }
+.popup-summary { margin: 8px 0 0; font-size: 14px; line-height: 1.5; }
+
+/* Primary filled pill button. */
+.popup-verify {
+  display: inline-block;
+  margin-top: 16px;
+  padding: 10px 18px;
+  color: var(--snow);
+  background: var(--forest);
+  border-radius: var(--pill);
+  font-size: 13px;
+  font-weight: 400;
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+
+.popup-verify:hover { color: var(--snow); background: var(--eucalyptus); }
+
+/* Flat map controls. */
+.maplibregl-ctrl-group {
+  overflow: hidden;
+  background: var(--snow);
+  border: 1.5px solid var(--frost);
+  border-radius: 16px;
+  box-shadow: none !important;
+}
+
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--stone); }
+
+.maplibregl-ctrl-attrib {
+  color: var(--pewter);
+  background: rgba(252, 252, 247, 0.85) !important;
+  font-family: var(--sans);
+  font-size: 11px;
+}
+
+/* Gentle staggered entrance. */
+.reveal { animation: arrive 480ms both cubic-bezier(.2,.7,.2,1); }
+.reveal-1 { animation-delay: 40ms; }
+.reveal-2 { animation-delay: 100ms; }
+.reveal-3 { animation-delay: 160ms; }
+.reveal-4 { animation-delay: 220ms; }
 
 @keyframes arrive {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* On narrow screens the sidebar stacks above the map and collapses vertically. */
+/* On narrow screens the sidebar stacks above the map. */
 @media (max-width: 820px) {
   body { overflow: auto; }
   .atlas-shell { display: flex; min-height: 100%; height: auto; flex-direction: column; }
-  .atlas-panel { width: 100%; height: 65vh; min-height: 570px; border-right: 0; border-bottom: 1px solid var(--ink); }
+  .atlas-panel { width: 100%; height: 65vh; min-height: 570px; padding: 24px 16px 16px; }
+  .masthead { padding-right: 56px; }
   .map-stage { height: 58vh; min-height: 430px; }
   .results { max-height: 230px; }
-  .sidebar-toggle { position: fixed; top: 14px; right: 14px; left: auto; }
+  .sidebar-toggle { position: fixed; top: 16px; right: 16px; left: auto; }
   .atlas-shell.sidebar-collapsed { display: flex; }
   .atlas-shell.sidebar-collapsed .atlas-panel { height: 0; min-height: 0; padding-top: 0; padding-bottom: 0; }
-  .atlas-shell.sidebar-collapsed .sidebar-toggle { right: 14px; left: auto; }
+  .atlas-shell.sidebar-collapsed .sidebar-toggle { right: 16px; left: auto; }
 }
 
-/* Respect OS accessibility preferences without changing final visual states. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
-
