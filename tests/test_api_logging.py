@@ -29,9 +29,14 @@ class ApiLogTests(unittest.TestCase):
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.log = Path(self.directory.name) / "api.jsonl"
-        patcher = mock.patch.object(api_log, "LOG_PATH", self.log)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        for target, attribute, value in (
+            (api_log, "LOG_PATH", self.log),
+            (website_discovery, "BRAVE_CACHE_PATH", Path(self.directory.name) / "brave.jsonl"),
+            (website_discovery, "_brave_cache", None),
+        ):
+            patcher = mock.patch.object(target, attribute, value)
+            patcher.start()
+            self.addCleanup(patcher.stop)
         self.addCleanup(self.directory.cleanup)
 
     def entries(self):
@@ -80,10 +85,31 @@ class ApiLogTests(unittest.TestCase):
         self.assertIn("The Green Beverly Coalition in Beverly, MA & more", found["evidence"])
         self.assertEqual(self.entries()[0]["kind"], "brave_accepted")
 
+        # The same search again is served from the cache: no second API call.
+        with mock.patch.object(api_log, "send") as send, \
+                mock.patch.object(website_discovery, "page_profile", return_value={
+                    "description": "Homepage description.", "paragraph": "", "excerpt": ""}):
+            website_discovery.brave_discover(org, "key")
+        send.assert_not_called()
+
         rejected = urllib.error.HTTPError("u", 401, "Unauthorized", {}, io.BytesIO(b"{}"))
         with mock.patch.object(api_log, "send", side_effect=rejected):
             with self.assertRaises(website_discovery.BraveKeyError):
-                website_discovery.brave_discover(org, "bad-key")
+                website_discovery.brave_discover({**org, "name": "Other Group"}, "bad-key")
+
+    def test_brave_prefers_own_domain_over_pages_about_the_org(self):
+        org = {"name": "WOONASQUATUCKET RIVER WATERSHED COUNCIL", "city": "PROVIDENCE", "state": "RI"}
+        title = "Woonasquatucket River Watershed Council, Providence, Rhode Island"
+        results = {"web": {"results": [
+            {"url": "https://volunteer.uwri.org/agency/detail/?agency_id=88668", "title": title, "description": title},
+            {"url": "https://ecori.org/woonasquatucket-river-watershed-council-cleanup-2025/", "title": title, "description": title},
+            {"url": "https://wrwc.org/about/", "title": "About us", "description": "Woonasquatucket River Watershed Council"},
+        ]}}
+        with mock.patch.object(api_log, "send", return_value=json.dumps(results).encode()), \
+                mock.patch.object(website_discovery, "page_profile", return_value={
+                    "description": "Restoring the Woonasquatucket.", "paragraph": "", "excerpt": ""}):
+            found = website_discovery.brave_discover(org, "key")
+        self.assertEqual(found["website_url"], "https://wrwc.org/")
 
 
 if __name__ == "__main__":

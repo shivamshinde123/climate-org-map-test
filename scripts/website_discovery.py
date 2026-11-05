@@ -15,6 +15,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import urllib.robotparser
+from pathlib import Path
 
 try:
     from . import api_log
@@ -39,9 +40,20 @@ _DIRECTORY_HOSTS = frozenset({
     "nonprofitfacts.com", "eintaxid.com", "faqs.org", "corporationwiki.com",
     "allbiz.com", "chamberofcommerce.com", "nextdoor.com", "tiktok.com",
     "pinterest.com", "threads.net", "meetup.com", "eventbrite.com",
+    # Funders, grant databases, donation/volunteer platforms and business-data
+    # sites seen in the 2026-11-05 Rhode Island run.
+    "philanthropy.org", "grassrootsfund.org", "instrumentl.com", "grantedai.com",
+    "foundationcenter.org", "roundup.org", "youcangiveback.com", "opengovus.com",
+    "b2bhint.com", "uwri.org", "unitedway.org", "actionnetwork.org", "anakalypsis.com",
+    "givebutter.com", "classy.org", "networkforgood.com", "justgiving.com",
+    "grantstation.com", "buzzfile.com",
+    # Environmental news outlets.
+    "ecori.org", "patch.com", "providencejournal.com", "bostonglobe.com",
 })
 # Listing pages keyed by EIN or organization slug, whatever the host.
 _DIRECTORY_PATH_RE = re.compile(r"/(ein|nonprofits?|charit(y|ies)|organizations?|org|profile)/", re.I)
+# Database-style query strings (?agency_id=, ?FlexDataID=) mark listing pages.
+_ID_QUERY_RE = re.compile(r"(^|&)[a-z_]*id=", re.I)
 # A document that merely mentions the organization (e.g. a state agency PDF).
 _DOCUMENT_PATH_RE = re.compile(r"\.(pdf|docx?|xlsx?|pptx?|txt|csv)$", re.I)
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}")
@@ -62,12 +74,21 @@ def site_domain(url_or_host: str) -> str:
 
 
 def is_directory(url: str) -> bool:
-    """Return whether a URL is a directory, aggregator or document rather than an official site."""
+    """Return whether a URL is a directory, aggregator, government page or document.
+
+    IRS-registered nonprofits are not government bodies, so a ``.gov`` page is
+    always a page *about* the organization (a registry, grant or court record).
+    """
     try:
-        if site_domain(url) in _DIRECTORY_HOSTS:
+        parsed = urllib.parse.urlparse(url)
+        host = parsed.netloc.lower().split(":")[0]
+        if site_domain(url) in _DIRECTORY_HOSTS or host.endswith((".gov", ".mil")):
             return True
-        path = urllib.parse.urlparse(url).path
-        return bool(_DIRECTORY_PATH_RE.search(path) or _DOCUMENT_PATH_RE.search(path))
+        return bool(
+            _DIRECTORY_PATH_RE.search(parsed.path)
+            or _DOCUMENT_PATH_RE.search(parsed.path)
+            or _ID_QUERY_RE.search(parsed.query)
+        )
     except Exception:
         return True
 
@@ -84,25 +105,80 @@ def _norm(text: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", str(text).casefold()).strip()
 
 
+_STATE_NAMES = {
+    "AL": "alabama", "AK": "alaska", "AZ": "arizona", "AR": "arkansas", "CA": "california",
+    "CO": "colorado", "CT": "connecticut", "DE": "delaware", "DC": "district of columbia",
+    "FL": "florida", "GA": "georgia", "HI": "hawaii", "ID": "idaho", "IL": "illinois",
+    "IN": "indiana", "IA": "iowa", "KS": "kansas", "KY": "kentucky", "LA": "louisiana",
+    "ME": "maine", "MD": "maryland", "MA": "massachusetts", "MI": "michigan", "MN": "minnesota",
+    "MS": "mississippi", "MO": "missouri", "MT": "montana", "NE": "nebraska", "NV": "nevada",
+    "NH": "new hampshire", "NJ": "new jersey", "NM": "new mexico", "NY": "new york",
+    "NC": "north carolina", "ND": "north dakota", "OH": "ohio", "OK": "oklahoma", "OR": "oregon",
+    "PA": "pennsylvania", "RI": "rhode island", "SC": "south carolina", "SD": "south dakota",
+    "TN": "tennessee", "TX": "texas", "UT": "utah", "VT": "vermont", "VA": "virginia",
+    "WA": "washington", "WV": "west virginia", "WI": "wisconsin", "WY": "wyoming",
+}
+# Words that add no identity on their own: legal suffixes and the stock nouns
+# shared by thousands of conservation groups.
+_STOP_WORDS = {"the", "of", "and", "for", "a", "an", "at", "in", "on", "inc", "incorporated", "co", "corp"}
+_GENERIC_WORDS = _STOP_WORDS | {
+    "association", "assn", "assoc", "foundation", "fund", "society", "council", "trust",
+    "friends", "corporation", "company", "committee", "club", "organization", "group",
+    "center", "centre", "coalition", "project", "alliance", "network", "institute",
+    "partnership", "conservancy", "conservation", "preservation", "watershed", "land",
+    "river", "lake", "pond", "park", "north", "south", "east", "west", "united",
+    "states", "america", "american", "national", "international", "community",
+    "citizens", "environmental", "education", "educational", "improvement", "chapter",
+}
+
+
+def domain_matches_name(url: str, name: str) -> bool:
+    """Return whether a URL's domain is plausibly the organization's own.
+
+    True when the domain label contains a distinctive name word
+    (``burrillvillelandtrust``), two adjacent name words run together
+    (``westbaylandtrust``) or the name's initials (``sklt`` for South
+    Kingstown Land Trust, ``foghp`` for Friends Of Green Hill Pond).
+    """
+    label = re.sub(r"[^a-z0-9]", "", site_domain(url).split(".")[0])
+    words = _norm(name).split()
+    if not label or not words:
+        return False
+    if any(len(w) >= 4 and w not in _GENERIC_WORDS and w in label for w in words):
+        return True
+    core = [w for w in words if w not in _STOP_WORDS]
+    if any(len(a + b) >= 7 and a + b in label for a, b in zip(core, core[1:])):
+        return True
+    # Initials must be the whole label, or a 4+ letter prefix: "rie" (RI Envirothon)
+    # wrongly matched "rieea" (RI Environmental Education Association).
+    for initials in ("".join(w[0] for w in words), "".join(w[0] for w in core)):
+        if len(initials) >= 3 and (label == initials or (len(initials) >= 4 and label.startswith(initials))):
+            return True
+    return False
+
+
+def is_homepage_like(url: str) -> bool:
+    """Shallow path, no query, no long article slug: likely a site's own front page."""
+    parsed = urllib.parse.urlparse(url)
+    segments = [s for s in parsed.path.split("/") if s]
+    return not parsed.query and len(segments) <= 1 and all(s.count("-") <= 2 for s in segments)
+
+
 def _identity_score(result: dict, name_norm: str, city_norm: str, state: str) -> float:
-    """Score a Brave result 0–1 for identity match against the org."""
+    """Score how strongly a Brave result's title and snippet name the organization (0–1)."""
     url = result.get("url", "")
     if is_directory(url):
         return 0.0
-    combined = _norm(result.get("title", "")) + " " + _norm(result.get("description", ""))
+    combined = " " + _norm(result.get("title", "")) + " " + _norm(result.get("description", "")) + " "
     score = 0.0
     name_words = [w for w in name_norm.split() if len(w) > 3]
     if name_words:
         score += 0.6 * sum(1 for w in name_words if w in combined) / len(name_words)
-    if city_norm and city_norm in combined:
+    if city_norm and f" {city_norm} " in combined:
         score += 0.2
-    if state and state.casefold() in combined:
-        score += 0.1
-    try:
-        if urllib.parse.urlparse(url).netloc.lower().endswith(".org"):
-            score += 0.1
-    except Exception:
-        pass
+    state_name = _STATE_NAMES.get(state.upper(), "")
+    if state and (f" {state.casefold()} " in combined or (state_name and f" {state_name} " in combined)):
+        score += 0.2
     return min(score, 1.0)
 
 
@@ -298,8 +374,38 @@ def page_profile(url: str) -> dict[str, str]:
     }
 
 
+# Raw Brave results keyed by query: changing the matching rules re-scores
+# cached results instead of paying for the same searches again.
+BRAVE_CACHE_PATH = Path(__file__).resolve().parents[1] / "Data" / "Website Enrichment" / "brave-cache.jsonl"
+_brave_cache: dict[str, list] | None = None
+
+
+def _cached_brave_results(query: str) -> list[dict] | None:
+    global _brave_cache
+    if _brave_cache is None:
+        _brave_cache = {}
+        if BRAVE_CACHE_PATH.exists():
+            for line in BRAVE_CACHE_PATH.read_text(encoding="utf-8").splitlines():
+                if line.strip():
+                    item = json.loads(line)
+                    _brave_cache[item["query"]] = item["results"]
+    return _brave_cache.get(query)
+
+
+def _store_brave_results(query: str, results: list[dict]) -> None:
+    _cached_brave_results(query)  # ensures the cache is loaded
+    _brave_cache[query] = results
+    BRAVE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with BRAVE_CACHE_PATH.open("a", encoding="utf-8", newline="\n") as stream:
+        stream.write(json.dumps({"query": query, "results": results}, ensure_ascii=False) + "\n")
+
+
 def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | None:
     """Run one logged Brave web search; None means fall back to OpenRouter."""
+    cached = _cached_brave_results(query)
+    if cached is not None:
+        api_log.decision("brave_cache_hit", reason="reused cached Brave results; no API call", query=query)
+        return cached
     params = urllib.parse.urlencode({"q": query, "count": 5, "search_lang": "en"})
     req = urllib.request.Request(
         f"{BRAVE_ENDPOINT}?{params}",
@@ -313,7 +419,9 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
     for attempt in range(1, retries + 1):
         try:
             raw = api_log.send(req, "brave", "website_discovery", timeout=15)
-            return json.loads(raw).get("web", {}).get("results", [])
+            results = json.loads(raw).get("web", {}).get("results", [])
+            _store_brave_results(query, results)
+            return results
         except urllib.error.HTTPError as error:
             if error.code in (401, 403, 422):
                 raise BraveKeyError(
@@ -334,9 +442,13 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
 def brave_discover(properties: dict, brave_key: str) -> dict | None:
     """Query Brave Search; return a discovery dict when confident, else None.
 
-    None signals the caller to fall through to the OpenRouter path. The summary
-    comes from the matched site itself (meta description, else first substantial
-    paragraph), since Brave snippets are short and may describe a single page.
+    None signals the caller to fall through to the OpenRouter path.
+
+    A result is accepted when its domain looks like the organization's own and
+    its text names the organization (score >= 0.4), or, without a domain match,
+    only when it is a homepage-like page whose text names it strongly (>= 0.8).
+    Pages that merely mention the organization (news, listings) fail both.
+    The summary comes from the site itself where possible.
     """
     name = properties.get("name", "")
     city = properties.get("city", "")
@@ -344,28 +456,44 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
     name_norm = _norm(name)
     city_norm = _norm(city)
 
-    results = _brave_search(f'"{name}" {city} {state} nonprofit', brave_key)
+    results = _brave_search(f'"{name}" {city} {state}', brave_key)
     if results is None:
         return None
 
     skipped = [r.get("url") for r in results if is_directory(r.get("url", ""))]
-    scored = [
-        (r, _identity_score(r, name_norm, city_norm, state))
-        for r in results
-        if not is_directory(r.get("url", ""))
+    scored = sorted(
+        (
+            (r, _identity_score(r, name_norm, city_norm, state),
+             domain_matches_name(r.get("url", ""), name), is_homepage_like(r.get("url", "")))
+            for r in results
+            if not is_directory(r.get("url", ""))
+        ),
+        key=lambda x: (x[2], x[1]),
+        reverse=True,
+    )
+    candidates = [
+        {"url": r.get("url"), "score": round(s, 2), "own_domain": own, "homepage": home}
+        for r, s, own, home in scored
     ]
-    scored.sort(key=lambda x: x[1], reverse=True)
-    candidates = [{"url": r.get("url"), "score": round(s, 2)} for r, s in scored]
-    if not scored or scored[0][1] < 0.5:
+    chosen = next(
+        (c for c in scored if (c[2] and c[1] >= 0.4) or (not c[2] and c[3] and c[1] >= 0.8)),
+        None,
+    )
+    if chosen is None:
         api_log.decision(
-            "brave_rejected", reason="no non-directory result scored >= 0.5",
+            "brave_rejected", reason="no own-domain match and no strong homepage match",
             candidates=candidates, skipped_directories=skipped,
         )
         return None
 
-    top, score = scored[0]
+    top, score, own_domain, _ = chosen
+    website_url = top["url"]
+    if own_domain:
+        # Link the organization's front page, not whichever subpage ranked.
+        parsed = urllib.parse.urlparse(website_url)
+        website_url = f"{parsed.scheme}://{parsed.netloc}/"
     snippet = clean_text(top.get("description", ""))
-    page = page_profile(top["url"])
+    page = page_profile(website_url)
     summary, summary_source = next(
         ((text, source) for text, source in (
             (page["description"], "site meta description"),
@@ -375,18 +503,18 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
         ("", ""),
     )
     if not summary:
-        api_log.decision("brave_rejected", reason="matched site has no description", url=top["url"])
+        api_log.decision("brave_rejected", reason="matched site has no description", url=website_url)
         return None
     api_log.decision(
-        "brave_accepted", reason=f"score {score:.2f}", url=top["url"],
+        "brave_accepted", reason=f"score {score:.2f}, own domain: {own_domain}", url=website_url,
         summary_source=summary_source, candidates=candidates, skipped_directories=skipped,
     )
     return {
         "status": "found",
-        "website_url": top["url"],
+        "website_url": website_url,
         "summary": summary,
         "evidence": "\n\n".join(part for part in (snippet, page["excerpt"]) if part),
         "source_urls": [top["url"]],
-        "confidence": "high" if score >= 0.8 else "medium",
-        "rationale": f"Brave Search match score {score:.2f}",
+        "confidence": "high" if own_domain and score >= 0.6 else "medium",
+        "rationale": f"Brave Search match score {score:.2f}; own domain: {own_domain}",
     }

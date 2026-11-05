@@ -7,8 +7,10 @@ from scripts.website_discovery import (
     _HTMLParser,
     clean_text,
     decode_cfemail,
+    domain_matches_name,
     email_matches_site,
     is_directory,
+    is_homepage_like,
 )
 
 
@@ -22,6 +24,33 @@ class WebsiteDiscoveryTests(unittest.TestCase):
         self.assertFalse(is_directory("https://www.friendsoftheccsc.com/"))
         self.assertFalse(is_directory("https://aoos.org/"))
         self.assertFalse(is_directory("https://wwf.org/"))  # old lstrip("www.") bug ate leading w's
+        # Wrong "websites" from the Rhode Island run.
+        self.assertTrue(is_directory("https://business.sos.ri.gov/CorpWeb/CorpSearch/CorpSummary.aspx?FEIN=1"))
+        self.assertTrue(is_directory("https://www.govinfo.gov/app/details/USCOURTS-rid-1_20-cv-00355"))
+        self.assertTrue(is_directory("https://www.npsri.net/site/default.aspx?FlexDataID=1032&PageID=71"))
+        self.assertTrue(is_directory("https://www.philanthropy.org/grant/x"))
+        self.assertTrue(is_directory("https://ecori.org/wildlife-news/feed/"))
+
+    def test_own_domain_and_homepage_signals(self):
+        cases = [
+            ("BURRILLVILLE LAND TRUST", "https://www.burrillvillelandtrust.org/", True),
+            ("WEST BAY LAND TR", "https://westbaylandtrust.org/", True),
+            ("SOUTH KINGSTOWN LAND TRUST", "https://sklt.org/who-we-are/", True),
+            ("FRIENDS OF GREEN HILL POND", "https://foghp.org/", True),
+            ("LAKE MISHNOCK PRESERVATION ASSOCIATION INC", "https://lakemishnock.org/", True),
+            ("WOONASQUATUCKET RIVER WATERSHED COUNCIL", "https://volunteer.uwri.org/agency/", False),
+            ("CLEAN OCEAN ACCESS", "https://ecori.org/small-but-mighty", False),
+            ("STEWARDS OF THE GLEN", "https://www.actionnetwork.org/", False),
+            ("RHODE ISLAND ENVIROTHON INC", "https://www.rieea.org/resource/x", False),
+            ("THE RHODE ISLAND ASSOCIATION OF CONSERVATION DISTRICTS", "https://www.riacd.org/", True),
+        ]
+        for name, url, expected in cases:
+            with self.subTest(name=name):
+                self.assertEqual(domain_matches_name(url, name), expected)
+        self.assertTrue(is_homepage_like("https://ribike.org/"))
+        self.assertTrue(is_homepage_like("https://sklt.org/who-we-are/"))
+        self.assertFalse(is_homepage_like("https://ecori.org/small-but-mighty-nonprofit-clean-ocean-access/"))
+        self.assertFalse(is_homepage_like("https://example.org/a/b/"))
 
     def test_contacts_must_belong_to_the_site(self):
         self.assertTrue(email_matches_site("info@akfarmland.com", "https://akfarmland.com/"))

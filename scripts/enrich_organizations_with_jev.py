@@ -44,7 +44,7 @@ OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-mini"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
-DISCOVERY_VERSION = "gcc-website-discovery-v4"
+DISCOVERY_VERSION = "gcc-website-discovery-v5"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -407,6 +407,15 @@ def apply_enrichment(properties: dict, discovery: dict, jev_response: dict, requ
     properties["jev_classified_at"] = datetime.now(timezone.utc).isoformat()
 
 
+def clear_research(properties: dict) -> None:
+    """Remove website, summary and contacts left by an earlier discovery run."""
+    # The base schema always carries these as empty strings; the others are enrichment-only.
+    for field in ("website_url", "summary", "email", "phone"):
+        properties[field] = ""
+    for field in ("contact_page_url", "website_evidence_urls"):
+        properties.pop(field, None)
+
+
 def cache_key(material: dict) -> str:
     """Hash canonical request material into a stable content-addressed key."""
     encoded = json.dumps(material, sort_keys=True, ensure_ascii=False).encode("utf-8")
@@ -500,6 +509,8 @@ def enrich_geojson(
     payload = json.loads(input_path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
     discovery_cache = load_cache(discovery_cache_path)
+    contact_cache_path = discovery_cache_path.with_name("contact-cache.jsonl")
+    contact_cache = load_cache(contact_cache_path)
     jev_cache = load_cache(jev_cache_path)
     search = discovery_caller or call_web_search
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
@@ -575,6 +586,8 @@ def enrich_geojson(
             properties["website_discovery_version"] = DISCOVERY_VERSION
             properties["website_discovery_model"] = search_model
             if discovery["status"] != "found":
+                # Drop research from earlier runs so a rejected site never lingers on the map.
+                clear_research(properties)
                 continue
             stats["websites_found"] += 1
             # Save useful research immediately, even if Jev subsequently fails.
@@ -591,13 +604,20 @@ def enrich_geojson(
                     found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
                 )
             else:
-                api_log.decision("contact_fallback", reason="site blocked by robots.txt or unreachable", model=search_model)
-                stats["contact_fallbacks"] += 1
+                contact_key = cache_key({"model": search_model, "website": discovery["website_url"]})
                 try:
-                    raw = contact_search(
-                        contact_search_payload(properties, discovery["website_url"], search_model),
-                        openrouter_key, search_endpoint,
-                    )
+                    raw = contact_cache.get(contact_key)
+                    if raw is None:
+                        api_log.decision("contact_fallback", reason="site blocked by robots.txt or unreachable", model=search_model)
+                        stats["contact_fallbacks"] += 1
+                        raw = contact_search(
+                            contact_search_payload(properties, discovery["website_url"], search_model),
+                            openrouter_key, search_endpoint,
+                        )
+                        contact_cache[contact_key] = raw
+                        append_cache(contact_cache_path, contact_key, raw)
+                    else:
+                        api_log.decision("contact_cache_hit", reason="reused cached contact lookup; no API call")
                     contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
                     # The model may echo a directory's mailbox or Cloudflare's
                     # "[email protected]" placeholder; keep only the org's own.

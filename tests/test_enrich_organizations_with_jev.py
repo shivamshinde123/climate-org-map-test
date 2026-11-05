@@ -158,5 +158,24 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
         self.assertEqual(result["features"][0]["properties"]["website_url"], "https://example.org/")
 
 
+    def test_not_found_rerun_clears_previous_website_and_contacts(self):
+        """A record rejected on re-run must not keep the old run's website."""
+        self.properties.update(website_url="https://www.instrumentl.com/990-report/x", summary="old",
+                               email="old@x.org", contact_page_url="https://x.org/contact")
+        not_found = {**self.discovery, "status": "not_found", "website_url": "", "source_urls": []}
+        collection = {"type": "FeatureCollection",
+                      "features": [{"type": "Feature", "geometry": None, "properties": self.properties}]}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "source.geojson"
+            source.write_text(json.dumps(collection), encoding="utf-8")
+            enrich_geojson(source, source, "openrouter-key", root / "d.jsonl", root / "j.jsonl",
+                           discovery_caller=lambda *_: not_found, jev_caller=lambda *_: self.jev_response)
+            properties = json.loads(source.read_text(encoding="utf-8"))["features"][0]["properties"]
+        self.assertEqual(properties["website_url"], "")
+        self.assertEqual(properties["email"], "")
+        self.assertNotIn("contact_page_url", properties)
+
+
 if __name__ == "__main__":
     unittest.main()
