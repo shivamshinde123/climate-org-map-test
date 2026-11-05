@@ -10,11 +10,17 @@
     <title>Climate Org Mapping</title>
     <!-- MapLibre renders the interactive map; local CSS owns product styling. -->
     <link rel="preconnect" href="https://unpkg.com" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
     <link
       href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261105-3" />
+    <link rel="stylesheet" href="styles.css?v=20261106-1" />
   </head>
   <body>
     <!-- The shell couples a collapsible discovery panel to a full-height map. -->
@@ -33,7 +39,7 @@
       <aside id="atlas-panel" class="atlas-panel" aria-label="Organization search and results">
         <!-- Product identity and concise context for this provisional dataset. -->
         <header class="masthead reveal reveal-1">
-          <div class="eyebrow"><span>GCC</span> / Research preview 01</div>
+          <div class="eyebrow"><span>GCC</span> Research preview</div>
           <h1>Climate<br /><em>Org Mapping</em></h1>
           <p class="lede">
             A working census of local environmental action across the United States.
@@ -140,13 +146,13 @@
           <strong class="result-name"></strong>
           <span class="result-location"></span>
         </span>
-        <span class="result-arrow" aria-hidden="true">↗</span>
+        <span class="result-arrow" aria-hidden="true">→</span>
       </button>
     </template>
 
     <!-- Library loads first; app.js then fetches local schema and GeoJSON assets. -->
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <script src="app.js?v=20261105-3"></script>
+    <script src="app.js?v=20261106-1"></script>
   </body>
 </html>
 
