@@ -330,13 +330,13 @@ footer {
 }
 
 
-/* Long organization profiles scroll inside the popup. Viewport and container
-   fallbacks keep the entire card usable at desktop and mobile map heights. */
+/* The popup may use nearly the full map height (app.js pans it into view);
+   only profiles taller than that scroll inside it. */
 .maplibregl-popup-content {
   width: min(300px, calc(100vw - 32px));
   max-width: 100%;
-  max-height: min(46vh, 560px);
-  max-height: min(calc(50cqh - 36px), 560px);
+  max-height: min(80vh, 640px);
+  max-height: min(calc(100cqh - 40px), 640px);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;

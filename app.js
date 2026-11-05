@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261103-1";
+const ASSET_VERSION = "20261105-1";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -148,11 +148,27 @@ function popupMarkup(properties) {
     .join("<br>");
   const websiteUrl = safeExternalUrl(properties.website_url);
   const summary = text(properties.summary).trim();
-  const websiteAndSummary = websiteUrl || summary
+  const email = text(properties.email).trim();
+  const phone = text(properties.phone).trim();
+  const phoneDigits = phone.replace(/[^\d+]/g, "");
+  const contactUrl = safeExternalUrl(properties.contact_page_url);
+  const contactRows = [
+    /^[^\s@<>"]+@[^\s@<>"]+\.[^\s@<>"]+$/.test(email)
+      ? `<div><dt>Email:</dt><dd><a class="popup-link" href="mailto:${escapeHtml(email)}">${escapeHtml(email)}</a></dd></div>`
+      : "",
+    phoneDigits.length >= 7
+      ? `<div><dt>Phone:</dt><dd><a class="popup-link" href="tel:${escapeHtml(phoneDigits)}">${escapeHtml(phone)}</a></dd></div>`
+      : "",
+    contactUrl
+      ? `<div><dt>Contact:</dt><dd><a class="popup-link" href="${escapeHtml(contactUrl)}" target="_blank" rel="noopener noreferrer">Contact page</a></dd></div>`
+      : "",
+  ].join("");
+  const websiteAndSummary = websiteUrl || summary || contactRows
     ? `
       <section class="popup-profile">
         ${websiteUrl ? `<a class="popup-link" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}
         ${summary ? `<p class="popup-summary">${escapeHtml(summary)}</p>` : ""}
+        ${contactRows ? `<dl class="popup-fields">${contactRows}</dl>` : ""}
       </section>
     `
     : "";
@@ -173,10 +189,23 @@ function popupMarkup(properties) {
   `;
 }
 
+function fitPopupInView(popup) {
+  // Pan just enough that the whole card is inside the map, so a pin near an
+  // edge doesn't push the name or contacts off-screen.
+  const card = popup.getElement()?.getBoundingClientRect();
+  if (!card) return;
+  const frame = map.getContainer().getBoundingClientRect();
+  const pad = 12;
+  const dx = Math.min(0, frame.right - pad - card.right) || Math.max(0, frame.left + pad - card.left);
+  const dy = Math.min(0, frame.bottom - pad - card.bottom) || Math.max(0, frame.top + pad - card.top);
+  if (dx || dy) map.panBy([-dx, -dy], { duration: 250 });
+}
+
 function openFeaturePopup(feature) {
   // Make long popup content keyboard-scrollable and stop its scroll gestures
-  // from zooming/panning the map underneath it.
-  const popup = new maplibregl.Popup({ offset: 12, maxWidth: "320px" })
+  // from zooming/panning the map underneath it. Focusing the card itself (not
+  // its first link) keeps it from scrolling past the organization's name.
+  const popup = new maplibregl.Popup({ offset: 12, maxWidth: "320px", focusAfterOpen: false })
     .setLngLat(feature.geometry.coordinates)
     .setHTML(popupMarkup(feature.properties))
     .addTo(map);
@@ -184,10 +213,17 @@ function openFeaturePopup(feature) {
   if (content) {
     content.tabIndex = 0;
     content.setAttribute("aria-label", `${text(feature.properties.name)} organization details`);
+    // MapLibre appends the close button after the content; first in order lets
+    // its sticky positioning hold it in the corner while the card scrolls.
+    const close = content.querySelector(".maplibregl-popup-close-button");
+    if (close) content.prepend(close);
+    content.focus({ preventScroll: true });
   }
   ["wheel", "touchmove", "pointerdown"].forEach((eventName) => {
     content?.addEventListener(eventName, (event) => event.stopPropagation(), { passive: true });
   });
+  if (map.isMoving()) map.once("moveend", () => fitPopupInView(popup));
+  else fitPopupInView(popup);
   return popup;
 }
 
