@@ -27,18 +27,24 @@ from typing import Callable
 try:
     from .normalize_external_data_without_llm import CATEGORY_OPTIONS
     from .load_environment import load_environment
-    from .website_discovery import brave_discover, crawl_for_contacts
+    from .website_discovery import (
+        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, is_directory, site_domain,
+    )
+    from . import api_log
 except ImportError:  # Allows direct execution from the repository root.
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
-    from website_discovery import brave_discover, crawl_for_contacts  # type: ignore
+    from website_discovery import (  # type: ignore
+        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, is_directory, site_domain,
+    )
+    import api_log  # type: ignore
 
 
 OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-mini"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
-DISCOVERY_VERSION = "gcc-website-discovery-v1"
+DISCOVERY_VERSION = "gcc-website-discovery-v4"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -142,6 +148,8 @@ def web_search_payload(model: str, instructions: str, identity: dict, schema_nam
         "model": model,
         "plugins": [{"id": "web"}],
         "web_search_options": {"search_context_size": context_size},
+        # Asks OpenRouter to return token counts and dollar cost in the response.
+        "usage": {"include": True},
         "messages": [
             {"role": "system", "content": instructions},
             {"role": "user", "content": json.dumps(identity, ensure_ascii=False, separators=(",", ":"))},
@@ -312,7 +320,8 @@ def extract_chat_output(response: dict) -> dict:
 
 def call_web_search(payload: dict, api_key: str, endpoint: str) -> dict:
     """Run a web-search chat request through OpenRouter and decode its JSON."""
-    return extract_chat_output(post_json(payload, api_key, endpoint))
+    purpose = payload["response_format"]["json_schema"]["name"].removeprefix("organization_")
+    return extract_chat_output(post_json(payload, api_key, endpoint, purpose=f"web_search_{purpose}"))
 
 
 def post_json(
@@ -320,6 +329,7 @@ def post_json(
     api_key: str,
     endpoint: str,
     retries: int = 3,
+    purpose: str = "jev_classification",
 ) -> dict:
     """Post a JSON request to OpenRouter with bounded retries."""
     request = urllib.request.Request(
@@ -336,8 +346,7 @@ def post_json(
     )
     for attempt in range(1, retries + 1):
         try:
-            with urllib.request.urlopen(request, timeout=180) as response:
-                return json.loads(response.read().decode("utf-8"))
+            return json.loads(api_log.send(request, "openrouter", purpose, timeout=180).decode("utf-8"))
         except urllib.error.HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
             if attempt == retries or error.code < 500 and error.code != 429:
@@ -479,6 +488,7 @@ def enrich_geojson(
     contact_caller: Callable[[dict, str, str], dict] | None = None,
     fail_on_error: bool = False,
     brave_key: str | None = None,
+    state: str | None = None,
 ) -> dict[str, int]:
     """Research and classify only records not already complete.
 
@@ -496,10 +506,14 @@ def enrich_geojson(
     contact_search = contact_caller or search
     # Completion checks happen before limiting, which makes small resumable runs
     # advance through the dataset instead of revisiting its first records.
-    pending = [
+    incomplete = [
         feature
         for feature in features
         if not enrichment_is_complete(feature.get("properties", {}), search_model, jev_model)
+    ]
+    pending = [
+        feature for feature in incomplete
+        if state is None or str(feature.get("properties", {}).get("state", "")).upper() == state.upper()
     ]
     selected = pending if limit is None else pending[:limit]
     stats = {
@@ -507,13 +521,18 @@ def enrich_geojson(
         "websites_found": 0,
         "classified": 0,
         "failed": 0,
-        "skipped_existing": len(features) - len(pending),
+        "skipped_existing": len(features) - len(incomplete),
         "remaining": 0,
+        "brave_matches": 0,
+        "web_search_fallbacks": 0,
+        "contact_fallbacks": 0,
     }
+    brave_failure: BraveKeyError | None = None
 
     for feature in selected:
         properties = feature["properties"]
         stats["processed"] += 1
+        api_log.record_context.set({"org_id": properties.get("id", ""), "org_name": properties.get("name", "")})
         discovery_key = cache_key({
             "version": DISCOVERY_VERSION,
             "model": search_model,
@@ -529,13 +548,28 @@ def enrich_geojson(
                 if brave_key:
                     discovery = brave_discover(properties, brave_key)
                 if discovery is None:
+                    api_log.decision(
+                        "web_search_fallback", model=search_model,
+                        reason="BRAVE_API_KEY not set" if not brave_key else "Brave found no confident match",
+                    )
+                    stats["web_search_fallbacks"] += 1
                     discovery = search(website_discovery_payload(properties, search_model), openrouter_key, search_endpoint)
+                    if discovery.get("status") == "found" and is_directory(discovery.get("website_url", "")):
+                        api_log.decision("web_search_directory_rejected", url=discovery.get("website_url"),
+                                         reason="fallback returned a directory page, not an official site")
+                        discovery = {**discovery, "status": "ambiguous"}
+                else:
+                    stats["brave_matches"] += 1
                 validate_discovery(discovery)
                 discovery_cache[discovery_key] = discovery
                 append_cache(discovery_cache_path, discovery_key, discovery)
             else:
+                api_log.decision("discovery_cache_hit", reason="reused cached discovery; no API call")
                 validate_discovery(discovery)
 
+            properties["website_discovery_source"] = (
+                "brave" if str(discovery.get("rationale", "")).startswith("Brave Search") else "openrouter_web_search"
+            )
             properties["website_discovery_status"] = discovery["status"]
             properties["website_discovery_confidence"] = discovery["confidence"]
             properties["website_discovery_version"] = DISCOVERY_VERSION
@@ -551,14 +585,30 @@ def enrich_geojson(
             # When the crawler was blocked or the site unreachable, fall back to
             # LLM web search, which may surface contacts from its search index.
             contacts = crawl_for_contacts(discovery["website_url"])
-            if not contacts["accessible"]:
+            if contacts["accessible"]:
+                api_log.decision(
+                    "contacts_from_site", reason="crawled the official site",
+                    found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
+                )
+            else:
+                api_log.decision("contact_fallback", reason="site blocked by robots.txt or unreachable", model=search_model)
+                stats["contact_fallbacks"] += 1
                 try:
                     raw = contact_search(
                         contact_search_payload(properties, discovery["website_url"], search_model),
                         openrouter_key, search_endpoint,
                     )
                     contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
-                except Exception:
+                    # The model may echo a directory's mailbox or Cloudflare's
+                    # "[email protected]" placeholder; keep only the org's own.
+                    site = discovery["website_url"]
+                    if not email_matches_site(contacts["email"], site):
+                        contacts["email"] = ""
+                    if contacts["contact_page_url"] and site_domain(contacts["contact_page_url"]) != site_domain(site):
+                        contacts["contact_page_url"] = ""
+                    api_log.decision("contact_fallback_result", kept={k: bool(v) for k, v in contacts.items()})
+                except Exception as error:
+                    api_log.decision("contact_fallback_failed", reason=str(error)[:300])
                     contacts = {"email": "", "phone": "", "contact_page_url": ""}
             properties["email"] = contacts["email"]
             properties["phone"] = contacts["phone"]
@@ -578,8 +628,16 @@ def enrich_geojson(
                 validate_jev_response(jev_response)
                 jev_cache[jev_key] = jev_response
                 append_cache(jev_cache_path, jev_key, jev_response)
+            else:
+                api_log.decision("jev_cache_hit", reason="reused cached classification; no API call")
             apply_enrichment(properties, discovery, jev_response, jev_model)
             stats["classified"] += 1
+        except BraveKeyError as error:
+            # Every later record would hit the same rejection and silently pay
+            # for OpenRouter fallbacks, so stop after saving finished work.
+            stats["processed"] -= 1
+            brave_failure = error
+            break
         except Exception as error:
             stats["failed"] += 1
             properties["jev_classification_status"] = "error"
@@ -587,8 +645,8 @@ def enrich_geojson(
             if fail_on_error:
                 raise
 
-    # Failed selected records remain pending, while successful selections do not.
-    stats["remaining"] = len(pending) - len(selected) + stats["failed"]
+    # Failed and unvisited records remain pending, while successful ones do not.
+    stats["remaining"] = len(pending) - stats["processed"] + stats["failed"]
 
     payload.setdefault("metadata", {})["enrichment"] = {
         **stats,
@@ -598,6 +656,8 @@ def enrich_geojson(
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     write_geojson(output_path, payload)
+    if brave_failure:
+        raise brave_failure
     return stats
 
 
@@ -607,6 +667,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--output", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--limit", type=int)
+    parser.add_argument("--state", help="Only enrich organizations in this two-letter state, e.g. MA")
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
     parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT))
@@ -634,12 +695,16 @@ def main() -> None:
         args.input, args.output, openrouter_key,
         args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
         args.search_endpoint, args.jev_endpoint, args.limit,
-        fail_on_error=args.fail_on_error, brave_key=brave_key or None,
+        fail_on_error=args.fail_on_error, brave_key=brave_key or None, state=args.state,
     )
     print(f"Organizations processed: {stats['processed']:,}")
     print(f"Official websites found: {stats['websites_found']:,}")
     print(f"Organizations classified by Jev: {stats['classified']:,}")
+    print(f"Websites found by Brave: {stats['brave_matches']:,}")
+    print(f"OpenRouter web-search fallbacks: {stats['web_search_fallbacks']:,}")
+    print(f"OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
     print(f"Errors: {stats['failed']:,}")
+    print(f"Full request log: {api_log.LOG_PATH}")
 
 
 if __name__ == "__main__":

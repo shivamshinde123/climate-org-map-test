@@ -21,6 +21,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from scripts.api_log import LOG_PATH as API_LOG_PATH
 from scripts.build_irs_dataset import build_dataset
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
@@ -150,6 +151,10 @@ def parse_args() -> argparse.Namespace:
         "--enrichment-limit",
         type=int,
         help="Limit paid website-search and Jev enrichment calls for pilot runs",
+    )
+    parser.add_argument(
+        "--enrichment-state",
+        help="Only enrich organizations in this two-letter state, e.g. MA",
     )
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
@@ -292,13 +297,19 @@ def run_pipeline(args: argparse.Namespace) -> None:
             args.search_endpoint,
             args.jev_endpoint,
             args.enrichment_limit if args.enrichment_limit is not None else args.limit,
+            brave_key=os.environ.get("BRAVE_API_KEY") or None,
+            state=args.enrichment_state,
         )
         print(f"      Organizations processed: {stats['processed']:,}")
         print(f"      Official websites found: {stats['websites_found']:,}")
+        print(f"        - by Brave Search: {stats['brave_matches']:,}")
+        print(f"        - by OpenRouter web-search fallback: {stats['web_search_fallbacks']:,}")
+        print(f"      OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
         print(f"      Organizations classified by Jev: {stats['classified']:,}")
         print(f"      Already enriched and skipped: {stats['skipped_existing']:,}")
         print(f"      Pending after this run: {stats['remaining']:,}")
         print(f"      Enrichment errors: {stats['failed']:,}")
+        print(f"      Full request log: {API_LOG_PATH}")
 
     print(f"[{phase_count}/{phase_count}] Validating map dataset...", flush=True)
     records, points, fallback_points = validate_map_dataset(args.output)

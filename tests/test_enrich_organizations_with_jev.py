@@ -4,7 +4,9 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
+from scripts import api_log
 from scripts.enrich_organizations_with_jev import (
     CLASSIFICATION_FIELDS,
     apply_enrichment,
@@ -21,6 +23,11 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
 
     def setUp(self):
         """Create one reusable organization, discovery result, and Jev decision."""
+        log_directory = tempfile.TemporaryDirectory()
+        self.addCleanup(log_directory.cleanup)
+        patcher = mock.patch.object(api_log, "LOG_PATH", Path(log_directory.name) / "api.jsonl")
+        patcher.start()
+        self.addCleanup(patcher.stop)
         self.properties = {
             "id": "org_test",
             "name": "New Hampshire Climate Action Network",

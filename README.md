@@ -153,7 +153,7 @@ python main.py --use-census
 
 Run a small paid pilot before scaling to the complete dataset.
 
-Populate `OPENROUTER_API_KEY` in `.env`. Optionally add `BRAVE_API_KEY` to enable the cheaper Brave Search primary path. Then run:
+Populate `OPENROUTER_API_KEY` in `.env`. Optionally add `BRAVE_API_KEY` to enable the cheaper Brave Search primary path. [Docs/Setup/api-keys-setup.md](Docs/Setup/api-keys-setup.md) walks through creating both keys, with screenshots. Then run:
 
 ```powershell
 python main.py --enrich-with-jev --enrichment-limit 10

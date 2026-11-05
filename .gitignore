@@ -11,5 +11,6 @@ Data/IRS EO BMF/
 Data/Geocoding/
 Data/Website Enrichment/
 Data/Jev Classification/
+Data/Logs/
 .tmp/
 graphify-out/
