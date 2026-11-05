@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261105-1";
+const ASSET_VERSION = "20261105-2";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
