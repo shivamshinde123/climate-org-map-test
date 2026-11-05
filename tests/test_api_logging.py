@@ -79,16 +79,16 @@ class ApiLogTests(unittest.TestCase):
         }]}}
         with mock.patch.object(api_log, "send", return_value=json.dumps(results).encode()), \
                 mock.patch.object(website_discovery, "page_profile", return_value={
-                    "description": "Homepage description.", "paragraph": "", "excerpt": "Body text"}):
+                    "description": "Green Beverly Coalition brings Beverly residents together to cut emissions and restore parks.", "paragraphs": [], "excerpt": "Body text"}):
             found = website_discovery.brave_discover(org, "key")
-        self.assertEqual(found["summary"], "Homepage description.")
+        self.assertEqual(found["summary"], "Green Beverly Coalition brings Beverly residents together to cut emissions and restore parks.")
         self.assertIn("The Green Beverly Coalition in Beverly, MA & more", found["evidence"])
         self.assertEqual(self.entries()[0]["kind"], "brave_accepted")
 
         # The same search again is served from the cache: no second API call.
         with mock.patch.object(api_log, "send") as send, \
                 mock.patch.object(website_discovery, "page_profile", return_value={
-                    "description": "Homepage description.", "paragraph": "", "excerpt": ""}):
+                    "description": "Green Beverly Coalition brings Beverly residents together to cut emissions and restore parks.", "paragraphs": [], "excerpt": ""}):
             website_discovery.brave_discover(org, "key")
         send.assert_not_called()
 
@@ -107,9 +107,26 @@ class ApiLogTests(unittest.TestCase):
         ]}}
         with mock.patch.object(api_log, "send", return_value=json.dumps(results).encode()), \
                 mock.patch.object(website_discovery, "page_profile", return_value={
-                    "description": "Restoring the Woonasquatucket.", "paragraph": "", "excerpt": ""}):
+                    "description": "The council restores the Woonasquatucket River and its parks for Providence neighborhoods.", "paragraphs": [], "excerpt": ""}):
             found = website_discovery.brave_discover(org, "key")
         self.assertEqual(found["website_url"], "https://wrwc.org/")
+
+    def test_facebook_page_comes_from_cached_results_only(self):
+        org = {"name": "MIDDLE DAM POND CONSERVATION ASSOCIATION", "city": "COVENTRY", "state": "RI"}
+        self.assertEqual(website_discovery.facebook_page(org), "")  # nothing cached: no API call, no page
+        website_discovery._store_brave_results(website_discovery.brave_query(org), [
+            {"url": "https://www.facebook.com/events/123/"},
+            {"url": "https://www.facebook.com/SomeOtherGroup/"},
+            {"url": "https://m.facebook.com/MiddleDamPond/posts/9"},
+        ])
+        self.assertEqual(website_discovery.facebook_page(org), "https://www.facebook.com/MiddleDamPond/")
+        other = {**org, "city": "WARWICK"}
+        website_discovery._store_brave_results(website_discovery.brave_query(other), [
+            {"url": "https://www.facebook.com/groups/OurNK/posts/3871916723037558/"},
+            {"url": "https://www.facebook.com/p/Middle-Dam-Pond-Conservation-Association-100091443049715/"},
+        ])
+        self.assertEqual(website_discovery.facebook_page(other),
+                         "https://www.facebook.com/p/Middle-Dam-Pond-Conservation-Association-100091443049715/")
 
 
 if __name__ == "__main__":

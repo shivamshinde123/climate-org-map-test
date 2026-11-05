@@ -23,9 +23,9 @@ Current dataset evidence:
 
 - 20,577 total organization records.
 - 14,380 Census address-range matches.
-- 4,815 ZIP-centroid and 1,139 city-centroid fallback points (scatter ≤ 0.005°).
-- 243 records with no map point (PO-box ZIPs plus city names that miss the
-  Census list, e.g. IRS's 13-character truncations like `SALT LAKE CTY`).
+- 4,815 ZIP-centroid and 1,293 city-centroid fallback points (scatter ≤ 0.005°).
+- 89 records with no map point (PO-box ZIP plus a neighborhood, village or
+  unincorporated place name outside the Census place list).
 - The state-level fallback was removed: it put pins up to ~100 km from the
   organization, including in the sea.
 
@@ -34,9 +34,7 @@ Remaining work:
 - [x] Run Census geocoding for the complete dataset.
 - [ ] Review match and non-match quality manually.
 - [ ] Confirm that address changes invalidate cached results correctly.
-- [ ] Recover the 243 no-point records with city-name normalization
-      (`CTY`→`CITY`, `SPGS`→`SPRINGS`, `ST`↔`SAINT`) and a short alias list
-      (e.g. Boise → Boise City).
+- [x] Recover no-point records with tolerant city matching (154 of 243 recovered).
 
 Suggested pilot command:
 

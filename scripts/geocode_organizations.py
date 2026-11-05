@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import difflib
 import hashlib
 import io
 import json
@@ -206,6 +207,81 @@ def _scatter_around(
     return round(longitude, 6), round(latitude, 6)
 
 
+# The IRS master file caps city names at 13 characters, so long names arrive
+# abbreviated ("COLORADO SPGS", "SALT LAKE CTY") or with letters dropped.
+_CITY_ABBREVIATIONS = {
+    "CTY": "CITY", "SPGS": "SPRINGS", "SPRGS": "SPRINGS", "SPG": "SPRINGS", "BCH": "BEACH",
+    "HTS": "HEIGHTS", "HGTS": "HEIGHTS", "HLS": "HILLS", "PT": "POINT", "FT": "FORT",
+    "MT": "MOUNT", "MTN": "MOUNTAIN", "JCT": "JUNCTION", "LK": "LAKE", "VLG": "VILLAGE",
+    "CTR": "CENTER", "TWP": "TOWNSHIP", "PK": "PARK", "GRV": "GROVE", "HBR": "HARBOR",
+    "CRK": "CREEK", "VLY": "VALLEY", "N": "NORTH", "S": "SOUTH", "E": "EAST", "W": "WEST",
+    "SAINT": "ST", "SAINTE": "STE",
+}
+# Places the Census list folds into a larger city.
+_CITY_ALIASES = {
+    ("BROOKLYN", "NY"): "NEWYORK", ("BRONX", "NY"): "NEWYORK", ("QUEENS", "NY"): "NEWYORK",
+    ("STATENISLAND", "NY"): "NEWYORK", ("FLUSHING", "NY"): "NEWYORK", ("JAMAICA", "NY"): "NEWYORK",
+    ("ASTORIA", "NY"): "NEWYORK", ("LONGISLANDCITY", "NY"): "NEWYORK",
+    ("HONOLULU", "HI"): "URBANHONOLULU",
+}
+
+
+def _is_subsequence(short: str, long: str) -> bool:
+    letters = iter(long)
+    return all(char in letters for char in short)
+
+
+def _city_tokens(name: str) -> list[str]:
+    tokens = re.split(r"[^A-Z0-9]+", name.upper())
+    return [_CITY_ABBREVIATIONS.get(token, token) for token in tokens if token]
+
+
+def city_key(name: str) -> str:
+    """Normalize a city name so IRS and Census spellings compare equal."""
+    return "".join(_city_tokens(name))
+
+
+def _whole_word_runs(name: str) -> set[str]:
+    """Every run of consecutive words in a name, joined ("BOISE", "BOISECITY", "CITY")."""
+    tokens = _city_tokens(name)
+    return {"".join(tokens[i:j]) for i in range(len(tokens)) for j in range(i + 1, len(tokens) + 1)}
+
+
+def match_city(
+    city: str, state: str, city_centroids: dict[tuple[str, str], tuple[float, float]]
+) -> tuple[float, float] | None:
+    """Find a city centroid despite IRS truncation, abbreviations and Census naming.
+
+    Exact matches are handled by the caller; this runs only for misses, so the
+    per-state scan stays cheap.
+    """
+    names = {city_key(c): c for (c, s) in city_centroids if s == state}
+    keyed = {k: city_centroids[(c, state)] for k, c in names.items()}
+    key = city_key(city)
+    if not key or not keyed:
+        return None
+    if key in keyed:
+        return keyed[key]
+    alias = _CITY_ALIASES.get((key, state))
+    if alias in keyed:
+        return keyed[alias]
+    for test, minimum in (
+        # Whole words only, so WATERS never becomes WATERSMEET.
+        (lambda k: k.startswith(key) and key in _whole_word_runs(names[k]), 5),  # BOISE -> BOISE CITY
+        (lambda k: key in _whole_word_runs(names[k]), 6),  # VENTURA -> SAN BUENAVENTURA (VENTURA)
+        # Census strips "city"/"town" suffixes: CARSON CITY -> CARSON
+        (lambda k: len(k) >= 5 and key.startswith(k) and key[len(k):] in ("CITY", "TOWN", "VILLAGE"), 0),
+    ):
+        found = [k for k in keyed if test(k)]
+        if len(key) >= minimum and len(found) == 1:
+            return keyed[found[0]]
+    # Truncation only drops letters, so the IRS name must be an in-order subset
+    # of the Census name; plain fuzzy matching paired CEDAR BROOK with CLEARBROOK.
+    truncated = [k for k in keyed if k[0] == key[0] and _is_subsequence(key, k)]
+    close = difflib.get_close_matches(key, truncated, n=1, cutoff=0.85)
+    return keyed[close[0]] if close else None
+
+
 def apply_fallback(
     feature: dict,
     city_centroids: dict[tuple[str, str], tuple[float, float]] | None = None,
@@ -226,8 +302,9 @@ def apply_fallback(
     center, precision, area = None, "", ""
     if zip_centroids and zip_code in zip_centroids:
         center, precision, area = zip_centroids[zip_code], "zip_level_fallback", f"ZIP {zip_code}"
-    elif city_centroids and (city, state_key) in city_centroids:
-        center, precision = city_centroids[(city, state_key)], "city_level_fallback"
+    elif city_centroids and city and state_key:
+        center = city_centroids.get((city, state_key)) or match_city(city, state_key, city_centroids)
+        precision = "city_level_fallback"
         area = f"{properties.get('city', city).title()}, {state_key}"
 
     if center is None:

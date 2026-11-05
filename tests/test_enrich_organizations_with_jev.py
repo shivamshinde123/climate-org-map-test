@@ -159,7 +159,10 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
 
 
     def test_not_found_rerun_clears_previous_website_and_contacts(self):
-        """A record rejected on re-run must not keep the old run's website."""
+        """A record rejected on re-run must not keep the old run's website or categories."""
+        self.properties.update(gcc_reach="Unknown", reach="Unknown")
+        apply_enrichment(self.properties, self.discovery, self.jev_response, "typesafe/jev-1.13")
+        self.assertEqual(self.properties["gcc_reach"], "State / National")
         self.properties.update(website_url="https://www.instrumentl.com/990-report/x", summary="old",
                                email="old@x.org", contact_page_url="https://x.org/contact")
         not_found = {**self.discovery, "status": "not_found", "website_url": "", "source_urls": []}
@@ -175,6 +178,8 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
         self.assertEqual(properties["website_url"], "")
         self.assertEqual(properties["email"], "")
         self.assertNotIn("contact_page_url", properties)
+        self.assertEqual(properties["gcc_reach"], "Unknown")
+        self.assertEqual(properties["jev_classification_status"], "not_classified")
 
 
 if __name__ == "__main__":

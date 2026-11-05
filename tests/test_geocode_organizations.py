@@ -6,6 +6,7 @@ from scripts.geocode_organizations import (
     apply_fallback,
     apply_result,
     make_address_key,
+    match_city,
     parse_batch_response,
 )
 
@@ -59,6 +60,23 @@ class GeocodeOrganizationTests(unittest.TestCase):
         self.assertFalse(apply_fallback(self.feature, {}, {}))
         self.assertIsNone(self.feature["geometry"])
         self.assertEqual(self.feature["properties"]["location_precision"], "unavailable")
+
+    def test_city_matching_survives_irs_truncation_and_census_naming(self):
+        """IRS 13-character abbreviations still find the right Census place, and nothing wrong."""
+        cities = {
+            ("CHARLOTTESVILLE", "VA"): (1, 1), ("COLORADO SPRINGS", "CO"): (2, 2),
+            ("BOISE CITY", "ID"): (3, 3), ("ST. LOUIS", "MO"): (4, 4), ("NEW YORK", "NY"): (5, 5),
+            ("WATERSMEET", "MI"): (6, 6), ("CLEARBROOK", "NJ"): (7, 7), ("CARSON", "NV"): (8, 8),
+        }
+        self.assertEqual(match_city("CHARLOTTESVLE", "VA", cities), (1, 1))
+        self.assertEqual(match_city("COLORADO SPGS", "CO", cities), (2, 2))
+        self.assertEqual(match_city("BOISE", "ID", cities), (3, 3))
+        self.assertEqual(match_city("SAINT LOUIS", "MO", cities), (4, 4))
+        self.assertEqual(match_city("BROOKLYN", "NY", cities), (5, 5))
+        self.assertEqual(match_city("CARSON CITY", "NV", cities), (8, 8))
+        self.assertIsNone(match_city("WATERS", "MI", cities))
+        self.assertIsNone(match_city("CEDAR BROOK", "NJ", cities))
+        self.assertIsNone(match_city("CHARLOTTESVLE", "MD", cities))
 
     def test_parse_and_apply_match(self):
         """A valid Census CSV row becomes Point geometry with provider metadata."""

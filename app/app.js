@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261105-2";
+const ASSET_VERSION = "20261105-3";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -147,6 +147,8 @@ function popupMarkup(properties) {
     .map((line) => escapeHtml(line))
     .join("<br>");
   const websiteUrl = safeExternalUrl(properties.website_url);
+  // Only shown when there is no website: for small groups it is often their only page.
+  const facebookUrl = websiteUrl ? "" : safeExternalUrl(properties.facebook_url);
   const summary = text(properties.summary).trim();
   const email = text(properties.email).trim();
   const phone = text(properties.phone).trim();
@@ -163,10 +165,11 @@ function popupMarkup(properties) {
       ? `<div><dt>Contact:</dt><dd><a class="popup-link" href="${escapeHtml(contactUrl)}" target="_blank" rel="noopener noreferrer">Contact page</a></dd></div>`
       : "",
   ].join("");
-  const websiteAndSummary = websiteUrl || summary || contactRows
+  const websiteAndSummary = websiteUrl || facebookUrl || summary || contactRows
     ? `
       <section class="popup-profile">
         ${websiteUrl ? `<a class="popup-link" href="${escapeHtml(websiteUrl)}" target="_blank" rel="noopener noreferrer">Website</a>` : ""}
+        ${facebookUrl ? `<a class="popup-link" href="${escapeHtml(facebookUrl)}" target="_blank" rel="noopener noreferrer">Facebook page</a>` : ""}
         ${summary ? `<p class="popup-summary">${escapeHtml(summary)}</p>` : ""}
         ${contactRows ? `<dl class="popup-fields">${contactRows}</dl>` : ""}
       </section>
@@ -294,6 +297,8 @@ function initializeMap(data) {
     minZoom: 2.4,
     style: {
       version: 8,
+      // Symbol layers (the cluster counts) need a glyph server for "Open Sans Bold".
+      glyphs: "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf",
       sources: {
         basemap: {
           type: "raster",

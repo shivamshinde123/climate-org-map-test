@@ -93,6 +93,20 @@ def is_directory(url: str) -> bool:
         return True
 
 
+_PHONE_LABEL_RE = re.compile(r"\b(phone|call|tel|telephone|ph|office|reach us|contact)\b")
+
+
+def normalize_phone(raw: str) -> str:
+    """Return a valid US number as ``(AAA) EEE-NNNN``, or "" when it isn't one."""
+    digits = re.sub(r"\D", "", raw or "")
+    if len(digits) == 11 and digits.startswith("1"):
+        digits = digits[1:]
+    # NANP: area code and exchange both start with 2-9.
+    if len(digits) != 10 or digits[0] in "01" or digits[3] in "01":
+        return ""
+    return f"({digits[:3]}) {digits[3:6]}-{digits[6:]}"
+
+
 def email_matches_site(email: str, website_url: str) -> bool:
     """Accept only the organization's own domain or a free personal mailbox."""
     if not _EMAIL_RE.fullmatch(email or ""):
@@ -140,7 +154,12 @@ def domain_matches_name(url: str, name: str) -> bool:
     (``westbaylandtrust``) or the name's initials (``sklt`` for South
     Kingstown Land Trust, ``foghp`` for Friends Of Green Hill Pond).
     """
-    label = re.sub(r"[^a-z0-9]", "", site_domain(url).split(".")[0])
+    return label_matches_name(site_domain(url).split(".")[0], name)
+
+
+def label_matches_name(label: str, name: str) -> bool:
+    """Name test shared by domains and page slugs (``facebook.com/MiddleDamPond``)."""
+    label = re.sub(r"[^a-z0-9]", "", label.lower())
     words = _norm(name).split()
     if not label or not words:
         return False
@@ -158,10 +177,16 @@ def domain_matches_name(url: str, name: str) -> bool:
 
 
 def is_homepage_like(url: str) -> bool:
-    """Shallow path, no query, no long article slug: likely a site's own front page."""
+    """A site's front page: no path beyond an index file and no query.
+
+    Any deeper page on a domain that doesn't match the name is a page *about*
+    the organization (alaskaadvisor.com/bootlegger.html named Glacier Grotto).
+    """
     parsed = urllib.parse.urlparse(url)
     segments = [s for s in parsed.path.split("/") if s]
-    return not parsed.query and len(segments) <= 1 and all(s.count("-") <= 2 for s in segments)
+    return not parsed.query and (
+        not segments or (len(segments) == 1 and segments[0].lower() in ("index.html", "index.php", "home"))
+    )
 
 
 def _identity_score(result: dict, name_norm: str, city_norm: str, state: str) -> float:
@@ -255,10 +280,6 @@ class _HTMLParser(html.parser.HTMLParser):
     def text(self) -> str:
         return " ".join(self._text)
 
-    @property
-    def first_paragraph(self) -> str:
-        """First substantial paragraph, a fallback summary for sites without a meta description."""
-        return next((p for p in self.paragraphs if len(p) >= 80), "")
 
 
 def _robots_allowed(url: str) -> bool:
@@ -305,12 +326,23 @@ def _extract_contacts(html_text: str, base_url: str) -> dict[str, str]:
             matches[0] if matches else "",
         )
 
-    phone = ""
-    if parser.tel:
-        phone = parser.tel[0]
-    else:
-        matches = _PHONE_RE.findall(parser.text)
-        phone = matches[0].strip() if matches else ""
+    # tel: links are the site's own declared number. Plain-text numbers count only
+    # when labelled as a phone, which skips fax lines and partners' numbers.
+    phone = next((p for p in map(normalize_phone, parser.tel) if p), "")
+    if not phone:
+        labelled, unlabelled = [], set()
+        for match in _PHONE_RE.finditer(parser.text):
+            number = normalize_phone(match.group())
+            label = parser.text[max(0, match.start() - 30):match.start()].lower()
+            if not number or "fax" in label:
+                continue
+            if _PHONE_LABEL_RE.search(label):
+                labelled.append(number)
+            else:
+                unlabelled.add(number)
+        # Many small sites print one unlabelled number in the footer; a page
+        # with several unlabelled numbers (partners, officers) is ambiguous.
+        phone = labelled[0] if labelled else (next(iter(unlabelled)) if len(unlabelled) == 1 else "")
 
     contact_page_url = ""
     base_netloc = urllib.parse.urlparse(base_url).netloc
@@ -335,6 +367,11 @@ def crawl_for_contacts(website_url: str) -> dict:
     ``accessible=False`` to decide whether an OpenRouter fallback is warranted.
     """
     blocked: dict = {"email": "", "phone": "", "contact_page_url": "", "accessible": False}
+    if urllib.parse.urlparse(website_url).path.strip("/"):
+        # Own-domain matches are stored as the homepage, so a deeper URL is the
+        # organization's page on someone else's site (e.g. caves.org/grotto/x):
+        # its phone and email belong to the host. Leave contacts blank, unpaid.
+        return {"email": "", "phone": "", "contact_page_url": "", "accessible": True}
     if not _robots_allowed(website_url):
         return blocked
     html_text = _fetch(website_url)
@@ -354,9 +391,69 @@ def crawl_for_contacts(website_url: str) -> dict:
     return contacts
 
 
-def page_profile(url: str) -> dict[str, str]:
-    """Return the page's meta description, first substantial paragraph and a text excerpt."""
-    empty = {"description": "", "paragraph": "", "excerpt": ""}
+# Text that is about getting somewhere, paying, or the website itself rather
+# than about the organization ("Mail a check to: P.O. Box 196", driving directions).
+_JUNK_SUMMARY_RE = re.compile(
+    r"p\.?\s?o\.?\s+box|mail (a|your) check|make checks? payable|\b(turn|bear) (left|right)\b|"
+    r"\bmiles? (on|north|south|east|west)\b|cookies?\b|javascript|all rights reserved|copyright|©|"
+    r"click here|log ?in\b|sign ?up\b|subscribe|newsletter|404|page not found",
+    re.I,
+)
+# Wording that typically describes what an organization does.
+_DESCRIPTIVE_RE = re.compile(
+    r"\b(mission|dedicated|committed|non-?profit|501\s?\(?c\)?|organization|works? to|working to|"
+    r"founded|protect|preserv|restor|conserv|educat|support|promot|advoca|volunteer|steward|"
+    r"community|habitat|watershed|environment)",
+    re.I,
+)
+
+
+def tidy_summary(text: str, limit: int = 320) -> str:
+    """Trim to whole sentences within ``limit`` characters and drop a dangling fragment.
+
+    Many meta descriptions are cut mid-word by the site itself ("…The Campbell").
+    """
+    text = clean_text(text).rstrip("…").rstrip()
+    sentences = re.findall(r".+?[.!?](?=\s|$)", text)
+    kept = ""
+    for sentence in sentences:
+        if len(kept) + len(sentence) > limit and kept:
+            break
+        kept += sentence
+    if kept.strip() and len(kept.strip()) >= 60:
+        return kept.strip()
+    return text[:limit].rsplit(" ", 1)[0] + "…" if len(text) > limit else text
+
+
+def _has_contact_details(text: str) -> bool:
+    # Officer rosters ("President Jane Doe (401) 486-5174") must never become a public summary.
+    return bool(_PHONE_RE.search(text) or _EMAIL_RE.search(text))
+
+
+def choose_summary(candidates: list[tuple[str, str]], name: str) -> tuple[str, str]:
+    """Pick the first candidate that reads like a description of the organization.
+
+    ``candidates`` are ``(text, source)`` pairs in preference order. Short, junk
+    and website-chrome text is skipped; text naming the organization or using
+    descriptive wording wins; otherwise the first usable candidate is kept.
+    """
+    distinctive = [w for w in _norm(name).split() if len(w) >= 4 and w not in _GENERIC_WORDS]
+    usable = [
+        (tidy_summary(text), source)
+        for text, source in candidates
+        if text and len(clean_text(text)) >= 60 and not _JUNK_SUMMARY_RE.search(text)
+        and not _has_contact_details(text)
+    ]
+    describes = (
+        (text, source) for text, source in usable
+        if _DESCRIPTIVE_RE.search(text) or any(w in _norm(text) for w in distinctive)
+    )
+    return next(describes, usable[0] if usable else ("", ""))
+
+
+def page_profile(url: str) -> dict:
+    """Return the page's meta description, substantial paragraphs and a text excerpt."""
+    empty = {"description": "", "paragraphs": [], "excerpt": ""}
     if not _robots_allowed(url):
         return empty
     html_text = _fetch(url)
@@ -369,7 +466,7 @@ def page_profile(url: str) -> dict[str, str]:
         pass
     return {
         "description": parser.description,
-        "paragraph": parser.first_paragraph,
+        "paragraphs": [p for p in parser.paragraphs if len(p) >= 80][:8],
         "excerpt": " ".join(parser.text.split())[:2000],
     }
 
@@ -439,6 +536,37 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
     return None
 
 
+def brave_query(properties: dict) -> str:
+    return f'"{properties.get("name", "")}" {properties.get("city", "")} {properties.get("state", "")}'
+
+
+# Facebook paths that are never an organization's own page.
+_FACEBOOK_NON_PAGES = {"events", "groups", "watch", "marketplace", "photo", "photos", "posts", "share", "story.php", "people", "login", "public"}
+
+
+def facebook_page(properties: dict) -> str:
+    """Return the organization's Facebook page from cached Brave results, or "".
+
+    For groups with no website of their own, a Facebook page is often their only
+    web presence. Only cached results are read, so this never costs an API call;
+    the page's slug must match the name (``facebook.com/MiddleDamPondAssociation``).
+    """
+    for result in _cached_brave_results(brave_query(properties)) or []:
+        parsed = urllib.parse.urlparse(result.get("url", ""))
+        if site_domain(parsed.netloc) != "facebook.com":
+            continue
+        segments = [s for s in parsed.path.split("/") if s]
+        if not segments or segments[0].lower() in _FACEBOOK_NON_PAGES:
+            continue
+        # Pages live at /Name, /p/Name-123 (newer profiles) or /pages/Name/123.
+        prefixed = segments[0] in ("p", "pages") and len(segments) > 1
+        slug = segments[1] if prefixed else segments[0]
+        if label_matches_name(slug, properties.get("name", "")):
+            kept = segments[: 3 if segments[0] == "pages" else 2] if prefixed else segments[:1]
+            return f"https://www.facebook.com/{'/'.join(kept)}/"
+    return ""
+
+
 def brave_discover(properties: dict, brave_key: str) -> dict | None:
     """Query Brave Search; return a discovery dict when confident, else None.
 
@@ -456,7 +584,7 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
     name_norm = _norm(name)
     city_norm = _norm(city)
 
-    results = _brave_search(f'"{name}" {city} {state}', brave_key)
+    results = _brave_search(brave_query(properties), brave_key)
     if results is None:
         return None
 
@@ -494,13 +622,11 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
         website_url = f"{parsed.scheme}://{parsed.netloc}/"
     snippet = clean_text(top.get("description", ""))
     page = page_profile(website_url)
-    summary, summary_source = next(
-        ((text, source) for text, source in (
-            (page["description"], "site meta description"),
-            (page["paragraph"], "site first paragraph"),
-            (snippet, "brave snippet"),
-        ) if text),
-        ("", ""),
+    summary, summary_source = choose_summary(
+        [(page["description"], "site meta description")]
+        + [(paragraph, "site paragraph") for paragraph in page["paragraphs"]]
+        + [(snippet, "brave snippet")],
+        name,
     )
     if not summary:
         api_log.decision("brave_rejected", reason="matched site has no description", url=website_url)

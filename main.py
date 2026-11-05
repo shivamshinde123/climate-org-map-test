@@ -156,6 +156,11 @@ def parse_args() -> argparse.Namespace:
         "--enrichment-state",
         help="Only enrich organizations in this two-letter state, e.g. MA",
     )
+    parser.add_argument(
+        "--no-contact-fallback",
+        action="store_true",
+        help="Leave contacts blank when a site blocks the crawler instead of paying for an OpenRouter lookup",
+    )
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
     parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT), help=argparse.SUPPRESS)
@@ -299,6 +304,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
             args.enrichment_limit if args.enrichment_limit is not None else args.limit,
             brave_key=os.environ.get("BRAVE_API_KEY") or None,
             state=args.enrichment_state,
+            contact_fallback=not args.no_contact_fallback,
         )
         print(f"      Organizations processed: {stats['processed']:,}")
         print(f"      Official websites found: {stats['websites_found']:,}")

@@ -28,14 +28,14 @@ try:
     from .normalize_external_data_without_llm import CATEGORY_OPTIONS
     from .load_environment import load_environment
     from .website_discovery import (
-        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, is_directory, site_domain,
+        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     from . import api_log
 except ImportError:  # Allows direct execution from the repository root.
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
     from website_discovery import (  # type: ignore
-        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, is_directory, site_domain,
+        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     import api_log  # type: ignore
 
@@ -44,8 +44,10 @@ OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-mini"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
-DISCOVERY_VERSION = "gcc-website-discovery-v5"
+DISCOVERY_VERSION = "gcc-website-discovery-v7"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
+# Bumping this re-checks contacts only: discovery and Jev results stay cached.
+CONTACT_VERSION = "gcc-contacts-v3"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
 # Jev's question identifiers intentionally match the source-neutral schema.
@@ -184,9 +186,13 @@ def website_discovery_payload(properties: dict, model: str) -> dict:
             "information about its mission, programs, audience, activities, subject areas, "
             "and geographic reach. Match identity using name and location; do not choose a "
             "directory, social profile, news article, or a similarly named organization. "
-            "Return found only when the identity match is supportable. Write a concise, neutral "
-            "summary grounded in the sources. Put the relevant extracted facts in evidence and "
-            "include every supporting URL. Do not infer GCC categories in this stage."
+            "Return found only when the identity match is supportable. "
+            "The summary is shown to the public in a map popup: write one to three plain sentences "
+            "describing the organization itself (what it does, where, and for whom), grounded in "
+            "the sources. Do not mention websites, searching, matching, EINs, IRS records, "
+            "addresses, or how the organization was identified; put identity reasoning in "
+            "rationale instead. Put the relevant extracted facts in evidence and include every "
+            "supporting URL. Do not infer GCC categories in this stage."
         ),
         identity,
         "organization_website_discovery",
@@ -202,9 +208,10 @@ def contact_schema() -> dict:
         "properties": {
             "email": {"type": "string"},
             "phone": {"type": "string"},
+            "phone_source_url": {"type": "string"},
             "contact_page_url": {"type": "string"},
         },
-        "required": ["email", "phone", "contact_page_url"],
+        "required": ["email", "phone", "phone_source_url", "contact_page_url"],
         "additionalProperties": False,
     }
 
@@ -227,7 +234,9 @@ def contact_search_payload(properties: dict, website_url: str, model: str) -> di
             "for the identified nonprofit organization from its official website. "
             "Return only general organizational contacts such as info@, contact@, or office@. "
             "Do not return named staff personal addresses or direct personal phone numbers. "
-            "Return empty strings for any field not confirmed on the official site."
+            "Set phone_source_url to the exact page on the official site where the phone number "
+            "appears. Return empty strings for any field not confirmed on the official site; "
+            "never return a number from a directory, a parent or partner organization, or a guess."
         ),
         identity,
         "organization_contact_details",
@@ -383,6 +392,14 @@ def apply_enrichment(properties: dict, discovery: dict, jev_response: dict, requ
     properties["website_discovery_confidence"] = discovery["confidence"]
     properties["website_evidence_urls"] = discovery["source_urls"]
 
+    # Keep the IRS-derived values Jev replaces, once, so a later run that
+    # rejects this record's website can put them back.
+    properties.setdefault("pre_enrichment_categories", {
+        key: properties.get(key)
+        for field in CLASSIFICATION_FIELDS
+        for key in (field, GCC_FIELD_BY_SCHEMA_FIELD[field])
+    } | {"validated": properties.get("validated", False)})
+
     # Store both the selected values and model diagnostics. The UI uses only the
     # values, while confidence/probability fields support later review and audit.
     confidences = {}
@@ -407,13 +424,26 @@ def apply_enrichment(properties: dict, discovery: dict, jev_response: dict, requ
     properties["jev_classified_at"] = datetime.now(timezone.utc).isoformat()
 
 
+_JEV_FIELDS = (
+    "jev_requested_model", "jev_model", "jev_provider", "jev_request_id", "jev_questions_version",
+    "jev_confidences", "jev_probabilities", "jev_classified_at",
+)
+
+
 def clear_research(properties: dict) -> None:
-    """Remove website, summary and contacts left by an earlier discovery run."""
+    """Remove website, summary, contacts and Jev categories left by an earlier run.
+
+    Categories go back to their IRS-derived values: Jev chose the old ones from
+    the evidence of a website this run rejected.
+    """
     # The base schema always carries these as empty strings; the others are enrichment-only.
     for field in ("website_url", "summary", "email", "phone"):
         properties[field] = ""
-    for field in ("contact_page_url", "website_evidence_urls"):
+    for field in ("contact_page_url", "website_evidence_urls", "facebook_url", *_JEV_FIELDS):
         properties.pop(field, None)
+    properties.update(properties.pop("pre_enrichment_categories", {}))
+    if properties.get("jev_classification_status") == "classified":
+        properties["jev_classification_status"] = "not_classified"
 
 
 def cache_key(material: dict) -> str:
@@ -439,6 +469,13 @@ def append_cache(path: Path, key: str, result: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8", newline="\n") as stream:
         stream.write(json.dumps({"cache_key": key, "result": result}, ensure_ascii=False, separators=(",", ":")) + "\n")
+
+
+WEBSEARCH_PROMPT_VERSION = "gcc-websearch-v2"  # bump when website_discovery_payload's wording changes
+
+
+def websearch_cache_key(properties: dict, search_model: str) -> str:
+    return cache_key({"prompt": WEBSEARCH_PROMPT_VERSION, "model": search_model, "identity": identity_material(properties)})
 
 
 def identity_material(properties: dict) -> dict:
@@ -468,6 +505,7 @@ def enrichment_is_complete(properties: dict, search_model: str, jev_model: str) 
         and properties.get("jev_classification_status") == "classified"
         and properties.get("jev_requested_model") == jev_model
         and properties.get("jev_questions_version") == JEV_QUESTIONS_VERSION
+        and properties.get("contact_version") == CONTACT_VERSION
     )
 
 
@@ -498,6 +536,7 @@ def enrich_geojson(
     fail_on_error: bool = False,
     brave_key: str | None = None,
     state: str | None = None,
+    contact_fallback: bool = True,
 ) -> dict[str, int]:
     """Research and classify only records not already complete.
 
@@ -511,6 +550,10 @@ def enrich_geojson(
     discovery_cache = load_cache(discovery_cache_path)
     contact_cache_path = discovery_cache_path.with_name("contact-cache.jsonl")
     contact_cache = load_cache(contact_cache_path)
+    # Paid web-search answers, kept apart from the discovery cache so that a
+    # discovery-rule change re-scores Brave results without re-paying these.
+    websearch_cache_path = discovery_cache_path.with_name("websearch-cache.jsonl")
+    websearch_cache = load_cache(websearch_cache_path)
     jev_cache = load_cache(jev_cache_path)
     search = discovery_caller or call_web_search
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
@@ -537,6 +580,7 @@ def enrich_geojson(
         "brave_matches": 0,
         "web_search_fallbacks": 0,
         "contact_fallbacks": 0,
+        "facebook_pages": 0,
     }
     brave_failure: BraveKeyError | None = None
 
@@ -563,8 +607,16 @@ def enrich_geojson(
                         "web_search_fallback", model=search_model,
                         reason="BRAVE_API_KEY not set" if not brave_key else "Brave found no confident match",
                     )
-                    stats["web_search_fallbacks"] += 1
-                    discovery = search(website_discovery_payload(properties, search_model), openrouter_key, search_endpoint)
+                    search_key = websearch_cache_key(properties, search_model)
+                    discovery = websearch_cache.get(search_key)
+                    if discovery is None:
+                        stats["web_search_fallbacks"] += 1
+                        discovery = search(website_discovery_payload(properties, search_model), openrouter_key, search_endpoint)
+                        websearch_cache[search_key] = discovery
+                        append_cache(websearch_cache_path, search_key, discovery)
+                    else:
+                        api_log.decision("web_search_cache_hit", reason="reused cached web-search answer; no API call")
+                    discovery = {**discovery, "summary": tidy_summary(discovery.get("summary", ""))}
                     if discovery.get("status") == "found" and is_directory(discovery.get("website_url", "")):
                         api_log.decision("web_search_directory_rejected", url=discovery.get("website_url"),
                                          reason="fallback returned a directory page, not an official site")
@@ -588,7 +640,13 @@ def enrich_geojson(
             if discovery["status"] != "found":
                 # Drop research from earlier runs so a rejected site never lingers on the map.
                 clear_research(properties)
+                facebook = facebook_page(properties)
+                if facebook:
+                    properties["facebook_url"] = facebook
+                    stats["facebook_pages"] += 1
+                    api_log.decision("facebook_fallback", reason="no website; Facebook page from cached Brave results", url=facebook)
                 continue
+            properties.pop("facebook_url", None)
             stats["websites_found"] += 1
             # Save useful research immediately, even if Jev subsequently fails.
             properties["website_url"] = discovery["website_url"]
@@ -603,8 +661,10 @@ def enrich_geojson(
                     "contacts_from_site", reason="crawled the official site",
                     found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
                 )
+            elif not contact_fallback:
+                api_log.decision("contact_fallback_skipped", reason="site blocked; paid contact lookup disabled")
             else:
-                contact_key = cache_key({"model": search_model, "website": discovery["website_url"]})
+                contact_key = cache_key({"model": search_model, "website": discovery["website_url"], "schema": "v2"})
                 try:
                     raw = contact_cache.get(contact_key)
                     if raw is None:
@@ -626,12 +686,18 @@ def enrich_geojson(
                         contacts["email"] = ""
                     if contacts["contact_page_url"] and site_domain(contacts["contact_page_url"]) != site_domain(site):
                         contacts["contact_page_url"] = ""
+                    # A number counts only if the model cites a page on the org's own domain.
+                    phone_source = str(raw.get("phone_source_url", ""))
+                    if not phone_source or site_domain(phone_source) != site_domain(site):
+                        contacts["phone"] = ""
+                    contacts["phone"] = normalize_phone(contacts["phone"])
                     api_log.decision("contact_fallback_result", kept={k: bool(v) for k, v in contacts.items()})
                 except Exception as error:
                     api_log.decision("contact_fallback_failed", reason=str(error)[:300])
                     contacts = {"email": "", "phone": "", "contact_page_url": ""}
             properties["email"] = contacts["email"]
             properties["phone"] = contacts["phone"]
+            properties["contact_version"] = CONTACT_VERSION
             if contacts.get("contact_page_url"):
                 properties["contact_page_url"] = contacts["contact_page_url"]
 
@@ -688,6 +754,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--limit", type=int)
     parser.add_argument("--state", help="Only enrich organizations in this two-letter state, e.g. MA")
+    parser.add_argument(
+        "--no-contact-fallback", action="store_true",
+        help="Leave contacts blank when a site blocks the crawler instead of paying for an OpenRouter lookup",
+    )
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
     parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT))
@@ -716,6 +786,7 @@ def main() -> None:
         args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
         args.search_endpoint, args.jev_endpoint, args.limit,
         fail_on_error=args.fail_on_error, brave_key=brave_key or None, state=args.state,
+        contact_fallback=not args.no_contact_fallback,
     )
     print(f"Organizations processed: {stats['processed']:,}")
     print(f"Official websites found: {stats['websites_found']:,}")
