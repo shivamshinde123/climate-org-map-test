@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261108-2";
+const ASSET_VERSION = "20261108-3";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -177,7 +177,7 @@ function popupMarkup(properties) {
     `
     : "";
   return `
-    ${verified ? `<span class="popup-verified">Verified by GCC</span>` : ""}
+    ${verified ? `<span class="popup-verified">Verified organization</span>` : ""}
     <div class="popup-name">${escapeHtml(properties.name)}</div>
     <div class="popup-address">${addressLines || "Address unavailable"}</div>
     <dl class="popup-fields">
