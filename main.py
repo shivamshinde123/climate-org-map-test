@@ -25,6 +25,7 @@ from scripts.api_log import LOG_PATH as API_LOG_PATH
 from scripts.build_irs_dataset import build_dataset
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
+from scripts.survey_verifications import apply_survey_verifications
 from scripts.enrich_organizations_with_jev import (
     DEFAULT_JEV_MODEL,
     DEFAULT_SEARCH_MODEL,
@@ -157,9 +158,9 @@ def parse_args() -> argparse.Namespace:
         help="Only enrich organizations in this two-letter state, e.g. MA",
     )
     parser.add_argument(
-        "--no-contact-fallback",
+        "--contact-fallback",
         action="store_true",
-        help="Leave contacts blank when a site blocks the crawler instead of paying for an OpenRouter lookup",
+        help="Pay for an OpenRouter contact lookup (about 2 cents) when a site blocks the crawler; off by default",
     )
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
@@ -304,7 +305,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
             args.enrichment_limit if args.enrichment_limit is not None else args.limit,
             brave_key=os.environ.get("BRAVE_API_KEY") or None,
             state=args.enrichment_state,
-            contact_fallback=not args.no_contact_fallback,
+            contact_fallback=args.contact_fallback,
         )
         print(f"      Organizations processed: {stats['processed']:,}")
         print(f"      Official websites found: {stats['websites_found']:,}")
@@ -316,6 +317,13 @@ def run_pipeline(args: argparse.Namespace) -> None:
         print(f"      Pending after this run: {stats['remaining']:,}")
         print(f"      Enrichment errors: {stats['failed']:,}")
         print(f"      Full request log: {API_LOG_PATH}")
+
+    # Survey verification is applied last so no earlier stage can overwrite it.
+    payload = json.loads(args.output.read_text(encoding="utf-8"))
+    marked = apply_survey_verifications(payload.get("features", []))
+    if marked:
+        write_geojson(args.output, payload)
+        print(f"      Verified from GCC survey: {marked:,} organizations")
 
     print(f"[{phase_count}/{phase_count}] Validating map dataset...", flush=True)
     records, points, fallback_points = validate_map_dataset(args.output)

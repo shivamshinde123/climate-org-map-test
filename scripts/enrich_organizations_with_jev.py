@@ -28,21 +28,23 @@ try:
     from .normalize_external_data_without_llm import CATEGORY_OPTIONS
     from .load_environment import load_environment
     from .website_discovery import (
-        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
+        BraveKeyError, brave_candidates, brave_discover, brave_query, clean_text, crawl_for_contacts, discovery_from_result,
+        email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     from . import api_log
 except ImportError:  # Allows direct execution from the repository root.
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
     from website_discovery import (  # type: ignore
-        BraveKeyError, brave_discover, crawl_for_contacts, email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
+        BraveKeyError, brave_candidates, brave_discover, brave_query, clean_text, crawl_for_contacts, discovery_from_result,
+        email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     import api_log  # type: ignore
 
 
 OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
-DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-mini"
+DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-nano"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
 DISCOVERY_VERSION = "gcc-website-discovery-v7"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
@@ -198,6 +200,87 @@ def website_discovery_payload(properties: dict, model: str) -> dict:
         "organization_website_discovery",
         discovery_schema(),
         "medium",
+    )
+
+
+PICKER_PROMPT_VERSION = "gcc-brave-pick-v1"
+_PICKER_INSTRUCTIONS = (
+    "You are given a nonprofit organization's identity and numbered web search results. "
+    "Return the index of the result that is the organization's own official website: a site "
+    "the organization runs itself, normally at its own domain. Choose its page on a parent "
+    "organization's site only if it clearly has no domain of its own. Never choose a "
+    "directory or nonprofit database, a news article, a government page, a funder or grant "
+    "listing, a social media page, or a different organization with a similar name. If no "
+    "result is clearly its official website, return index -1. Give a one-sentence reason."
+)
+
+
+def brave_pick_payload(properties: dict, candidates: list[dict], model: str) -> dict:
+    """Ask a cheap model to choose the official site among Brave's results (no web search)."""
+    question = {
+        "organization": {k: properties.get(k, "") for k in ("name", "city", "state", "ntee_label")},
+        "results": [
+            {"index": i, "url": r["url"], "title": clean_text(r.get("title", "")),
+             "snippet": clean_text(r.get("description", ""))}
+            for i, r in enumerate(candidates)
+        ],
+    }
+    return {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _PICKER_INSTRUCTIONS},
+            {"role": "user", "content": json.dumps(question, ensure_ascii=False)},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "official_site_pick",
+                "strict": True,
+                "schema": {
+                    "type": "object",
+                    "properties": {"index": {"type": "integer"}, "reason": {"type": "string"}},
+                    "required": ["index", "reason"],
+                    "additionalProperties": False,
+                },
+            },
+        },
+        "usage": {"include": True},
+    }
+
+
+def call_brave_pick(payload: dict, api_key: str, endpoint: str) -> dict:
+    return extract_chat_output(post_json(payload, api_key, endpoint, purpose="brave_pick"))
+
+
+def pick_from_brave(
+    properties: dict, model: str, api_key: str, endpoint: str,
+    cache: dict, cache_path: Path, caller: Callable[[dict, str, str], dict] | None = None,
+) -> dict | None:
+    """Return a discovery built from the Brave result the model calls official, or None.
+
+    Costs one small chat call (~$0.0005 with gpt-5.4-nano) instead of a ~$0.012
+    web search, and only runs when Brave's own rules matched nothing.
+    """
+    candidates = brave_candidates(properties)
+    if not candidates:
+        return None
+    key = cache_key({
+        "prompt": PICKER_PROMPT_VERSION, "model": model,
+        "query": brave_query(properties), "urls": [r["url"] for r in candidates],
+    })
+    answer = cache.get(key)
+    if answer is None:
+        answer = (caller or call_brave_pick)(brave_pick_payload(properties, candidates, model), api_key, endpoint)
+        cache[key] = answer
+        append_cache(cache_path, key, answer)
+    index = answer.get("index", -1)
+    if not isinstance(index, int) or not 0 <= index < len(candidates):
+        api_log.decision("brave_pick_none", reason=str(answer.get("reason", ""))[:300], candidates=len(candidates))
+        return None
+    return discovery_from_result(
+        properties, candidates[index], confidence="medium",
+        rationale=f"Brave Search result picked by {model}: {str(answer.get('reason', ''))[:200]}",
+        log_kind="brave_picked",
     )
 
 
@@ -533,10 +616,11 @@ def enrich_geojson(
     discovery_caller: Callable[[dict, str, str], dict] | None = None,
     jev_caller: Callable[[dict, str, str], dict] | None = None,
     contact_caller: Callable[[dict, str, str], dict] | None = None,
+    picker_caller: Callable[[dict, str, str], dict] | None = None,
     fail_on_error: bool = False,
     brave_key: str | None = None,
     state: str | None = None,
-    contact_fallback: bool = True,
+    contact_fallback: bool = False,
 ) -> dict[str, int]:
     """Research and classify only records not already complete.
 
@@ -554,6 +638,8 @@ def enrich_geojson(
     # discovery-rule change re-scores Brave results without re-paying these.
     websearch_cache_path = discovery_cache_path.with_name("websearch-cache.jsonl")
     websearch_cache = load_cache(websearch_cache_path)
+    picker_cache_path = discovery_cache_path.with_name("picker-cache.jsonl")
+    picker_cache = load_cache(picker_cache_path)
     jev_cache = load_cache(jev_cache_path)
     search = discovery_caller or call_web_search
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
@@ -578,6 +664,7 @@ def enrich_geojson(
         "skipped_existing": len(features) - len(incomplete),
         "remaining": 0,
         "brave_matches": 0,
+        "brave_picks": 0,
         "web_search_fallbacks": 0,
         "contact_fallbacks": 0,
         "facebook_pages": 0,
@@ -600,12 +687,22 @@ def enrich_geojson(
             if discovery is None:
                 # Brave Search is the cost-effective primary path; LLM web search
                 # is the fallback when Brave returns None (no confident match found).
+                route = ""
                 if brave_key:
                     discovery = brave_discover(properties, brave_key)
+                    route = "brave" if discovery else ""
+                    if discovery is None:
+                        # Brave already paid for the search: let the cheap model pick
+                        # from its results before paying for a fresh web search.
+                        discovery = pick_from_brave(
+                            properties, search_model, openrouter_key, search_endpoint,
+                            picker_cache, picker_cache_path, picker_caller,
+                        )
+                        route = "brave_pick" if discovery else ""
                 if discovery is None:
                     api_log.decision(
                         "web_search_fallback", model=search_model,
-                        reason="BRAVE_API_KEY not set" if not brave_key else "Brave found no confident match",
+                        reason="BRAVE_API_KEY not set" if not brave_key else "no Brave result is the official site",
                     )
                     search_key = websearch_cache_key(properties, search_model)
                     discovery = websearch_cache.get(search_key)
@@ -621,8 +718,10 @@ def enrich_geojson(
                         api_log.decision("web_search_directory_rejected", url=discovery.get("website_url"),
                                          reason="fallback returned a directory page, not an official site")
                         discovery = {**discovery, "status": "ambiguous"}
-                else:
+                elif route == "brave":
                     stats["brave_matches"] += 1
+                else:
+                    stats["brave_picks"] += 1
                 validate_discovery(discovery)
                 discovery_cache[discovery_key] = discovery
                 append_cache(discovery_cache_path, discovery_key, discovery)
@@ -631,7 +730,8 @@ def enrich_geojson(
                 validate_discovery(discovery)
 
             properties["website_discovery_source"] = (
-                "brave" if str(discovery.get("rationale", "")).startswith("Brave Search") else "openrouter_web_search"
+                "brave_llm_pick" if str(discovery.get("rationale", "")).startswith("Brave Search result picked")
+                else "brave" if str(discovery.get("rationale", "")).startswith("Brave Search") else "openrouter_web_search"
             )
             properties["website_discovery_status"] = discovery["status"]
             properties["website_discovery_confidence"] = discovery["confidence"]
@@ -662,7 +762,7 @@ def enrich_geojson(
                     found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
                 )
             elif not contact_fallback:
-                api_log.decision("contact_fallback_skipped", reason="site blocked; paid contact lookup disabled")
+                api_log.decision("contact_fallback_skipped", reason="site blocked; paid contact lookup is off (use --contact-fallback)")
             else:
                 contact_key = cache_key({"model": search_model, "website": discovery["website_url"], "schema": "v2"})
                 try:
@@ -755,8 +855,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int)
     parser.add_argument("--state", help="Only enrich organizations in this two-letter state, e.g. MA")
     parser.add_argument(
-        "--no-contact-fallback", action="store_true",
-        help="Leave contacts blank when a site blocks the crawler instead of paying for an OpenRouter lookup",
+        "--contact-fallback", action="store_true",
+        help="Pay for an OpenRouter contact lookup (about 2 cents) when a site blocks the crawler; off by default",
     )
     parser.add_argument("--search-model", default=os.environ.get("SEARCH_MODEL", DEFAULT_SEARCH_MODEL))
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
@@ -786,7 +886,7 @@ def main() -> None:
         args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
         args.search_endpoint, args.jev_endpoint, args.limit,
         fail_on_error=args.fail_on_error, brave_key=brave_key or None, state=args.state,
-        contact_fallback=not args.no_contact_fallback,
+        contact_fallback=args.contact_fallback,
     )
     print(f"Organizations processed: {stats['processed']:,}")
     print(f"Official websites found: {stats['websites_found']:,}")

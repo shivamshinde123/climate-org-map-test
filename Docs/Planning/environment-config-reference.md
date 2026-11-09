@@ -18,13 +18,13 @@ Future geocoding, map-tile, CRM, and third-party source credentials must be supp
 
 Step-by-step account and key creation for both providers: [../Setup/api-keys-setup.md](../Setup/api-keys-setup.md).
 
-`--enrichment-limit N` caps how many organizations a run enriches and `--enrichment-state XX` restricts it to one state (e.g. `MA`). `--no-contact-fallback` leaves contacts blank for sites that block the crawler instead of paying for an OpenRouter lookup (about 2 cents each). Brave results, OpenRouter web-search answers and contact lookups are cached under `Data/Website Enrichment/`, so re-runs only pay for new work.
+`--enrichment-limit N` caps how many organizations a run enriches and `--enrichment-state XX` restricts it to one state (e.g. `MA`). The paid OpenRouter contact lookup for sites that block the crawler is off by default; `--contact-fallback` turns it on (about 2 cents each). Brave results, picker answers, OpenRouter web-search answers and contact lookups are cached under `Data/Website Enrichment/`, so re-runs only pay for new work.
 
 Every Brave and OpenRouter request is appended to `Data/Logs/api-requests.jsonl` (git-ignored), one JSON object per line. `type: "request"` entries hold the provider, purpose (`website_discovery`, `web_search_website_discovery`, `web_search_contact_details`, `jev_classification`), organization id and name, full URL, request body, HTTP status, response headers and body (OpenRouter bodies include `usage.cost`), and duration. `type: "decision"` entries record which path was taken and why (`brave_accepted`, `brave_rejected`, `web_search_fallback`, `contacts_from_site`, `contact_fallback`, cache hits). API keys and cookies are never written. A Brave HTTP 401/403/422 stops the run instead of silently falling back to paid OpenRouter search.
 
 - `BRAVE_API_KEY`: optional but strongly recommended. Enables Brave Search as the primary website-discovery path, which is faster and cheaper than LLM web search for clear-match cases. When absent, every record falls through to the OpenRouter web-search path. Get a key at https://brave.com/search/api/.
 - `OPENROUTER_API_KEY`: required. The only LLM key: used for fallback web-search discovery and contact extraction (Chat Completions + `web` plugin) and for Jev classification (Decisions API).
-- `SEARCH_MODEL`: optional website-search model override; defaults to `openai/gpt-5.4-mini` (an OpenRouter model ID).
+- `SEARCH_MODEL`: optional model override for the Brave-result picker and the web-search fallback; defaults to `openai/gpt-5.4-nano` (an OpenRouter model ID).
 - `SEARCH_BASE_URL`: optional chat-completions override; defaults to `https://openrouter.ai/api/v1/chat/completions`.
 - `JEV_MODEL`: optional Jev override; defaults to the pinned `typesafe/jev-1.13` model.
 - `JEV_BASE_URL`: optional Decisions API override; defaults to `https://openrouter.ai/api/alpha/decisions`.

@@ -245,7 +245,7 @@ node --check app/app.js
 
 ## Environment and secrets
 
-`BRAVE_API_KEY` is optional but recommended: it enables the cheaper Brave Search primary discovery path. `OPENROUTER_API_KEY` is required: it covers both the fallback web-search path (used when Brave returns no confident match, or when no Brave key is set) and Jev classification. `SEARCH_MODEL` (default `openai/gpt-5.4-mini`) and `SEARCH_BASE_URL` configure the web-search fallback. `JEV_MODEL` defaults to `typesafe/jev-1.13`, and `JEV_BASE_URL` defaults to OpenRouter's Decisions API. Never commit any key or paste it into a source file.
+`BRAVE_API_KEY` is optional but recommended: it enables the cheaper Brave Search primary discovery path. `OPENROUTER_API_KEY` is required: it covers both the fallback web-search path (used when Brave returns no confident match, or when no Brave key is set) and Jev classification. `SEARCH_MODEL` (default `openai/gpt-5.4-nano`) and `SEARCH_BASE_URL` configure the Brave-result picker and the web-search fallback. The paid contact lookup is off unless `--contact-fallback` is passed. `JEV_MODEL` defaults to `typesafe/jev-1.13`, and `JEV_BASE_URL` defaults to OpenRouter's Decisions API. Never commit any key or paste it into a source file.
 
 ## Known limitations
 

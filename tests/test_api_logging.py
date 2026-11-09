@@ -111,6 +111,33 @@ class ApiLogTests(unittest.TestCase):
             found = website_discovery.brave_discover(org, "key")
         self.assertEqual(found["website_url"], "https://wrwc.org/")
 
+    def test_cheap_model_picks_from_brave_results_and_is_cached(self):
+        from scripts.enrich_organizations_with_jev import pick_from_brave
+        org = {"name": "AQUIDNECK COMMUNITY TABLE", "city": "MIDDLETOWN", "state": "RI"}
+        website_discovery._store_brave_results(website_discovery.brave_query(org), [
+            {"url": "https://www.guidestar.org/profile/1", "title": "x", "description": "x"},
+            {"url": "https://www.newportri.com/story/news/act-food/", "title": "News", "description": "about ACT"},
+            {"url": "https://actlocalri.org/about/", "title": "About ACT", "description": "Aquidneck Community Table"},
+        ])
+        calls = []
+
+        def caller(payload, _key, _endpoint):
+            calls.append(json.loads(payload["messages"][1]["content"]))
+            return {"index": 1, "reason": "actlocalri.org is ACT's own site"}
+
+        cache, path = {}, Path(self.directory.name) / "picker.jsonl"
+        with mock.patch.object(website_discovery, "page_profile", return_value={
+                "description": "Aquidneck Community Table builds a just local food system on Aquidneck Island.",
+                "paragraphs": [], "excerpt": ""}):
+            found = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, path, caller)
+            again = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, path, caller)
+        self.assertEqual(found["website_url"], "https://actlocalri.org/about/")
+        self.assertTrue(found["rationale"].startswith("Brave Search result picked"))
+        self.assertEqual(len(calls), 1)  # second pick came from the cache
+        self.assertEqual(len(calls[0]["results"]), 2)  # the directory was never offered
+        self.assertEqual(again["website_url"], found["website_url"])
+        self.assertIsNone(pick_from_brave({**org, "city": "NEWPORT"}, "m", "k", "e", {}, path, caller))  # nothing cached
+
     def test_facebook_page_comes_from_cached_results_only(self):
         org = {"name": "MIDDLE DAM POND CONSERVATION ASSOCIATION", "city": "COVENTRY", "state": "RI"}
         self.assertEqual(website_discovery.facebook_page(org), "")  # nothing cached: no API call, no page

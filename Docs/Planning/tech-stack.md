@@ -12,7 +12,7 @@
 - GitHub Actions for CI/CD deployment.
 - GitHub Pages for static hosting (public site from a private repository).
 - Brave Search API for primary website discovery.
-- OpenRouter Chat Completions API with the `web` plugin (`openai/gpt-5.4-mini`) for fallback website discovery and contact extraction when Brave returns no confident match.
+- OpenRouter Chat Completions API with the `web` plugin (`openai/gpt-5.4-nano`) for fallback website discovery and contact extraction when Brave returns no confident match.
 - OpenRouter Decisions API with `typesafe/jev-1.13` for structured eight-field schema classification.
 
 ## Rationale

@@ -615,12 +615,23 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
         return None
 
     top, score, own_domain, _ = chosen
-    website_url = top["url"]
-    if own_domain:
+    return discovery_from_result(
+        properties, top,
+        confidence="high" if own_domain and score >= 0.6 else "medium",
+        rationale=f"Brave Search match score {score:.2f}; own domain: {own_domain}",
+        log_kind="brave_accepted", candidates=candidates, skipped_directories=skipped,
+    )
+
+
+def discovery_from_result(properties: dict, result: dict, confidence: str, rationale: str, log_kind: str, **log) -> dict | None:
+    """Build a discovery record (website, summary, evidence) from one chosen Brave result."""
+    name = properties.get("name", "")
+    website_url = result["url"]
+    if domain_matches_name(website_url, name):
         # Link the organization's front page, not whichever subpage ranked.
         parsed = urllib.parse.urlparse(website_url)
         website_url = f"{parsed.scheme}://{parsed.netloc}/"
-    snippet = clean_text(top.get("description", ""))
+    snippet = clean_text(result.get("description", ""))
     page = page_profile(website_url)
     summary, summary_source = choose_summary(
         [(page["description"], "site meta description")]
@@ -631,16 +642,21 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
     if not summary:
         api_log.decision("brave_rejected", reason="matched site has no description", url=website_url)
         return None
-    api_log.decision(
-        "brave_accepted", reason=f"score {score:.2f}, own domain: {own_domain}", url=website_url,
-        summary_source=summary_source, candidates=candidates, skipped_directories=skipped,
-    )
+    api_log.decision(log_kind, reason=rationale, url=website_url, summary_source=summary_source, **log)
     return {
         "status": "found",
         "website_url": website_url,
         "summary": summary,
         "evidence": "\n\n".join(part for part in (snippet, page["excerpt"]) if part),
-        "source_urls": [top["url"]],
-        "confidence": "high" if own_domain and score >= 0.6 else "medium",
-        "rationale": f"Brave Search match score {score:.2f}; own domain: {own_domain}",
+        "source_urls": [result["url"]],
+        "confidence": confidence,
+        "rationale": rationale,
     }
+
+
+def brave_candidates(properties: dict) -> list[dict]:
+    """Cached Brave results for this organization that could be an official site (no API call)."""
+    return [
+        r for r in _cached_brave_results(brave_query(properties)) or []
+        if r.get("url") and not is_directory(r["url"])
+    ]
