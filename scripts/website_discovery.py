@@ -82,7 +82,8 @@ def is_directory(url: str) -> bool:
     try:
         parsed = urllib.parse.urlparse(url)
         host = parsed.netloc.lower().split(":")[0]
-        if site_domain(url) in _DIRECTORY_HOSTS or host.endswith((".gov", ".mil")):
+        # Chamber-of-commerce sites list member businesses and groups, not their own sites.
+        if site_domain(url) in _DIRECTORY_HOSTS or host.endswith((".gov", ".mil")) or "chamber" in host:
             return True
         return bool(
             _DIRECTORY_PATH_RE.search(parsed.path)
@@ -174,6 +175,29 @@ def label_matches_name(label: str, name: str) -> bool:
         if len(initials) >= 3 and (label == initials or (len(initials) >= 4 and label.startswith(initials))):
             return True
     return False
+
+
+def domain_is_exact_name(url: str, name: str, city: str = "") -> bool:
+    """Stricter than ``domain_matches_name``: the domain is (almost) only the name.
+
+    True for ``bostonharbornow.org`` or initials (``qhpt``); false when the label has
+    other words (``davisfarmland`` for Farmland Conservancy) or its only distinctive
+    word is the town (``marblehead.org`` for Marblehead Conservancy).
+    """
+    label = re.sub(r"[^a-z0-9]", "", site_domain(url).split(".")[0].lower())
+    words = _norm(name).split()
+    if not label or not words:
+        return False
+    core = [w for w in words if w not in _STOP_WORDS]
+    if len(core) >= 3 and label in ("".join(w[0] for w in words), "".join(w[0] for w in core)):
+        return True
+    city_words = set(_norm(city).split())
+    distinctive = [w for w in words if len(w) >= 4 and w not in _GENERIC_WORDS and w not in city_words and w in label]
+    rest = label
+    for w in sorted(set(words), key=len, reverse=True):
+        if len(w) >= 2:
+            rest = rest.replace(w, "")
+    return bool(distinctive) and len(rest) <= 3
 
 
 def is_homepage_like(url: str) -> bool:
@@ -503,7 +527,8 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
     if cached is not None:
         api_log.decision("brave_cache_hit", reason="reused cached Brave results; no API call", query=query)
         return cached
-    params = urllib.parse.urlencode({"q": query, "count": 5, "search_lang": "en"})
+    # Brave bills per request, not per result, so 20 results cost the same as 5.
+    params = urllib.parse.urlencode({"q": query, "count": 20, "search_lang": "en"})
     req = urllib.request.Request(
         f"{BRAVE_ENDPOINT}?{params}",
         headers={
@@ -536,8 +561,18 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
     return None
 
 
+# Legal suffixes that directories copy from IRS records but official sites rarely use.
+_LEGAL_SUFFIX_RE = re.compile(r"(?:[\s,.]+(?:INC|INCORPORATED|CORP|CORPORATION|CO|LTD|LLC))+\.?\s*$", re.I)
+
+
 def brave_query(properties: dict) -> str:
-    return f'"{properties.get("name", "")}" {properties.get("city", "")} {properties.get("state", "")}'
+    # Unquoted name without its legal suffix: the quoted IRS name ("... INC") mostly
+    # matched directories, while the plain name surfaces the organization's own site.
+    full = str(properties.get("name", ""))
+    name = _LEGAL_SUFFIX_RE.sub("", full).strip()
+    if len(re.sub(r"[^A-Za-z]", "", name)) < 4:  # "E INC" stays whole: "E" alone finds nothing
+        name = full
+    return f'{name} {properties.get("city", "")} {properties.get("state", "")}'
 
 
 # Facebook paths that are never an organization's own page.
@@ -603,8 +638,11 @@ def brave_discover(properties: dict, brave_key: str) -> dict | None:
         {"url": r.get("url"), "score": round(s, 2), "own_domain": own, "homepage": home}
         for r, s, own, home in scored
     ]
+    # With 20 results, loose domain matches (a town site, a neighbouring trust)
+    # are common, so only near-exact domains are accepted here; everything else
+    # goes to the cheap picker, which reads titles and snippets.
     chosen = next(
-        (c for c in scored if (c[2] and c[1] >= 0.4) or (not c[2] and c[3] and c[1] >= 0.8)),
+        (c for c in scored if c[1] >= 0.4 and domain_is_exact_name(c[0].get("url", ""), name, city)),
         None,
     )
     if chosen is None:

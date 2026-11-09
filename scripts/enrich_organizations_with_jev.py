@@ -48,7 +48,7 @@ OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-nano"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
-DISCOVERY_VERSION = "gcc-website-discovery-v7"
+DISCOVERY_VERSION = "gcc-website-discovery-v8"
 JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
 # Bumping this re-checks contacts only: discovery and Jev results stay cached.
 CONTACT_VERSION = "gcc-contacts-v3"

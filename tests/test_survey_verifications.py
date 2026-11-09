@@ -63,6 +63,16 @@ class SurveyVerificationTests(unittest.TestCase):
                           website_discovery_status="found", contact_version=CONTACT_VERSION)
         self.assertTrue(enrichment_is_complete(properties, "m", "jev"))  # no Jev result needed
 
+    def test_brave_query_drops_legal_suffix_and_chamber_pages_are_directories(self):
+        from scripts.website_discovery import brave_query, is_directory
+        self.assertEqual(brave_query({"name": "BOSTON HARBOR NOW INC", "city": "BOSTON", "state": "MA"}), "BOSTON HARBOR NOW BOSTON MA")
+        self.assertEqual(brave_query({"name": "E INC", "city": "BOSTON", "state": "MA"}), "E INC BOSTON MA")
+        self.assertTrue(is_directory("https://business.clintonareachamber.org/list/member/x"))
+        from scripts.website_discovery import domain_is_exact_name
+        self.assertTrue(domain_is_exact_name("https://www.bostonharbornow.org/", "BOSTON HARBOR NOW INC", "BOSTON"))
+        self.assertFalse(domain_is_exact_name("https://davisfarmland.com/", "FARMLAND CONSERVANCY INC", "DRACUT"))
+        self.assertFalse(domain_is_exact_name("https://www.marblehead.org/", "MARBLEHEAD CONSERVANCY INC", "MARBLEHEAD"))
+
     def test_missing_file_changes_nothing(self):
         self.assertEqual(apply_survey_verifications([], Path("does-not-exist.json")), 0)
 
