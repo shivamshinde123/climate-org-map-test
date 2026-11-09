@@ -14,8 +14,10 @@ import hashlib
 from pathlib import Path
 
 try:
+    from .survey_verifications import _CATEGORY_FIELDS
     from .geocode_organizations import FALLBACK_SPREAD, _scatter_around, load_city_centroids, load_zip_centroids, match_city
 except ImportError:  # Allows direct execution from the scripts directory.
+    from survey_verifications import _CATEGORY_FIELDS  # type: ignore
     from geocode_organizations import FALLBACK_SPREAD, _scatter_around, load_city_centroids, load_zip_centroids, match_city  # type: ignore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -24,15 +26,6 @@ CITY_CENTROIDS = PROJECT_ROOT / "Data" / "Geocoding" / "city_centroids.csv"
 ZIP_CENTROIDS = PROJECT_ROOT / "Data" / "Geocoding" / "zip_centroids.csv"
 SOURCE = "GCC survey"
 
-# Survey column -> (schema field, frontend gcc_* field).
-_CATEGORY_FIELDS = {
-    "organization_type": "gcc_organization_type",
-    "audience_focus": "gcc_audience_focus",
-    "adaptation_vs_mitigation": "gcc_resilience",
-    "advocacy_vs_action": "gcc_activity",
-    "climate_categories": "gcc_climate_category",
-    "reach": "gcc_reach",
-}
 
 
 def survey_feature(row: dict, city_centroids: dict, zip_centroids: dict | None = None) -> dict:

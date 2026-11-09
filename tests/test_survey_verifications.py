@@ -49,6 +49,20 @@ class SurveyVerificationTests(unittest.TestCase):
         self.assertEqual(exact["properties"]["location_precision"], "census_address_range")
         self.assertEqual(exact["geometry"]["coordinates"], [-71.10, 42.38])
 
+    def test_survey_answers_replace_categories_and_skip_jev(self):
+        from scripts.enrich_organizations_with_jev import CONTACT_VERSION, DISCOVERY_VERSION, enrichment_is_complete
+        properties = {"source_id": "871173877", "gcc_reach": "State / National", "gcc_resilience": "Mitigation"}
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "overrides.json"
+            path.write_text(json.dumps([{"ein": "871173877", "survey": "gb", "evidence": "x",
+                                         "survey_categories": {"reach": "Town / City"}}]))
+            apply_survey_verifications([{"properties": properties}], path)
+        self.assertEqual(properties["gcc_reach"], "Town / City")  # survey answer wins
+        self.assertEqual(properties["gcc_resilience"], "Mitigation")  # unanswered question kept
+        properties.update(website_discovery_version=DISCOVERY_VERSION, website_discovery_model="m",
+                          website_discovery_status="found", contact_version=CONTACT_VERSION)
+        self.assertTrue(enrichment_is_complete(properties, "m", "jev"))  # no Jev result needed
+
     def test_missing_file_changes_nothing(self):
         self.assertEqual(apply_survey_verifications([], Path("does-not-exist.json")), 0)
 

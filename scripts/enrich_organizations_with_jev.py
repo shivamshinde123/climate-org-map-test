@@ -32,7 +32,9 @@ try:
         email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     from . import api_log
+    from .survey_verifications import is_survey_verified
 except ImportError:  # Allows direct execution from the repository root.
+    from survey_verifications import is_survey_verified  # type: ignore
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
     from website_discovery import (  # type: ignore
@@ -583,6 +585,9 @@ def enrichment_is_complete(properties: dict, search_model: str, jev_model: str) 
     status = properties.get("website_discovery_status")
     if status in {"not_found", "ambiguous"}:
         return True
+    if status == "found" and is_survey_verified(properties):
+        # The organization's own survey answers stand in for Jev's categories.
+        return properties.get("contact_version") == CONTACT_VERSION
     return (
         status == "found"
         and properties.get("jev_classification_status") == "classified"
@@ -671,6 +676,7 @@ def enrich_geojson(
         "web_search_fallbacks": 0,
         "contact_fallbacks": 0,
         "facebook_pages": 0,
+        "survey_answers_kept": 0,
     }
     brave_failure: BraveKeyError | None = None
 
@@ -804,6 +810,10 @@ def enrich_geojson(
             if contacts.get("contact_page_url"):
                 properties["contact_page_url"] = contacts["contact_page_url"]
 
+            if is_survey_verified(properties):
+                api_log.decision("jev_skipped", reason="survey-verified: the organization's own survey answers are its categories")
+                stats["survey_answers_kept"] += 1
+                continue
             jev_key = cache_key({
                 "version": JEV_QUESTIONS_VERSION,
                 "model": jev_model,

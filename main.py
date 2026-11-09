@@ -269,8 +269,10 @@ def run_pipeline(args: argparse.Namespace) -> None:
     # rebuild never drops them; they arrive already placed at their town center.
     payload = json.loads(args.output.read_text(encoding="utf-8"))
     added = add_survey_organizations(payload)
+    # Applied before enrichment too, so the paid run skips Jev for survey-verified records.
+    apply_survey_verifications(payload.get("features", []))
+    write_geojson(args.output, payload)
     if added:
-        write_geojson(args.output, payload)
         print(f"      GCC survey organizations added: {added:,}")
 
     mode ="Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
@@ -322,6 +324,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
         print(f"        - by OpenRouter web-search fallback: {stats['web_search_fallbacks']:,}")
         print(f"      OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
         print(f"      Organizations classified by Jev: {stats['classified']:,}")
+        print(f"      Survey answers kept (Jev skipped): {stats['survey_answers_kept']:,}")
         print(f"      Already enriched and skipped: {stats['skipped_existing']:,}")
         print(f"      Pending after this run: {stats['remaining']:,}")
         print(f"      Enrichment errors: {stats['failed']:,}")
