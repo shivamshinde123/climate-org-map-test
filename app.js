@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261106-1";
+const ASSET_VERSION = "20261108-1";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -146,6 +146,7 @@ function popupMarkup(properties) {
     .filter(Boolean)
     .map((line) => escapeHtml(line))
     .join("<br>");
+  const verified = properties.gcc_verification === "Verified";
   const websiteUrl = safeExternalUrl(properties.website_url);
   // Only shown when there is no website: for small groups it is often their only page.
   const facebookUrl = websiteUrl ? "" : safeExternalUrl(properties.facebook_url);
@@ -176,6 +177,7 @@ function popupMarkup(properties) {
     `
     : "";
   return `
+    ${verified ? `<span class="popup-verified">Verified by GCC</span>` : ""}
     <div class="popup-name">${escapeHtml(properties.name)}</div>
     <div class="popup-address">${addressLines || "Address unavailable"}</div>
     <dl class="popup-fields">
@@ -188,7 +190,7 @@ function popupMarkup(properties) {
       <div><dt>Reach:</dt><dd>${escapeHtml(properties.gcc_reach || "Unknown")}</dd></div>
     </dl>
     ${websiteAndSummary}
-    <a class="popup-link popup-verify" href="${VERIFICATION_FORM_URL}" target="_blank" rel="noopener noreferrer">Claim and verify this listing</a>
+    ${verified ? "" : `<a class="popup-link popup-verify" href="${VERIFICATION_FORM_URL}" target="_blank" rel="noopener noreferrer">Claim and verify this listing</a>`}
   `;
 }
 

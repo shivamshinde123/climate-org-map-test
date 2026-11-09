@@ -373,6 +373,18 @@ footer {
 
 .maplibregl-popup-close-button:hover { color: var(--snow); background: var(--forest); }
 
+/* Sale-badge style: lime pill, forest text. */
+.popup-verified {
+  display: inline-block;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  color: var(--forest);
+  background: var(--lime);
+  border-radius: var(--pill);
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .popup-name { margin: 0 0 8px; font-size: 22px; font-weight: 350; line-height: 1.15; letter-spacing: -0.02em; }
 .popup-address { color: var(--pewter); font-size: 13px; line-height: 1.5; }
 .popup-fields { display: grid; gap: 4px; margin: 16px 0 0; }
