@@ -2,9 +2,9 @@
 
 Rows come from ``Data/Survey/survey-organizations.csv``: organizations that
 answered the survey themselves (so they are shown as verified) but have no IRS
-record, such as town committees. Pins are placed at the town center only:
-several survey addresses look like volunteers' homes, so street addresses are
-never published. The step is idempotent: earlier survey records are replaced.
+record, such as town committees. Rows with a survey street address are pinned
+there (coordinates stored in the CSV); the rest fall back to the ZIP or town
+center. The step is idempotent: earlier survey records are replaced.
 """
 
 from __future__ import annotations
@@ -40,16 +40,22 @@ def survey_feature(row: dict, city_centroids: dict, zip_centroids: dict | None =
     org_id = "survey_" + hashlib.sha256(f"{row['name']}|{row['state']}".lower().encode()).hexdigest()[:16]
     properties = {
         "id": org_id, "name": row["name"], "website_url": row["website_url"], "source_url": "",
-        "email": "", "phone": "", "address": "", "city": row["city"], "state": row["state"],
-        "postal_code": "", "summary": "", "source": SOURCE, "source_id": row["row_uuid"],
+        "email": "", "phone": "", "address": row.get("address") or "", "city": row["city"], "state": row["state"],
+        "postal_code": row.get("postal_code") or "", "summary": "", "source": SOURCE, "source_id": row["row_uuid"],
         "ntee_code": "", "ntee_label": "", "irs_category": "",
         "status": "Verified", "gcc_verification": "Verified", "validated": True,
         "action_category": "Unknown", "gcc_action_category": "Unknown",
         "verification_source": f"GCC survey ({row['survey']}): answered the survey itself (row {row['row_uuid']}).",
-        "notes": f"Added from the GCC survey; placed at the center of {row['city']}, {row['state']}, not a street address.",
+        "notes": "Added from the GCC survey.",
     }
     for field, gcc_field in _CATEGORY_FIELDS.items():
         properties[field] = properties[gcc_field] = row.get(field) or "Unknown"
+
+    # Survey street address, geocoded once with the Census one-line geocoder and stored in the CSV.
+    if row.get("latitude") and row.get("longitude"):
+        latitude, longitude = float(row["latitude"]), float(row["longitude"])
+        properties.update(latitude=latitude, longitude=longitude, location_precision="census_address_range")
+        return {"type": "Feature", "geometry": {"type": "Point", "coordinates": [longitude, latitude]}, "properties": properties}
 
     zip_centroids = zip_centroids or {}
     # Many New England towns are missing from the Census place list, so a town's
@@ -66,7 +72,8 @@ def survey_feature(row: dict, city_centroids: dict, zip_centroids: dict | None =
         # lands on the identical point.
         longitude, latitude = _scatter_around(center[0], center[1], row["row_uuid"], FALLBACK_SPREAD)
         geometry = {"type": "Point", "coordinates": [longitude, latitude]}
-        properties.update(latitude=latitude, longitude=longitude, location_precision="city_level_fallback")
+        precision = "zip_level_fallback" if zip_centroids.get(row.get("placement_zip") or "") else "city_level_fallback"
+        properties.update(latitude=latitude, longitude=longitude, location_precision=precision)
     return {"type": "Feature", "geometry": geometry, "properties": properties}
 
 

@@ -28,23 +28,26 @@ class SurveyVerificationTests(unittest.TestCase):
             rows = Path(directory) / "orgs.csv"
             rows.write_text(
                 "name,city,state,website_url,organization_type,audience_focus,adaptation_vs_mitigation,"
-                "advocacy_vs_action,climate_categories,reach,survey,row_uuid\n"
+                "advocacy_vs_action,climate_categories,reach,survey,row_uuid,address,postal_code,latitude,longitude\n"
                 "Green Newton,Newton,MA,https://greennewton.org,Nonprofit / Grassroots,Residents,Mitigation,"
-                "Both,Energy Efficiency,Town / City,andover_survey,u-1\n",
+                "Both,Energy Efficiency,Town / City,andover_survey,u-1,,,,\n"
+                "350 MetroNorth,Somerville,MA,,,,,,,,,u-2,15 Properzi Way,02143,42.38,-71.10\n",
                 encoding="utf-8",
             )
             centroids = Path(directory) / "cities.csv"
             centroids.write_text("city,state,latitude,longitude\nNEWTON,MA,42.33,-71.21\n", encoding="utf-8")
             payload = {"features": [{"properties": {"source": "IRS EO BMF", "name": "X"}}]}
-            self.assertEqual(add_survey_organizations(payload, rows, centroids), 1)
-            self.assertEqual(add_survey_organizations(payload, rows, centroids), 1)
-        self.assertEqual(len(payload["features"]), 2)  # replaced, not duplicated
-        org = payload["features"][1]
+            self.assertEqual(add_survey_organizations(payload, rows, centroids), 2)
+            self.assertEqual(add_survey_organizations(payload, rows, centroids), 2)
+        self.assertEqual(len(payload["features"]), 3)  # replaced, not duplicated
+        org, exact = payload["features"][1], payload["features"][2]
         self.assertEqual(org["properties"]["gcc_verification"], "Verified")
-        self.assertEqual(org["properties"]["address"], "")  # no street address is ever published
-        self.assertEqual(org["properties"]["location_precision"], "city_level_fallback")
+        self.assertEqual(org["properties"]["location_precision"], "city_level_fallback")  # no address -> town
         lng, lat = org["geometry"]["coordinates"]
         self.assertLess(abs(lat - 42.33), 0.006)
+        self.assertEqual(exact["properties"]["address"], "15 Properzi Way")  # survey address is used as-is
+        self.assertEqual(exact["properties"]["location_precision"], "census_address_range")
+        self.assertEqual(exact["geometry"]["coordinates"], [-71.10, 42.38])
 
     def test_missing_file_changes_nothing(self):
         self.assertEqual(apply_survey_verifications([], Path("does-not-exist.json")), 0)
