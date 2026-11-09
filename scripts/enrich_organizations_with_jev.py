@@ -646,10 +646,13 @@ def enrich_geojson(
     contact_search = contact_caller or search
     # Completion checks happen before limiting, which makes small resumable runs
     # advance through the dataset instead of revisiting its first records.
+    # GCC-survey records carry the organization's own answers; a paid search must
+    # not replace or clear them.
     incomplete = [
         feature
         for feature in features
-        if not enrichment_is_complete(feature.get("properties", {}), search_model, jev_model)
+        if feature.get("properties", {}).get("source") != "GCC survey"
+        and not enrichment_is_complete(feature.get("properties", {}), search_model, jev_model)
     ]
     pending = [
         feature for feature in incomplete

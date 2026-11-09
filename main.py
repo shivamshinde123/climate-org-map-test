@@ -25,6 +25,7 @@ from scripts.api_log import LOG_PATH as API_LOG_PATH
 from scripts.build_irs_dataset import build_dataset
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
+from scripts.survey_organizations import add_survey_organizations
 from scripts.survey_verifications import apply_survey_verifications
 from scripts.enrich_organizations_with_jev import (
     DEFAULT_JEV_MODEL,
@@ -264,7 +265,15 @@ def run_pipeline(args: argparse.Namespace) -> None:
     else:
         print(f"[1/{phase_count}] Reusing existing dataset: {args.output}", flush=True)
 
-    mode = "Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
+    # Survey-only organizations (no IRS record) are re-added on every run, so a
+    # rebuild never drops them; they arrive already placed at their town center.
+    payload = json.loads(args.output.read_text(encoding="utf-8"))
+    added = add_survey_organizations(payload)
+    if added:
+        write_geojson(args.output, payload)
+        print(f"      GCC survey organizations added: {added:,}")
+
+    mode ="Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
     # Fallback-only coordinates are complete for map rendering.  Census mode is
     # nevertheless allowed to revisit them because it is an explicit upgrade.
     should_geocode = args.use_census or not dataset_has_complete_coordinates(args.output)

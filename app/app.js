@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261108-3";
+const ASSET_VERSION = "20261108-4";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -248,7 +248,7 @@ function renderResults() {
   filteredFeatures.slice(0, MAX_RESULTS).forEach((feature) => {
     const card = elements.template.content.firstElementChild.cloneNode(true);
     const properties = feature.properties;
-    card.querySelector(".result-code").textContent = properties.ntee_code;
+    card.querySelector(".result-code").textContent = properties.ntee_code || "Survey";
     card.querySelector(".result-name").textContent = properties.name;
     card.querySelector(".result-location").textContent =
       [properties.city, properties.state, properties.postal_code].filter(Boolean).join(", ") ||
