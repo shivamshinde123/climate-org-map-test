@@ -7,5 +7,77 @@
     "source_field": "primary",
     "evidence": "Green Beverly answered the GCC climate-organization survey itself (gb_survey, row b50c2aa3-2445-59e3-8747-0104f586bf7b, verified=Verified).",
     "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "842275111",
+    "map_name": "GREEN HUDSON",
+    "survey_name": "Green Hudson",
+    "survey": "andover_survey+compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Green Hudson answered the GCC climate-organization survey itself (andover_survey, compiled_survey_4-7-26, row d134de5c-b42c-5d1d-96bc-6112f49f716d, verified=Verified); matched to the map by name and city (Hudson, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "874054939",
+    "map_name": "TOWNGREEN INC",
+    "survey_name": "TownGreen Inc",
+    "survey": "gb_survey",
+    "source_field": "primary",
+    "evidence": "TownGreen Inc answered the GCC climate-organization survey itself (gb_survey, row 5fa5a8aa-8052-575b-8e5c-ede4c8cff935, verified=Verified); matched to the map by name and city (Gloucester, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "824681147",
+    "map_name": "SUSTAINABLE MARBLEHEAD",
+    "survey_name": "Sustainable Marblehead",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Sustainable Marblehead answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row 574e63ff-09a8-54f8-aca4-ed72fa23b33d, verified=Verified); matched to the map by name and city (Marblehead, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "030446859",
+    "map_name": "GULF OF MAINE INSTITUTE INC",
+    "survey_name": "Gulf of Maine Institute",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Gulf of Maine Institute answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row 16f81520-2470-5944-9344-c6b834093733, verified=Verified); matched to the map by name and city (West Newbury, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "474993870",
+    "map_name": "SEASIDE SUSTAINABILITY INC",
+    "survey_name": "Seaside Sustainability",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Seaside Sustainability answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row ae358179-bf8a-57b3-8a86-5ba2bb34c59f, verified=Verified); matched to the map by name and city (Gloucester, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "884030374",
+    "map_name": "LEXINGTON CLIMATE ACTION NETWORK INC",
+    "survey_name": "Lexington Climate Action Network",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Lexington Climate Action Network answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row e7c6d14a-cee9-5394-9bd1-45bae138276a, verified=Verified); matched to the map by name and city (Lexington, MA).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "992177830",
+    "map_name": "CLIMATE JUSTICE HIVE",
+    "survey_name": "Climate Justice Hive",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Climate Justice Hive answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row 681c06c4-5b65-55bf-a6c3-d377cd4493eb, verified=Verified); matched to the map by name and city (Boulder, CO).",
+    "recorded_on": "2026-11-08"
+  },
+  {
+    "ein": "202678120",
+    "map_name": "CAPE ANN VERNAL POND TEAM INC",
+    "survey_name": "Cape AnnVernal Pond Team",
+    "survey": "compiled_survey_4-7-26",
+    "source_field": "primary",
+    "evidence": "Cape AnnVernal Pond Team answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row 59576d96-dc3a-5fb6-9d6f-41aebb376d66, verified=Verified); matched to the map by name and city (Gloucester, MA).",
+    "recorded_on": "2026-11-08"
   }
 ]
