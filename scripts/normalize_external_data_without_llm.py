@@ -83,22 +83,25 @@ CATEGORY_INPUT_ALIASES: dict[str, tuple[str, ...]] = {
 # frontend filters. Add or rename a category here only with a schema migration.
 CATEGORY_OPTIONS: dict[str, tuple[str, ...]] = {
     "organization_type": (
-        "Academic", "Business", "Coalition", "Municipal / Government-affiliated",
-        "Municipality", "Nonprofit / Grassroots", "Unknown",
+        "Nonprofit / Grassroots", "Coalition", "Municipality", "Business", "Academic",
+        "Tribal/Indigenous", "Committee", "Unknown",
     ),
-    "audience_focus": ("Businesses", "Municipality", "Residents", "Unknown"),
+    # Combined audiences are single values, in the GCC schema's fixed order.
+    "audience_focus": (
+        "Residents", "Municipality", "Businesses", "Residents / Municipality",
+        "Residents / Businesses", "Residents / Municipality / Businesses",
+        "Municipality / Businesses", "Unknown",
+    ),
     "adaptation_vs_mitigation": ("Adaptation", "Both", "Mitigation", "Unknown"),
     "advocacy_vs_action": ("Action", "Advocacy", "Both", "Unknown"),
     "action_category": (
         "Community Engagement", "Conservation", "Advocacy/Policy", "Other", "Unknown",
     ),
     "climate_categories": (
-        "Conservation", "Energy Efficiency", "Environmental", "Food & Food Waste",
-        "Green Economics", "Transportation", "Waste Reduction", "Unknown",
+        "Environmental", "Waste Reduction", "Green Economics", "Food & Food Waste",
+        "Transportation", "Energy Efficiency", "Unknown",
     ),
-    "reach": (
-        "Global", "Municipality", "Regional", "State / National", "Town / City", "Unknown",
-    ),
+    "reach": ("Town / City", "Regional", "State / National", "Unknown"),
     "status": ("Not Verified", "Verified"),
 }
 
@@ -109,7 +112,9 @@ CATEGORY_SYNONYMS: dict[str, dict[str, str]] = {
         "academicinstitution": "Academic", "university": "Academic", "college": "Academic",
         "company": "Business", "privatebusiness": "Business", "forprofit": "Business",
         "alliance": "Coalition", "network": "Coalition", "collaborative": "Coalition",
-        "government": "Municipal / Government-affiliated", "publicagency": "Municipal / Government-affiliated",
+        "government": "Municipality", "publicagency": "Municipality",
+        "municipalgovernmentaffiliated": "Municipality",
+        "tribal": "Tribal/Indigenous", "indigenous": "Tribal/Indigenous", "tribe": "Tribal/Indigenous",
         "citygovernment": "Municipality", "towngovernment": "Municipality",
         "nonprofit": "Nonprofit / Grassroots", "ngo": "Nonprofit / Grassroots",
         "charity": "Nonprofit / Grassroots", "grassroots": "Nonprofit / Grassroots",
@@ -135,7 +140,8 @@ CATEGORY_SYNONYMS: dict[str, dict[str, str]] = {
         "policy": "Advocacy/Policy", "advocacy": "Advocacy/Policy",
     },
     "climate_categories": {
-        "nature": "Conservation", "landconservation": "Conservation", "waterconservation": "Conservation",
+        "nature": "Environmental", "conservation": "Environmental",
+        "landconservation": "Environmental", "waterconservation": "Environmental",
         "energy": "Energy Efficiency", "cleanenergy": "Energy Efficiency", "renewableenergy": "Energy Efficiency",
         "environment": "Environmental", "climate": "Environmental", "sustainability": "Environmental",
         "food": "Food & Food Waste", "composting": "Food & Food Waste", "agriculture": "Food & Food Waste",
@@ -144,7 +150,8 @@ CATEGORY_SYNONYMS: dict[str, dict[str, str]] = {
         "recycling": "Waste Reduction", "zerowaste": "Waste Reduction", "reuse": "Waste Reduction",
     },
     "reach": {
-        "international": "Global", "worldwide": "Global", "city": "Town / City",
+        "international": "State / National", "worldwide": "State / National",
+        "global": "State / National", "municipality": "Town / City", "city": "Town / City",
         "local": "Town / City", "county": "Regional", "multicounty": "Regional",
         "statewide": "State / National", "national": "State / National",
     },

@@ -113,7 +113,7 @@ def infer_organization_type(name: str) -> tuple[str, str]:
     if any(term in normalized for term in ("city of ", "town of ", "village of ", "municipality of ")):
         return "Municipality", "medium"
     if any(term in normalized for term in ("authority", "commission", "public district", "government council")):
-        return "Municipal / Government-affiliated", "medium"
+        return "Municipality", "medium"
     if any(term in normalized for term in ("coalition", " alliance", " network")):
         return "Coalition", "medium"
     if any(term in normalized for term in ("chamber of commerce", "business council", "business association")):
@@ -126,7 +126,7 @@ def infer_audience(name: str, organization_type: str) -> tuple[str, str]:
     normalized = name.casefold()
     if organization_type == "Business":
         return "Businesses", "medium"
-    if organization_type in {"Municipality", "Municipal / Government-affiliated"}:
+    if organization_type == "Municipality":
         return "Municipality", "medium"
     if any(
         term in normalized
@@ -140,10 +140,11 @@ def infer_reach(name: str, state: str, organization_type: str) -> tuple[str, str
     """Infer geographic scope without treating the mailing address as service area."""
     normalized = name.casefold()
     if organization_type == "Municipality":
-        return "Municipality", "medium"
-    if any(term in normalized for term in ("global", "international", "worldwide", "world ")):
-        return "Global", "medium"
-    if any(term in normalized for term in ("national", "american", "united states", "usa ")):
+        return "Town / City", "medium"
+    # The GCC schema has no Global reach; State / National is its widest option.
+    if any(term in normalized for term in (
+        "global", "international", "worldwide", "world ", "national", "american", "united states", "usa ",
+    )):
         return "State / National", "medium"
     state_name = STATE_NAMES.get(state, "")
     if state_name and state_name in normalized:
@@ -185,7 +186,7 @@ def gcc_classification(
             confidence = "medium"
             break
 
-    if climate_category in {"Waste Reduction", "Energy Efficiency", "Conservation"}:
+    if climate_category in {"Waste Reduction", "Energy Efficiency"}:
         confidence = "high"
 
     organization_type, organization_type_confidence = infer_organization_type(organization_name)

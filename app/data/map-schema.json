@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "fields": [
     "name",
     "website_url",
@@ -30,46 +30,71 @@
       "label": "Organization Type",
       "field": "gcc_organization_type",
       "options": [
-        "Academic",
-        "Business",
-        "Coalition",
-        "Municipal / Government-affiliated",
-        "Municipality",
         "Nonprofit / Grassroots",
+        "Coalition",
+        "Municipality",
+        "Business",
+        "Academic",
+        "Tribal/Indigenous",
+        "Committee",
         "Unknown"
       ]
     },
     {
       "label": "Audience Focus",
       "field": "gcc_audience_focus",
-      "options": ["Businesses", "Municipality", "Residents", "Unknown"]
+      "options": [
+        "Residents",
+        "Municipality",
+        "Businesses",
+        "Residents / Municipality",
+        "Residents / Businesses",
+        "Residents / Municipality / Businesses",
+        "Municipality / Businesses",
+        "Unknown"
+      ]
     },
     {
       "label": "Resilience",
       "field": "gcc_resilience",
-      "options": ["Adaptation", "Both", "Mitigation", "Unknown"]
+      "options": [
+        "Adaptation",
+        "Both",
+        "Mitigation",
+        "Unknown"
+      ]
     },
     {
       "label": "Activity",
       "field": "gcc_activity",
-      "options": ["Action", "Advocacy", "Both", "Unknown"]
+      "options": [
+        "Action",
+        "Advocacy",
+        "Both",
+        "Unknown"
+      ]
     },
     {
       "label": "Action Category",
       "field": "gcc_action_category",
-      "options": ["Community Engagement", "Conservation", "Advocacy/Policy", "Other", "Unknown"]
+      "options": [
+        "Community Engagement",
+        "Conservation",
+        "Advocacy/Policy",
+        "Other",
+        "Unknown"
+      ]
     },
     {
       "label": "Climate Categories",
       "field": "gcc_climate_category",
       "options": [
-        "Conservation",
-        "Energy Efficiency",
         "Environmental",
-        "Food & Food Waste",
-        "Green Economics",
-        "Transportation",
         "Waste Reduction",
+        "Green Economics",
+        "Food & Food Waste",
+        "Transportation",
+        "Energy Efficiency",
         "Unknown"
       ]
     },
@@ -77,18 +102,19 @@
       "label": "Reach",
       "field": "gcc_reach",
       "options": [
-        "Global",
-        "Municipality",
+        "Town / City",
         "Regional",
         "State / National",
-        "Town / City",
         "Unknown"
       ]
     },
     {
       "label": "Verification",
       "field": "gcc_verification",
-      "options": ["Not Verified", "Verified"]
+      "options": [
+        "Not Verified",
+        "Verified"
+      ]
     }
   ]
 }

@@ -49,7 +49,7 @@ OPENROUTER_DECISIONS_ENDPOINT = "https://openrouter.ai/api/alpha/decisions"
 DEFAULT_SEARCH_MODEL = "openai/gpt-5.4-nano"
 DEFAULT_JEV_MODEL = "typesafe/jev-1.13"
 DISCOVERY_VERSION = "gcc-website-discovery-v8"
-JEV_QUESTIONS_VERSION = "gcc-jev-classification-v1"
+JEV_QUESTIONS_VERSION = "gcc-jev-classification-v2"
 # Bumping this re-checks contacts only: discovery and Jev results stay cached.
 CONTACT_VERSION = "gcc-contacts-v3"
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -82,7 +82,7 @@ GCC_FIELD_BY_SCHEMA_FIELD = {
 # These instructions give each Jev choice question a single semantic objective.
 FIELD_INSTRUCTIONS = {
     "organization_type": "Choose the organization's entity type from the supplied criteria.",
-    "audience_focus": "Choose the primary audience explicitly supported by the evidence.",
+    "audience_focus": "Choose the audience, or the combination of audiences, that the evidence explicitly shows the organization serves.",
     "adaptation_vs_mitigation": "Choose the climate resilience orientation supported by the evidence.",
     "advocacy_vs_action": "Choose whether the organization primarily advocates, acts directly, or does both.",
     "action_category": "Choose the organization's primary kind of climate or environmental action.",
@@ -97,11 +97,16 @@ OPTION_DESCRIPTIONS = {
     "Academic": "A university, college, school, or academic research institution.",
     "Business": "A for-profit business or business-led association.",
     "Coalition": "A network, alliance, or coalition of multiple organizations or groups.",
-    "Municipal / Government-affiliated": "A public agency or organization formally affiliated with government.",
-    "Municipality": "A city, town, village, or other municipal government itself; or work directed specifically at municipal institutions when classifying audience focus or geographic reach.",
+    "Municipality": "A city, town, or village government, or a public agency formally part of government; as an audience, work directed at municipal institutions.",
+    "Tribal/Indigenous": "A tribal government, tribal nation, or Indigenous-led organization.",
+    "Committee": "A town or city committee, commission, or volunteer board.",
     "Nonprofit / Grassroots": "A nonprofit, charity, community group, or grassroots organization.",
     "Businesses": "Programs or services primarily target businesses or employers.",
     "Residents": "Programs or services primarily target residents or the general public.",
+    "Residents / Municipality": "Programs substantially serve both residents and municipal institutions.",
+    "Residents / Businesses": "Programs substantially serve both residents and businesses.",
+    "Residents / Municipality / Businesses": "Programs substantially serve residents, municipal institutions, and businesses.",
+    "Municipality / Businesses": "Programs substantially serve both municipal institutions and businesses.",
     "Adaptation": "Primarily prepares for or reduces harm from climate impacts.",
     "Mitigation": "Primarily reduces greenhouse-gas emissions or their causes.",
     "Both": "Substantial evidence supports both choices represented by this question.",
@@ -111,15 +116,15 @@ OPTION_DESCRIPTIONS = {
     "Conservation": "Protection or restoration of land, water, habitat, forests, or natural resources.",
     "Advocacy/Policy": "Policy advocacy, campaigning, lobbying, or civic influence.",
     "Other": "Supported action that does not fit another action category.",
-    "Energy Efficiency": "Energy conservation, clean energy, efficiency, or electrification.",
-    "Environmental": "Broad environmental or climate work without a more specific listed focus.",
-    "Food & Food Waste": "Food systems, agriculture, composting, or food-waste reduction.",
-    "Green Economics": "Green jobs, sustainable business, finance, or economic transition.",
-    "Transportation": "Transit, mobility, walking, cycling, or vehicle decarbonization.",
-    "Waste Reduction": "Recycling, reuse, repair, zero waste, or material-waste reduction.",
-    "Global": "Operates internationally or worldwide.",
+    # Climate descriptions follow the GCC schema's own wording.
+    "Energy Efficiency": "Heating/cooling, weatherization, solar.",
+    "Environmental": "Pollinators, native plants, clean air/water; also land, water, habitat, and forest conservation.",
+    "Food & Food Waste": "Composting, food choices, local farming.",
+    "Green Economics": "Buying local, supporting sustainable businesses, green investing.",
+    "Transportation": "Public options, electric vehicles.",
+    "Waste Reduction": "Reuse, repair, repurpose, recycle, refuse.",
     "Regional": "Operates across a multi-city, county, or sub-state region.",
-    "State / National": "Operates statewide or nationally.",
+    "State / National": "Operates statewide, nationally, or internationally.",
     "Town / City": "Operates primarily within one town or city.",
     "Verified": "Explicit evidence says GCC or its authorized review process verified this record.",
     "Not Verified": "No explicit GCC verification evidence is present.",
@@ -757,58 +762,67 @@ def enrich_geojson(
                 continue
             properties.pop("facebook_url", None)
             stats["websites_found"] += 1
+            # Contacts don't depend on the category questions, so a re-classification
+            # run keeps current contacts for an unchanged site instead of re-crawling.
+            contacts_current = (
+                properties.get("contact_version") == CONTACT_VERSION
+                and properties.get("website_url") == discovery["website_url"]
+            )
             # Save useful research immediately, even if Jev subsequently fails.
             properties["website_url"] = discovery["website_url"]
             properties["summary"] = discovery["summary"]
             properties["website_evidence_urls"] = discovery["source_urls"]
-            # Crawl the accepted site for contact details.
-            # When the crawler was blocked or the site unreachable, fall back to
-            # LLM web search, which may surface contacts from its search index.
-            contacts = crawl_for_contacts(discovery["website_url"])
-            if contacts["accessible"]:
-                api_log.decision(
-                    "contacts_from_site", reason="crawled the official site",
-                    found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
-                )
-            elif not contact_fallback:
-                api_log.decision("contact_fallback_skipped", reason="site blocked; paid contact lookup is off (use --contact-fallback)")
+            if contacts_current:
+                api_log.decision("contacts_reused", reason="contacts already current for this website; no crawl")
             else:
-                contact_key = cache_key({"model": search_model, "website": discovery["website_url"], "schema": "v2"})
-                try:
-                    raw = contact_cache.get(contact_key)
-                    if raw is None:
-                        api_log.decision("contact_fallback", reason="site blocked by robots.txt or unreachable", model=search_model)
-                        stats["contact_fallbacks"] += 1
-                        raw = contact_search(
-                            contact_search_payload(properties, discovery["website_url"], search_model),
-                            openrouter_key, search_endpoint,
-                        )
-                        contact_cache[contact_key] = raw
-                        append_cache(contact_cache_path, contact_key, raw)
-                    else:
-                        api_log.decision("contact_cache_hit", reason="reused cached contact lookup; no API call")
-                    contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
-                    # The model may echo a directory's mailbox or Cloudflare's
-                    # "[email protected]" placeholder; keep only the org's own.
-                    site = discovery["website_url"]
-                    if not email_matches_site(contacts["email"], site):
-                        contacts["email"] = ""
-                    if contacts["contact_page_url"] and site_domain(contacts["contact_page_url"]) != site_domain(site):
-                        contacts["contact_page_url"] = ""
-                    # A number counts only if the model cites a page on the org's own domain.
-                    phone_source = str(raw.get("phone_source_url", ""))
-                    if not phone_source or site_domain(phone_source) != site_domain(site):
-                        contacts["phone"] = ""
-                    contacts["phone"] = normalize_phone(contacts["phone"])
-                    api_log.decision("contact_fallback_result", kept={k: bool(v) for k, v in contacts.items()})
-                except Exception as error:
-                    api_log.decision("contact_fallback_failed", reason=str(error)[:300])
-                    contacts = {"email": "", "phone": "", "contact_page_url": ""}
-            properties["email"] = contacts["email"]
-            properties["phone"] = contacts["phone"]
-            properties["contact_version"] = CONTACT_VERSION
-            if contacts.get("contact_page_url"):
-                properties["contact_page_url"] = contacts["contact_page_url"]
+                # Crawl the accepted site for contact details.
+                # When the crawler was blocked or the site unreachable, fall back to
+                # LLM web search, which may surface contacts from its search index.
+                contacts = crawl_for_contacts(discovery["website_url"])
+                if contacts["accessible"]:
+                    api_log.decision(
+                        "contacts_from_site", reason="crawled the official site",
+                        found={k: bool(contacts.get(k)) for k in ("email", "phone", "contact_page_url")},
+                    )
+                elif not contact_fallback:
+                    api_log.decision("contact_fallback_skipped", reason="site blocked; paid contact lookup is off (use --contact-fallback)")
+                else:
+                    contact_key = cache_key({"model": search_model, "website": discovery["website_url"], "schema": "v2"})
+                    try:
+                        raw = contact_cache.get(contact_key)
+                        if raw is None:
+                            api_log.decision("contact_fallback", reason="site blocked by robots.txt or unreachable", model=search_model)
+                            stats["contact_fallbacks"] += 1
+                            raw = contact_search(
+                                contact_search_payload(properties, discovery["website_url"], search_model),
+                                openrouter_key, search_endpoint,
+                            )
+                            contact_cache[contact_key] = raw
+                            append_cache(contact_cache_path, contact_key, raw)
+                        else:
+                            api_log.decision("contact_cache_hit", reason="reused cached contact lookup; no API call")
+                        contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
+                        # The model may echo a directory's mailbox or Cloudflare's
+                        # "[email protected]" placeholder; keep only the org's own.
+                        site = discovery["website_url"]
+                        if not email_matches_site(contacts["email"], site):
+                            contacts["email"] = ""
+                        if contacts["contact_page_url"] and site_domain(contacts["contact_page_url"]) != site_domain(site):
+                            contacts["contact_page_url"] = ""
+                        # A number counts only if the model cites a page on the org's own domain.
+                        phone_source = str(raw.get("phone_source_url", ""))
+                        if not phone_source or site_domain(phone_source) != site_domain(site):
+                            contacts["phone"] = ""
+                        contacts["phone"] = normalize_phone(contacts["phone"])
+                        api_log.decision("contact_fallback_result", kept={k: bool(v) for k, v in contacts.items()})
+                    except Exception as error:
+                        api_log.decision("contact_fallback_failed", reason=str(error)[:300])
+                        contacts = {"email": "", "phone": "", "contact_page_url": ""}
+                properties["email"] = contacts["email"]
+                properties["phone"] = contacts["phone"]
+                properties["contact_version"] = CONTACT_VERSION
+                if contacts.get("contact_page_url"):
+                    properties["contact_page_url"] = contacts["contact_page_url"]
 
             if is_survey_verified(properties):
                 api_log.decision("jev_skipped", reason="survey-verified: the organization's own survey answers are its categories")

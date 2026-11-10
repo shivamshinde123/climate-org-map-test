@@ -9,7 +9,7 @@
     "recorded_on": "2026-11-08",
     "survey_categories": {
       "organization_type": "Nonprofit / Grassroots",
-      "audience_focus": "Residents",
+      "audience_focus": "Residents / Businesses",
       "adaptation_vs_mitigation": "Both",
       "advocacy_vs_action": "Action",
       "climate_categories": "Energy Efficiency",
@@ -26,7 +26,7 @@
     "recorded_on": "2026-11-08",
     "survey_categories": {
       "organization_type": "Nonprofit / Grassroots",
-      "audience_focus": "Residents",
+      "audience_focus": "Residents / Municipality / Businesses",
       "adaptation_vs_mitigation": "Both",
       "advocacy_vs_action": "Both",
       "climate_categories": "Energy Efficiency",
@@ -59,7 +59,7 @@
     "recorded_on": "2026-11-08",
     "survey_categories": {
       "organization_type": "Nonprofit / Grassroots",
-      "audience_focus": "Residents",
+      "audience_focus": "Residents / Municipality / Businesses",
       "adaptation_vs_mitigation": "Both",
       "advocacy_vs_action": "Both",
       "climate_categories": "Energy Efficiency",
@@ -92,7 +92,7 @@
     "recorded_on": "2026-11-08",
     "survey_categories": {
       "organization_type": "Nonprofit / Grassroots",
-      "audience_focus": "Residents",
+      "audience_focus": "Residents / Municipality / Businesses",
       "advocacy_vs_action": "Both",
       "climate_categories": "Environmental",
       "reach": "Town / City"
@@ -107,7 +107,7 @@
     "evidence": "Lexington Climate Action Network answered the GCC climate-organization survey itself (compiled_survey_4-7-26, row e7c6d14a-cee9-5394-9bd1-45bae138276a, verified=Verified); matched to the map by name and city (Lexington, MA).",
     "recorded_on": "2026-11-08",
     "survey_categories": {
-      "audience_focus": "Residents",
+      "audience_focus": "Residents / Municipality",
       "adaptation_vs_mitigation": "Mitigation",
       "advocacy_vs_action": "Both",
       "climate_categories": "Energy Efficiency",
@@ -124,7 +124,7 @@
     "recorded_on": "2026-11-08",
     "survey_categories": {
       "organization_type": "Nonprofit / Grassroots",
-      "audience_focus": "Municipality",
+      "audience_focus": "Municipality / Businesses",
       "adaptation_vs_mitigation": "Adaptation",
       "advocacy_vs_action": "Both",
       "climate_categories": "Energy Efficiency",

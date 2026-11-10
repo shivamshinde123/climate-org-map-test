@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261110-1";
+const ASSET_VERSION = "20261110-2";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -58,6 +58,13 @@ function canonicalFilterValue(field, value) {
   if (!cleaned) return "";
   if (field === "gcc_reach" && (cleaned.startsWith("[") || cleaned === "[]")) return "";
   return CANONICAL_FILTER_VALUES.get(cleaned.toLocaleLowerCase()) ?? cleaned;
+}
+
+function matchesValue(field, value, selected) {
+  // A combined audience ("Residents / Businesses") also matches each of its parts.
+  if (field !== "gcc_audience_focus") return value === selected;
+  const parts = value.split(" / ");
+  return selected.split(" / ").every((part) => parts.includes(part));
 }
 
 function uniqueCanonicalOptions(field, values) {
@@ -276,7 +283,8 @@ function applyFilters() {
     const properties = feature.properties;
     const matchesFacets = elements.filterSelects.every((select) => {
       const selected = select.value;
-      return !selected || text(properties[select.dataset.field]) === selected;
+      const field = select.dataset.field;
+      return !selected || matchesValue(field, canonicalFilterValue(field, properties[field]), selected);
     });
     return (!query || searchable(properties).includes(query)) && matchesFacets;
   });
@@ -441,8 +449,7 @@ async function start() {
       const configuredValues = filterOptions[field] ?? [];
       const values = uniqueCanonicalOptions(field, [...configuredValues, ...dataValues]);
       if (!configuredValues.length) values.sort();
-      const counts = new Map(values.map((value) => [value, 0]));
-      dataValues.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+      const counts = new Map(values.map((value) => [value, dataValues.filter((data) => matchesValue(field, data, value)).length]));
       fillSelect(select, values, counts);
     });
     elements.totalCount.textContent = `${formatNumber(allFeatures.length)} IRS candidates`;

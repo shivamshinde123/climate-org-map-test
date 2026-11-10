@@ -74,7 +74,7 @@ class NormalizeExternalDataTests(unittest.TestCase):
             output["source_category_mapping_basis"],
             "source category label -> NTEE C27",
         )
-        self.assertEqual(output["source_category_mapping_version"], "2.0.0")
+        self.assertEqual(output["source_category_mapping_version"], "2.1.0")
 
 
 if __name__ == "__main__":

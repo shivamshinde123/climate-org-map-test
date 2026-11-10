@@ -9,6 +9,7 @@ from unittest import mock
 from scripts import api_log
 from scripts.enrich_organizations_with_jev import (
     CLASSIFICATION_FIELDS,
+    CONTACT_VERSION,
     apply_enrichment,
     enrich_geojson,
     extract_chat_output,
@@ -180,6 +181,23 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
         self.assertNotIn("contact_page_url", properties)
         self.assertEqual(properties["gcc_reach"], "Unknown")
         self.assertEqual(properties["jev_classification_status"], "not_classified")
+
+    def test_reclassification_keeps_current_contacts_without_crawling(self):
+        """A re-run for new category questions must not re-crawl an unchanged site."""
+        self.properties.update(website_url="https://example.org/", email="info@example.org",
+                               contact_version=CONTACT_VERSION)
+        collection = {"type": "FeatureCollection",
+                      "features": [{"type": "Feature", "geometry": None, "properties": self.properties}]}
+        with tempfile.TemporaryDirectory() as directory,                 mock.patch("scripts.enrich_organizations_with_jev.crawl_for_contacts") as crawl:
+            root = Path(directory)
+            source = root / "source.geojson"
+            source.write_text(json.dumps(collection), encoding="utf-8")
+            enrich_geojson(source, source, "openrouter-key", root / "d.jsonl", root / "j.jsonl",
+                           discovery_caller=lambda *_: self.discovery, jev_caller=lambda *_: self.jev_response)
+            properties = json.loads(source.read_text(encoding="utf-8"))["features"][0]["properties"]
+        crawl.assert_not_called()
+        self.assertEqual(properties["email"], "info@example.org")
+        self.assertEqual(properties["jev_classification_status"], "classified")
 
 
 if __name__ == "__main__":

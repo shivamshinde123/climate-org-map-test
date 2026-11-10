@@ -28,10 +28,17 @@ class BuildIrsDatasetTests(unittest.TestCase):
     def test_gcc_crosswalk_uses_ntee_and_specific_name_keywords(self):
         """NTEE and ordered keywords resolve representative schema categories."""
         conservation = gcc_classification("C32", "Regional Wetlands Trust")
-        self.assertEqual(conservation["climate_category"], "Conservation")
+        # The GCC schema has no Conservation climate category; it is Environmental.
+        self.assertEqual(conservation["climate_category"], "Environmental")
         self.assertEqual(conservation["action_category"], "Conservation")
         self.assertEqual(conservation["activity"], "Action")
         self.assertEqual(conservation["resilience"], "Unknown")
+
+        # GCC schema reach has no Global or Municipality, and type has no Government-affiliated.
+        self.assertEqual(gcc_classification("C01", "Global Climate Alliance")["reach"], "State / National")
+        town = gcc_classification("C01", "Town of Acton")
+        self.assertEqual((town["organization_type"], town["reach"]), ("Municipality", "Town / City"))
+        self.assertEqual(gcc_classification("C01", "Water Authority")["organization_type"], "Municipality")
 
         food = gcc_classification("C99", "Community Food Waste and Compost Network")
         self.assertEqual(food["climate_category"], "Food & Food Waste")
@@ -41,7 +48,7 @@ class BuildIrsDatasetTests(unittest.TestCase):
         municipal = gcc_classification("C20", "City of Worcester Environmental Commission", "MA")
         self.assertEqual(municipal["organization_type"], "Municipality")
         self.assertEqual(municipal["audience"], "Municipality")
-        self.assertEqual(municipal["reach"], "Municipality")
+        self.assertEqual(municipal["reach"], "Town / City")
 
     def test_build_filters_exact_codes_and_normalizes(self):
         """The builder emits only configured NTEE codes and complete base fields."""
