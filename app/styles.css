@@ -31,7 +31,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button, input, select { font: inherit; }
+button, input, summary { font: inherit; }
 
 :focus-visible { outline: 1.5px solid var(--forest); outline-offset: 2px; }
 
@@ -132,7 +132,8 @@ h1 em { color: var(--eucalyptus); font-style: normal; }
 
 /* Labels share one quiet style. */
 .section-label,
-label > span {
+.search-field > span,
+.multi-field > span {
   color: var(--pewter);
   font-size: 12px;
   font-weight: 500;
@@ -144,9 +145,9 @@ label > span {
   border-bottom: 1px solid var(--stone);
 }
 
-.filters label { display: grid; gap: 8px; }
+.filters label, .multi-field { display: grid; gap: 8px; }
 
-input, select {
+input[type="search"], .multi > summary {
   width: 100%;
   min-height: 44px;
   padding: 10px 14px;
@@ -158,17 +159,60 @@ input, select {
   transition: border-color 140ms ease;
 }
 
-select {
-  appearance: none;
+/* Checkbox dropdown: the summary looks like a select; the panel floats below it. */
+.multi { position: relative; }
+
+.multi > summary {
+  display: block;
+  overflow: hidden;
   padding-right: 36px;
+  list-style: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5 6 6.5 11 1.5' fill='none' stroke='%231c3a13' stroke-width='1.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 14px center;
   cursor: pointer;
 }
 
-input:hover, select:hover { border-color: var(--ash); }
-input:focus, select:focus { border-color: var(--forest); }
+.multi > summary::-webkit-details-marker { display: none; }
+.multi.has-selection > summary { border-color: var(--forest); font-weight: 500; }
+
+.multi-options {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  width: max(100%, 240px);
+  max-height: 280px;
+  padding: 6px;
+  overflow-y: auto;
+  background: var(--snow);
+  border: 1.5px solid var(--forest);
+  border-radius: 8px;
+}
+
+/* Right-column panels open leftward so they stay inside the sidebar. */
+.schema-filter-grid .multi-field:nth-child(even) .multi-options { right: 0; left: auto; }
+
+.filters .multi-option {
+  display: grid;
+  grid-template-columns: 16px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.multi-option:hover { background: var(--stone); }
+.multi-option input { width: 16px; height: 16px; margin: 0; accent-color: var(--forest); cursor: pointer; }
+.multi-option:has(input:disabled) { color: var(--ash); cursor: default; }
+.multi-count { color: var(--pewter); font-family: var(--mono); font-size: 11px; }
+
+input[type="search"]:hover, .multi > summary:hover { border-color: var(--ash); }
+input[type="search"]:focus, .multi > summary:focus-visible { border-color: var(--forest); }
 input::placeholder { color: var(--ash); }
 
 .filter-row.single { grid-template-columns: 1fr; }
@@ -180,7 +224,7 @@ input::placeholder { color: var(--ash); }
   margin-top: 16px;
 }
 
-.filter-row label > span {
+.filter-row .multi-field > span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -189,7 +233,7 @@ input::placeholder { color: var(--ash); }
 /* Less common schema facets collapse without leaving the DOM. */
 .advanced-filters { margin-top: 24px; }
 
-.advanced-filters summary {
+.advanced-filters > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -199,9 +243,9 @@ input::placeholder { color: var(--ash); }
   cursor: pointer;
 }
 
-.advanced-filters summary::-webkit-details-marker { display: none; }
+.advanced-filters > summary::-webkit-details-marker { display: none; }
 
-.advanced-filters summary span {
+.advanced-filters > summary span {
   min-width: 24px;
   padding: 2px 8px;
   color: var(--forest);
@@ -217,8 +261,6 @@ input::placeholder { color: var(--ash); }
   font-size: 12px;
   line-height: 1.5;
 }
-
-select option:disabled { color: var(--ash); }
 
 /* Inverted light pill button. */
 .reset-button {

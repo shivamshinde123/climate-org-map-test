@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261110-3";
+const ASSET_VERSION = "20261110-4";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -31,11 +31,10 @@ const elements = {
   sidebarToggle: document.querySelector("#sidebar-toggle"),
   form: document.querySelector("#filters"),
   search: document.querySelector("#search"),
-  state: document.querySelector("#state-filter"),
   visibleCount: document.querySelector("#visible-count"),
   results: document.querySelector("#results"),
   template: document.querySelector("#result-template"),
-  filterSelects: [...document.querySelectorAll("select[data-field]")],
+  filterMenus: [...document.querySelectorAll(".multi[data-field]")],
 };
 
 // Mutable application state is intentionally small: source features are kept
@@ -122,18 +121,37 @@ function formatNumber(value) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-function fillSelect(select, values, counts = null) {
-  // Build options off-DOM to avoid repeated layout work on large schemas.
+function fillMenu(menu, values, counts) {
+  // One checkbox per value, built off-DOM; zero-count values stay visible but disabled.
   const fragment = document.createDocumentFragment();
   values.forEach((value) => {
-    const option = document.createElement("option");
-    option.value = value;
-    const count = counts?.get(value);
-    option.textContent = count === undefined ? value : `${value} · ${formatNumber(count)}`;
-    option.disabled = count === 0;
+    const option = document.createElement("label");
+    option.className = "multi-option";
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.value = value;
+    box.disabled = counts.get(value) === 0;
+    const name = document.createElement("span");
+    name.textContent = value;
+    const count = document.createElement("span");
+    count.className = "multi-count";
+    count.textContent = formatNumber(counts.get(value) ?? 0);
+    option.append(box, name, count);
     fragment.append(option);
   });
-  select.append(fragment);
+  menu.querySelector(".multi-options").append(fragment);
+}
+
+function checkedValues(menu) {
+  return [...menu.querySelectorAll("input:checked")].map((box) => box.value);
+}
+
+function updateMenuLabel(menu) {
+  // "All …" when nothing is checked, the value itself for one, a count for more.
+  const checked = checkedValues(menu);
+  menu.querySelector("summary").textContent =
+    checked.length === 0 ? menu.dataset.all : checked.length === 1 ? checked[0] : `${checked.length} selected`;
+  menu.classList.toggle("has-selection", checked.length > 0);
 }
 
 function featureCollection(features) {
@@ -273,15 +291,19 @@ function renderResults() {
 }
 
 function applyFilters() {
-  // Facets combine with AND semantics; blank selections mean "all values".
+  // Filters combine with AND; within one filter any checked value matches.
+  // A filter with nothing checked means "all values".
   const query = elements.search.value.trim().toLocaleLowerCase();
+  elements.filterMenus.forEach(updateMenuLabel);
+  const active = elements.filterMenus
+    .map((menu) => [menu.dataset.field, checkedValues(menu)])
+    .filter(([, checked]) => checked.length);
 
   filteredFeatures = allFeatures.filter((feature) => {
     const properties = feature.properties;
-    const matchesFacets = elements.filterSelects.every((select) => {
-      const selected = select.value;
-      const field = select.dataset.field;
-      return !selected || matchesValue(field, canonicalFilterValue(field, properties[field]), selected);
+    const matchesFacets = active.every(([field, checked]) => {
+      const value = canonicalFilterValue(field, properties[field]);
+      return checked.some((selected) => matchesValue(field, value, selected));
     });
     return (!query || searchable(properties).includes(query)) && matchesFacets;
   });
@@ -438,8 +460,8 @@ async function start() {
 
     // Populate each facet with live counts. Zero-count configured choices stay
     // visible (and disabled), documenting the complete controlled vocabulary.
-    elements.filterSelects.forEach((select) => {
-      const field = select.dataset.field;
+    elements.filterMenus.forEach((menu) => {
+      const field = menu.dataset.field;
       const dataValues = allFeatures
         .map((feature) => canonicalFilterValue(field, feature.properties[field]))
         .filter(Boolean);
@@ -447,7 +469,7 @@ async function start() {
       const values = uniqueCanonicalOptions(field, [...configuredValues, ...dataValues]);
       if (!configuredValues.length) values.sort();
       const counts = new Map(values.map((value) => [value, dataValues.filter((data) => matchesValue(field, data, value)).length]));
-      fillSelect(select, values, counts);
+      fillMenu(menu, values, counts);
     });
     elements.visibleCount.textContent = formatNumber(allFeatures.length);
     renderResults();
@@ -455,6 +477,25 @@ async function start() {
 
     elements.form.addEventListener("input", applyFilters);
     elements.form.addEventListener("reset", () => window.setTimeout(applyFilters));
+    // Only one checkbox menu is open at a time; outside clicks and Escape close it.
+    elements.filterMenus.forEach((menu) => {
+      menu.addEventListener("toggle", () => {
+        if (menu.open) elements.filterMenus.forEach((other) => other !== menu && (other.open = false));
+      });
+    });
+    document.addEventListener("click", (event) => {
+      elements.filterMenus.forEach((menu) => {
+        if (menu.open && !menu.contains(event.target)) menu.open = false;
+      });
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      const open = elements.filterMenus.find((menu) => menu.open);
+      if (open) {
+        open.open = false;
+        open.querySelector("summary").focus();
+      }
+    });
     elements.sidebarToggle.addEventListener("click", () => {
       // The layout transition changes the map container width; resize after the
       // CSS animation so MapLibre recomputes its canvas and interaction bounds.

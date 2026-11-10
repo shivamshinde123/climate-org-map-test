@@ -21,7 +21,7 @@
       href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261110-3" />
+    <link rel="stylesheet" href="styles.css?v=20261110-4" />
   </head>
   <body>
     <!-- The shell couples a collapsible discovery panel to a full-height map. -->
@@ -47,7 +47,7 @@
           </p>
         </header>
 
-        <!-- Selects declare map property names through data-field; JavaScript
+        <!-- Each checkbox dropdown declares a map property through data-field; JavaScript
              supplies options from the schema and counts from the loaded data. -->
         <form class="filters reveal reveal-3" id="filters" autocomplete="off">
           <label class="search-field">
@@ -60,50 +60,48 @@
             />
           </label>
           <div class="filter-row single">
-            <label>
+            <div class="multi-field">
               <span>State</span>
-              <select id="state-filter" data-field="state">
-                <option value="">All states</option>
-              </select>
-            </label>
+              <details class="multi" data-field="state" data-all="All states"><summary>All states</summary><div class="multi-options"></div></details>
+            </div>
           </div>
           <!-- Native details preserves keyboard behavior and supports a compact UI. -->
           <details class="advanced-filters" open>
             <summary>Organization filters <span>8</span></summary>
             <p class="filter-availability">Filter organizations based on the type of work that they do</p>
             <div class="filter-row schema-filter-grid">
-            <label>
+            <div class="multi-field">
               <span>Organization type</span>
-              <select data-field="gcc_organization_type"><option value="">All types</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_organization_type" data-all="All types"><summary>All types</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Audience focus</span>
-              <select data-field="gcc_audience_focus"><option value="">All audiences</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_audience_focus" data-all="All audiences"><summary>All audiences</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Resilience</span>
-              <select data-field="gcc_resilience"><option value="">All resilience</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_resilience" data-all="All resilience"><summary>All resilience</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Activity</span>
-              <select data-field="gcc_activity"><option value="">All activity</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_activity" data-all="All activity"><summary>All activity</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Action category</span>
-              <select data-field="gcc_action_category"><option value="">All actions</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_action_category" data-all="All actions"><summary>All actions</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Climate topic</span>
-              <select data-field="gcc_climate_category"><option value="">All climate topics</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_climate_category" data-all="All climate topics"><summary>All climate topics</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Reach</span>
-              <select data-field="gcc_reach"><option value="">All reach</option></select>
-            </label>
-            <label>
+              <details class="multi" data-field="gcc_reach" data-all="All reach"><summary>All reach</summary><div class="multi-options"></div></details>
+            </div>
+            <div class="multi-field">
               <span>Verification</span>
-              <select data-field="gcc_verification"><option value="">All records</option></select>
-            </label>
+              <details class="multi" data-field="gcc_verification" data-all="All records"><summary>All records</summary><div class="multi-options"></div></details>
+            </div>
             </div>
           </details>
           <button type="reset" class="reset-button">Clear filters</button>
@@ -140,7 +138,7 @@
 
     <!-- Library loads first; app.js then fetches local schema and GeoJSON assets. -->
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <script src="app.js?v=20261110-3"></script>
+    <script src="app.js?v=20261110-4"></script>
   </body>
 </html>
 
