@@ -5,9 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Explore a prototype nationwide map of climate and environmental organizations from IRS data."
+      content="Find community-focused climate and sustainability organizations across the United States."
     />
-    <title>Climate Org Mapping</title>
+    <title>Climate Organizations Map</title>
+    <link rel="icon" type="image/png" href="logo.png" />
     <!-- MapLibre renders the interactive map; local CSS owns product styling. -->
     <link rel="preconnect" href="https://unpkg.com" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -20,7 +21,7 @@
       href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261110-2" />
+    <link rel="stylesheet" href="styles.css?v=20261110-3" />
   </head>
   <body>
     <!-- The shell couples a collapsible discovery panel to a full-height map. -->
@@ -39,10 +40,10 @@
       <aside id="atlas-panel" class="atlas-panel" aria-label="Organization search and results">
         <!-- Product identity and concise context for this provisional dataset. -->
         <header class="masthead reveal reveal-1">
-          <div class="eyebrow"><span>GCC</span> Research preview</div>
-          <h1>Climate<br /><em>Org Mapping</em></h1>
+          <div class="eyebrow"><img src="logo.png" alt="" width="40" height="40" /> Green Community Catalysts</div>
+          <h1>Climate<br /><em>Organizations Map</em></h1>
           <p class="lede">
-            A working census of local environmental action across the United States.
+            Find Community-Focused Climate and Sustainability Organizations by using the Search and Filters below
           </p>
         </header>
 
@@ -50,7 +51,7 @@
              supplies options from the schema and counts from the loaded data. -->
         <form class="filters reveal reveal-3" id="filters" autocomplete="off">
           <label class="search-field">
-            <span>Search the index</span>
+            <span>Search Organizations</span>
             <input
               id="search"
               type="search"
@@ -58,24 +59,18 @@
               aria-controls="results"
             />
           </label>
-          <div class="filter-row">
+          <div class="filter-row single">
             <label>
               <span>State</span>
               <select id="state-filter" data-field="state">
                 <option value="">All states</option>
               </select>
             </label>
-            <label>
-              <span>NTEE</span>
-              <select id="ntee-filter" data-field="ntee_code">
-                <option value="">All codes</option>
-              </select>
-            </label>
           </div>
           <!-- Native details preserves keyboard behavior and supports a compact UI. -->
           <details class="advanced-filters" open>
             <summary>Organization filters <span>8</span></summary>
-            <p class="filter-availability">IRS coverage shown by count; unavailable schema values are disabled.</p>
+            <p class="filter-availability">Filter organizations based on the type of work that they do</p>
             <div class="filter-row schema-filter-grid">
             <label>
               <span>Organization type</span>
@@ -98,7 +93,7 @@
               <select data-field="gcc_action_category"><option value="">All actions</option></select>
             </label>
             <label>
-              <span>Climate category</span>
+              <span>Climate topic</span>
               <select data-field="gcc_climate_category"><option value="">All climate topics</option></select>
             </label>
             <label>
@@ -118,18 +113,12 @@
         <section class="index-section reveal reveal-4" aria-live="polite">
           <div class="index-heading">
             <div>
-              <span class="section-label">Visible index</span>
+              <span class="section-label">Search results</span>
               <strong id="visible-count">—</strong>
             </div>
-            <span id="total-count">Loading data…</span>
           </div>
           <div id="results" class="results" role="list"></div>
         </section>
-
-        <footer>
-          <span>Source: IRS EO BMF</span>
-          <span>Unverified preview</span>
-        </footer>
       </aside>
 
       <!-- MapLibre mounts its canvas and accessibility elements into this node. -->
@@ -141,7 +130,6 @@
     <!-- Reused client-side for result rows; no record HTML is server-generated. -->
     <template id="result-template">
       <button class="result-card" type="button" role="listitem">
-        <span class="result-code"></span>
         <span class="result-copy">
           <strong class="result-name"></strong>
           <span class="result-location"></span>
@@ -152,7 +140,7 @@
 
     <!-- Library loads first; app.js then fetches local schema and GeoJSON assets. -->
     <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
-    <script src="app.js?v=20261110-2"></script>
+    <script src="app.js?v=20261110-3"></script>
   </body>
 </html>
 
