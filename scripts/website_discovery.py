@@ -309,8 +309,11 @@ class _HTMLParser(html.parser.HTMLParser):
 def _robots_allowed(url: str) -> bool:
     try:
         rp = urllib.robotparser.RobotFileParser()
-        rp.set_url(urllib.parse.urljoin(url, "/robots.txt"))
-        rp.read()
+        # rp.read() has no timeout and can hang forever, so fetch it ourselves.
+        text = _fetch(urllib.parse.urljoin(url, "/robots.txt"))
+        if text is None:
+            return True
+        rp.parse(text.splitlines())
         return rp.can_fetch(USER_AGENT, url)
     except Exception:
         return True
@@ -326,7 +329,15 @@ def _fetch(url: str, timeout: int = 12) -> str | None:
             charset = "utf-8"
             if "charset=" in ct:
                 charset = ct.split("charset=")[-1].split(";")[0].strip()
-            return resp.read(1_000_000).decode(charset, errors="replace")
+            # The socket timeout resets on every byte, so a server that trickles data
+            # could hang the run for hours; cap the whole download instead.
+            deadline, body = time.monotonic() + timeout * 2, b""
+            while len(body) < 1_000_000 and time.monotonic() < deadline:
+                chunk = resp.read1(65536)
+                if not chunk:
+                    break
+                body += chunk
+            return body[:1_000_000].decode(charset, errors="replace")
     except Exception:
         return None
 
