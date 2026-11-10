@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261110-2";
+const ASSET_VERSION = "20261110-3";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -32,9 +32,7 @@ const elements = {
   form: document.querySelector("#filters"),
   search: document.querySelector("#search"),
   state: document.querySelector("#state-filter"),
-  ntee: document.querySelector("#ntee-filter"),
   visibleCount: document.querySelector("#visible-count"),
-  totalCount: document.querySelector("#total-count"),
   results: document.querySelector("#results"),
   template: document.querySelector("#result-template"),
   filterSelects: [...document.querySelectorAll("select[data-field]")],
@@ -255,7 +253,6 @@ function renderResults() {
   filteredFeatures.slice(0, MAX_RESULTS).forEach((feature) => {
     const card = elements.template.content.firstElementChild.cloneNode(true);
     const properties = feature.properties;
-    card.querySelector(".result-code").textContent = properties.ntee_code || "Survey";
     card.querySelector(".result-name").textContent = properties.name;
     card.querySelector(".result-location").textContent =
       [properties.city, properties.state, properties.postal_code].filter(Boolean).join(", ") ||
@@ -452,7 +449,6 @@ async function start() {
       const counts = new Map(values.map((value) => [value, dataValues.filter((data) => matchesValue(field, data, value)).length]));
       fillSelect(select, values, counts);
     });
-    elements.totalCount.textContent = `${formatNumber(allFeatures.length)} IRS candidates`;
     elements.visibleCount.textContent = formatNumber(allFeatures.length);
     renderResults();
     initializeMap(data);
@@ -476,10 +472,9 @@ async function start() {
     // are absent, malformed, or served without a local HTTP server.
     console.error(error);
     elements.visibleCount.textContent = "0";
-    elements.totalCount.textContent = "Dataset unavailable";
     elements.results.innerHTML = `
       <div class="empty-state">
-        The atlas data could not be loaded. Run the IRS build script, then serve the app through a local web server.
+        The organization data could not be loaded. Please try again later.
       </div>`;
   }
 }
