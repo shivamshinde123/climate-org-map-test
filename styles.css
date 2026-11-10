@@ -140,7 +140,11 @@ h1 em { color: var(--eucalyptus); font-style: normal; }
 }
 
 /* Search and facet controls use native inputs for keyboard and mobile support. */
+/* The reveal animation makes the form and the results their own layers; lift
+   the form so open checkbox menus are drawn above the results list. */
 .filters {
+  position: relative;
+  z-index: 2;
   padding-bottom: 24px;
   border-bottom: 1px solid var(--stone);
 }
