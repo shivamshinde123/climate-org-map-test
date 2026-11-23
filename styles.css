@@ -18,6 +18,10 @@
 
 * { box-sizing: border-box; }
 
+/* The hidden attribute always wins over a component's display rule
+   (for example .survey-section's grid), so hidden parts never show. */
+[hidden] { display: none !important; }
+
 html, body { height: 100%; }
 
 body {
@@ -695,3 +699,28 @@ body.form-page { overflow: auto; }
 .example-card { max-width: 340px; padding: 20px; background: var(--snow); border: 1px solid var(--frost); border-radius: 12px; }
 .visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 #survey-verifying { margin: 0; }
+
+/* Survey pages: "Page 2 of 5", numbered page buttons and a progress bar. */
+.survey-progress { display: grid; gap: 10px; margin-bottom: 16px; }
+.survey-progress-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.survey-page-label { color: var(--forest); font-size: 14px; font-weight: 500; }
+.survey-pages { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.survey-page {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  color: var(--pewter);
+  background: var(--snow);
+  border: 1px solid var(--frost);
+  border-radius: 50%;
+  font: inherit;
+  font-size: 13px;
+}
+.survey-page.done { color: var(--forest); background: var(--lime); border-color: var(--lime); cursor: pointer; }
+.survey-page.done:hover { border-color: var(--forest); }
+.survey-page.current { color: var(--snow); background: var(--forest); border-color: var(--forest); }
+.survey-page:disabled { cursor: default; }
+.survey-progress-bar { height: 6px; overflow: hidden; background: var(--stone); border-radius: 3px; }
+.survey-progress-bar span { display: block; height: 100%; background: var(--forest); border-radius: 3px; transition: width 200ms ease; }

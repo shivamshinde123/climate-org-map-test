@@ -15,7 +15,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-19" />
+    <link rel="stylesheet" href="styles.css?v=20261123-21" />
   </head>
   <body class="form-page" data-page="survey">
     <main class="form-shell">
@@ -30,6 +30,14 @@
       <!-- Sections come from data/survey.json; one is shown at a time. The survey
            checks each section itself, since hidden sections hold required fields. -->
       <form id="survey-form" novalidate>
+        <!-- Page counter, progress bar and page buttons; filled by survey.js. -->
+        <nav id="survey-progress" class="survey-progress" aria-label="Survey pages">
+          <div class="survey-progress-head">
+            <span id="survey-page-label" class="survey-page-label"></span>
+            <ol id="survey-pages" class="survey-pages"></ol>
+          </div>
+          <div class="survey-progress-bar" aria-hidden="true"><span id="survey-progress-fill"></span></div>
+        </nav>
         <div id="survey-sections"></div>
         <div class="button-row survey-nav">
           <button id="survey-back" class="text-button" type="button" hidden>← Back</button>
@@ -45,8 +53,8 @@
       </section>
     </main>
 
-    <script src="supabase-config.js?v=20261123-19"></script>
-    <script src="forms.js?v=20261123-19"></script>
-    <script src="survey.js?v=20261123-19"></script>
+    <script src="supabase-config.js?v=20261123-21"></script>
+    <script src="forms.js?v=20261123-21"></script>
+    <script src="survey.js?v=20261123-21"></script>
   </body>
 </html>
