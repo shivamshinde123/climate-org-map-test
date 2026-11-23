@@ -290,6 +290,9 @@ async function reviewResponse(row) {
     );
     id = matches[0]?.id ?? null;
   }
+  // The survey has no organization-type question: keep the listing's own type,
+  // and use the usual default only for a new organization.
+  if (!id) overrides.gcc_organization_type = "Nonprofit / Grassroots";
   await openEditor(id, { overrides, fromResponse: row });
   showMessage(
     ui.message,

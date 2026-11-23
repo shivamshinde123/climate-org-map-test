@@ -260,8 +260,8 @@ function filtersFromFocus(picked) {
     .map(([, value]) => value)
     .join(" / ");
   const pair = (a, b, aValue, bValue) => (has(a) && has(b) ? "Both" : has(a) ? aValue : has(b) ? bValue : "Unknown");
+  // No survey question asks for the organization type, so it is not set here.
   return {
-    gcc_organization_type: "Nonprofit / Grassroots",
     gcc_audience_focus: audience || "Unknown",
     gcc_resilience: pair("mitigation", "adaptation", "Mitigation", "Adaptation"),
     gcc_activity: pair("advocacy", "action", "Advocacy", "Action"),
@@ -644,6 +644,14 @@ function renderRules(filters, { admin = false } = {}) {
   document.querySelector("#rules-example").textContent = csvExampleText({ admin });
 }
 
+/** The verification survey, pre-filled with this organization (survey.html reads these). */
+function verifySurveyUrl(properties) {
+  const params = new URLSearchParams({ org: properties.id ?? "" });
+  [["name", "name"], ["website", "website_url"], ["address", "address"], ["city", "city"], ["state", "state"], ["zip", "postal_code"]]
+    .forEach(([param, key]) => properties[key] && params.set(param, String(properties[key])));
+  return `survey.html?${params}`;
+}
+
 /* ---------------- Public "Add your organization" page ---------------- */
 
 async function submitPublic(config, properties) {
@@ -665,6 +673,15 @@ async function submitPublic(config, properties) {
   });
   if (response.status === 409) throw new Error("This organization (same name and state) has already been submitted.");
   if (!response.ok) throw new Error(`The database refused the submission (${response.status}).`);
+}
+
+/** "You just added X. Do you also want to verify this organization?" with a link to the pre-filled survey. */
+function offerVerification(properties) {
+  const dialog = document.querySelector("#verify-offer");
+  dialog.querySelector("#verify-offer-name").textContent = properties.name;
+  dialog.querySelector("#verify-offer-link").href = verifySurveyUrl(properties);
+  dialog.showModal();
+  dialog.querySelector("#verify-offer-link").focus();
 }
 
 async function startAddPage() {
@@ -696,10 +713,12 @@ async function startAddPage() {
     try {
       const location = await locateOrganization(values, form);
       if (location) Object.assign(values, location);
-      await submitPublic(config, await buildProperties(values, filters, publicOptions));
+      const properties = await buildProperties(values, filters, publicOptions);
+      await submitPublic(config, properties);
       form.reset();
       const note = locationNote(location, values);
       showMessage(message, `Thank you. <strong>${escapeText(values.name)}</strong> was submitted and will appear on the map once it is reviewed.${note ? ` ${escapeText(note)}` : ""}`, "success");
+      offerVerification(properties);
     } catch (error) {
       showMessage(message, escapeText(error.message), "error");
     } finally {

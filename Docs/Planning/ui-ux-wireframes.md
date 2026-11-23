@@ -47,6 +47,8 @@ The complete left panel scrolls vertically when its content exceeds the viewport
 
 Linked from the map header by a filled "+ Add your organization" button. At the top, a collapsed "How to add an organization" bar (Show rules / Hide rules) with the visitor rules, a column table with allowed values, and an example CSV. Then one card with the organization form (name, website, address, town, state, ZIP, filter selects; Verification is not offered), a second card for CSV upload with a downloadable template. Messages: submitted ("will appear once reviewed"), validation errors, per-row CSV problems.
 
+After a successful single submission, a site-styled window says "You just added <name>. Do you also want to verify this organization?" with "Not now" and "Yes, verify it", which opens the verification survey pre-filled with what was just entered.
+
 ## Verification survey (survey.html)
 
 Opened from a listing's "Claim and verify this listing" (pre-filled, with a "You are verifying …" note) or directly. One section card at a time, styled like the site, under a "Page 2 of 5" counter, numbered page buttons (earlier pages can be clicked to go back; the total follows the path chosen) and a progress bar: questions in white boxes, required ones marked *, "This is a required question" under any left empty, radio and check-box lists with an "Other:" box, the state dropdown and town/address suggestions for the organization's location, Back and Next (Next becomes Submit on the last section of the chosen path). The intro shows a live example listing card. After submitting, the form's thank-you message.
