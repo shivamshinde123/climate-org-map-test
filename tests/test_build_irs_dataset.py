@@ -57,7 +57,6 @@ class BuildIrsDatasetTests(unittest.TestCase):
             data_dir = root / "Data"
             data_dir.mkdir()
             codes = root / "codes.txt"
-            output = root / "app" / "data.geojson"
             codes.write_text("C20\nC30\n", encoding="utf-8")
 
             # Include one selected and one excluded row to exercise exact matching.
@@ -90,8 +89,7 @@ class BuildIrsDatasetTests(unittest.TestCase):
                     ]
                 )
 
-            stats = build_dataset(data_dir, codes, output)
-            payload = json.loads(output.read_text(encoding="utf-8"))
+            payload, stats = build_dataset(data_dir, codes)
 
             self.assertEqual(stats.source_rows, 2)
             self.assertEqual(stats.emitted, 1)

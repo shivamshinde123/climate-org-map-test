@@ -33,21 +33,19 @@ try:
     # sys.path, so the sibling import is available at top level.
     from propublica_common import (
         DEFAULT_DATA_DIR,
-        DEFAULT_INPUT,
         PROPUBLICA_API_BASE,
         feature_ein,
         first_present,
-        iter_geojson_features,
+        organization_features,
         normalize_ein,
     )
 except ModuleNotFoundError:  # Package-style import used by tests and tooling.
     from scripts.propublica_common import (
         DEFAULT_DATA_DIR,
-        DEFAULT_INPUT,
         PROPUBLICA_API_BASE,
         feature_ein,
         first_present,
-        iter_geojson_features,
+        organization_features,
         normalize_ein,
     )
 
@@ -77,7 +75,7 @@ def is_valid_cached_response(path: Path, ein: str) -> bool:
 
 
 def select_features(
-    input_path: Path,
+    all_features: list[dict[str, Any]],
     *,
     fetch_all: bool,
     per_ntee: int,
@@ -91,7 +89,7 @@ def select_features(
     dominated by a common NTEE code and hide behavior in smaller groups.
     """
 
-    features = [feature for feature in iter_geojson_features(input_path) if feature_ein(feature)]
+    features = [feature for feature in all_features if feature_ein(feature)]
     # An explicit EIN list is useful for reproducing a documented spot check.
     # Preserve the caller's order while silently ignoring EINs absent from the
     # map input; the final selected count makes omissions visible.
@@ -168,7 +166,7 @@ def fetch(args: argparse.Namespace) -> dict[str, int]:
     raw_dir.mkdir(parents=True, exist_ok=True)
     manifest = output_dir / "fetch-manifest.jsonl"
     selected = select_features(
-        args.input,
+        organization_features(),
         fetch_all=args.all,
         per_ntee=args.per_ntee,
         limit=args.limit,
@@ -209,7 +207,6 @@ def build_parser() -> argparse.ArgumentParser:
     """Define a CLI that defaults to a safe, small research sample."""
 
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_DATA_DIR)
     parser.add_argument("--per-ntee", type=int, default=2, help="Sample size per IRS NTEE code (default: 2).")
     parser.add_argument("--all", action="store_true", help="Fetch every input EIN rather than a stratified sample.")

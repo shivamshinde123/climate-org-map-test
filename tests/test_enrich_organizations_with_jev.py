@@ -1,22 +1,20 @@
 """Contract tests for website discovery and single-request Jev enrichment."""
 
 import json
-import tempfile
 import unittest
-from pathlib import Path
 from unittest import mock
 
-from scripts import api_log
 from scripts.enrich_organizations_with_jev import (
     CLASSIFICATION_FIELDS,
     CONTACT_VERSION,
     apply_enrichment,
-    enrich_geojson,
+    enrich_payload,
     extract_chat_output,
     jev_request_payload,
     website_discovery_payload,
 )
 from scripts.normalize_external_data_without_llm import CATEGORY_OPTIONS
+from tests.fake_store import FakeStore
 
 
 class EnrichOrganizationsWithJevTests(unittest.TestCase):
@@ -24,11 +22,7 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
 
     def setUp(self):
         """Create one reusable organization, discovery result, and Jev decision."""
-        log_directory = tempfile.TemporaryDirectory()
-        self.addCleanup(log_directory.cleanup)
-        patcher = mock.patch.object(api_log, "LOG_PATH", Path(log_directory.name) / "api.jsonl")
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        FakeStore(self)
         self.properties = {
             "id": "org_test",
             "name": "New Hampshire Climate Action Network",
@@ -128,31 +122,22 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
             "type": "FeatureCollection",
             "features": [{"type": "Feature", "geometry": None, "properties": self.properties}],
         }
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "source.geojson"
-            output = root / "output.geojson"
-            discovery_cache = root / "discovery.jsonl"
-            jev_cache = root / "jev.jsonl"
-            source.write_text(json.dumps(collection), encoding="utf-8")
-            no_contacts = lambda *_: {"email": "", "phone": "", "contact_page_url": ""}
-            stats = enrich_geojson(
-                source, output, "openrouter-key",
-                discovery_cache, jev_cache,
-                discovery_caller=discover, jev_caller=decide,
-                contact_caller=no_contacts,
-            )
-            self.assertEqual(stats["classified"], 1)
-            stats = enrich_geojson(
-                output, output, "openrouter-key",
-                discovery_cache, jev_cache,
-                discovery_caller=discover, jev_caller=decide,
-                contact_caller=no_contacts,
-            )
-            self.assertEqual(stats["classified"], 0)
-            self.assertEqual(stats["skipped_existing"], 1)
-            self.assertEqual(stats["processed"], 0)
-            result = json.loads(output.read_text(encoding="utf-8"))
+        no_contacts = lambda *_: {"email": "", "phone": "", "contact_page_url": ""}
+        stats = enrich_payload(
+            collection, "openrouter-key",
+            discovery_caller=discover, jev_caller=decide,
+            contact_caller=no_contacts,
+        )
+        self.assertEqual(stats["classified"], 1)
+        stats = enrich_payload(
+            collection, "openrouter-key",
+            discovery_caller=discover, jev_caller=decide,
+            contact_caller=no_contacts,
+        )
+        self.assertEqual(stats["classified"], 0)
+        self.assertEqual(stats["skipped_existing"], 1)
+        self.assertEqual(stats["processed"], 0)
+        result = collection
 
         self.assertEqual(len(discovery_calls), 1)
         self.assertEqual(len(jev_calls), 1)
@@ -169,13 +154,9 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
         not_found = {**self.discovery, "status": "not_found", "website_url": "", "source_urls": []}
         collection = {"type": "FeatureCollection",
                       "features": [{"type": "Feature", "geometry": None, "properties": self.properties}]}
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            source = root / "source.geojson"
-            source.write_text(json.dumps(collection), encoding="utf-8")
-            enrich_geojson(source, source, "openrouter-key", root / "d.jsonl", root / "j.jsonl",
-                           discovery_caller=lambda *_: not_found, jev_caller=lambda *_: self.jev_response)
-            properties = json.loads(source.read_text(encoding="utf-8"))["features"][0]["properties"]
+        enrich_payload(collection, "openrouter-key",
+                       discovery_caller=lambda *_: not_found, jev_caller=lambda *_: self.jev_response)
+        properties = collection["features"][0]["properties"]
         self.assertEqual(properties["website_url"], "")
         self.assertEqual(properties["email"], "")
         self.assertNotIn("contact_page_url", properties)
@@ -188,13 +169,10 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
                                contact_version=CONTACT_VERSION)
         collection = {"type": "FeatureCollection",
                       "features": [{"type": "Feature", "geometry": None, "properties": self.properties}]}
-        with tempfile.TemporaryDirectory() as directory,                 mock.patch("scripts.enrich_organizations_with_jev.crawl_for_contacts") as crawl:
-            root = Path(directory)
-            source = root / "source.geojson"
-            source.write_text(json.dumps(collection), encoding="utf-8")
-            enrich_geojson(source, source, "openrouter-key", root / "d.jsonl", root / "j.jsonl",
+        with mock.patch("scripts.enrich_organizations_with_jev.crawl_for_contacts") as crawl:
+            enrich_payload(collection, "openrouter-key",
                            discovery_caller=lambda *_: self.discovery, jev_caller=lambda *_: self.jev_response)
-            properties = json.loads(source.read_text(encoding="utf-8"))["features"][0]["properties"]
+        properties = collection["features"][0]["properties"]
         crawl.assert_not_called()
         self.assertEqual(properties["email"], "info@example.org")
         self.assertEqual(properties["jev_classification_status"], "classified")

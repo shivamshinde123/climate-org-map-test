@@ -15,12 +15,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import urllib.robotparser
-from pathlib import Path
 
 try:
     from . import api_log
+    from . import supabase_store as store
 except ImportError:  # Allows direct execution from the scripts directory.
     import api_log  # type: ignore
+    import supabase_store as store  # type: ignore
 
 USER_AGENT = "GCC-Climate-Organization-Map/0.1"
 BRAVE_ENDPOINT = "https://api.search.brave.com/res/v1/web/search"
@@ -506,30 +507,26 @@ def page_profile(url: str) -> dict:
     }
 
 
-# Raw Brave results keyed by query: changing the matching rules re-scores
-# cached results instead of paying for the same searches again.
-BRAVE_CACHE_PATH = Path(__file__).resolve().parents[1] / "Data" / "Website Enrichment" / "brave-cache.jsonl"
+# Brave results keyed by query: changing the matching rules re-scores cached
+# results instead of paying for the same searches again. Only the fields the
+# matcher reads are kept, which keeps the database small.
 _brave_cache: dict[str, list] | None = None
+_BRAVE_FIELDS = ("url", "title", "description")
 
 
 def _cached_brave_results(query: str) -> list[dict] | None:
     global _brave_cache
     if _brave_cache is None:
-        _brave_cache = {}
-        if BRAVE_CACHE_PATH.exists():
-            for line in BRAVE_CACHE_PATH.read_text(encoding="utf-8").splitlines():
-                if line.strip():
-                    item = json.loads(line)
-                    _brave_cache[item["query"]] = item["results"]
+        _brave_cache = store.load_cache("brave")
     return _brave_cache.get(query)
 
 
-def _store_brave_results(query: str, results: list[dict]) -> None:
+def _store_brave_results(query: str, results: list[dict]) -> list[dict]:
     _cached_brave_results(query)  # ensures the cache is loaded
-    _brave_cache[query] = results
-    BRAVE_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with BRAVE_CACHE_PATH.open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(json.dumps({"query": query, "results": results}, ensure_ascii=False) + "\n")
+    slim = [{k: r[k] for k in _BRAVE_FIELDS if k in r} for r in results]
+    _brave_cache[query] = slim
+    store.append_cache("brave", query, slim)
+    return slim
 
 
 def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | None:
@@ -553,8 +550,7 @@ def _brave_search(query: str, brave_key: str, retries: int = 3) -> list[dict] | 
         try:
             raw = api_log.send(req, "brave", "website_discovery", timeout=15)
             results = json.loads(raw).get("web", {}).get("results", [])
-            _store_brave_results(query, results)
-            return results
+            return _store_brave_results(query, results)
         except urllib.error.HTTPError as error:
             if error.code in (401, 403, 422):
                 raise BraveKeyError(

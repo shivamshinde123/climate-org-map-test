@@ -16,11 +16,11 @@ Future geocoding, map-tile, CRM, and third-party source credentials must be supp
 
 ## Supabase
 
-Run the migration in `supabase/migrations/` once (Supabase SQL Editor), then `python -m scripts.sync_supabase`. The script copies `app/data/organizations.geojson` into the database, records the admin emails, and writes `app/supabase-config.js` (public URL and anon key) for the map and forms. Re-run it after every pipeline run.
+Run each migration in `supabase/migrations/` once, in order (Supabase SQL Editor), then `python -m scripts.sync_supabase`. The script records the admin emails and writes `app/supabase-config.js` (public URL and anon key) for the map and forms; re-run it when `ADMIN_EMAILS` changes. The pipeline (`main.py`) reads and writes organizations in Supabase itself, so it needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on every run.
 
 - `SUPABASE_URL`: project URL (Project Settings → API).
 - `SUPABASE_ANON_KEY`: public anon key; ends up in `app/supabase-config.js`, which is safe because row-level security protects the data.
-- `SUPABASE_SERVICE_ROLE_KEY`: secret; used only by the sync script. Never put it in `app/`.
+- `SUPABASE_SERVICE_ROLE_KEY`: secret; used by the pipeline and the sync script. Never put it in `app/`.
 - `ADMIN_EMAILS`: comma-separated emails allowed to use `admin.html`. Each sync makes the `admins` table match this list exactly: new emails are added and emails no longer listed are removed. If it is empty or missing, the table is left unchanged rather than emptied.
 
 In the Supabase dashboard, Authentication → URL Configuration must list the admin page URLs (the GitHub Pages `admin.html` and `http://localhost:8000/admin.html`) as redirect URLs for the email sign-in link.
@@ -29,9 +29,9 @@ In the Supabase dashboard, Authentication → URL Configuration must list the ad
 
 Step-by-step account and key creation for both providers: [../Setup/api-keys-setup.md](../Setup/api-keys-setup.md).
 
-`--enrichment-limit N` caps how many organizations a run enriches and `--enrichment-state XX` restricts it to one state (e.g. `MA`). The paid OpenRouter contact lookup for sites that block the crawler is off by default; `--contact-fallback` turns it on (about 2 cents each). Brave results, picker answers, OpenRouter web-search answers and contact lookups are cached under `Data/Website Enrichment/`, so re-runs only pay for new work.
+`--enrichment-limit N` caps how many organizations a run enriches and `--enrichment-state XX` restricts it to one state (e.g. `MA`). The paid OpenRouter contact lookup for sites that block the crawler is off by default; `--contact-fallback` turns it on (about 2 cents each). Brave results, picker answers, OpenRouter web-search answers, contact lookups and Jev answers are cached in the Supabase `pipeline_cache` table, so re-runs only pay for new work.
 
-Every Brave and OpenRouter request is appended to `Data/Logs/api-requests.jsonl` (git-ignored), one JSON object per line. `type: "request"` entries hold the provider, purpose (`website_discovery`, `web_search_website_discovery`, `web_search_contact_details`, `jev_classification`), organization id and name, full URL, request body, HTTP status, response headers and body (OpenRouter bodies include `usage.cost`), and duration. `type: "decision"` entries record which path was taken and why (`brave_accepted`, `brave_rejected`, `web_search_fallback`, `contacts_from_site`, `contact_fallback`, cache hits). API keys and cookies are never written. A Brave HTTP 401/403/422 stops the run instead of silently falling back to paid OpenRouter search.
+Every Brave and OpenRouter request is written to the Supabase `api_log` table, one row per entry (bodies cut at 4,000 characters). `type: "request"` entries hold the provider, purpose (`website_discovery`, `web_search_website_discovery`, `web_search_contact_details`, `jev_classification`), organization id and name, full URL, request body, HTTP status, response headers and body (OpenRouter bodies include `usage.cost`), and duration. `type: "decision"` entries record which path was taken and why (`brave_accepted`, `brave_rejected`, `web_search_fallback`, `contacts_from_site`, `contact_fallback`, cache hits). API keys and cookies are never written. A Brave HTTP 401/403/422 stops the run instead of silently falling back to paid OpenRouter search.
 
 - `BRAVE_API_KEY`: optional but strongly recommended. Enables Brave Search as the primary website-discovery path, which is faster and cheaper than LLM web search for clear-match cases. When absent, every record falls through to the OpenRouter web-search path. Get a key at https://brave.com/search/api/.
 - `OPENROUTER_API_KEY`: required. The only LLM key: used for fallback web-search discovery and contact extraction (Chat Completions + `web` plugin) and for Jev classification (Decisions API).

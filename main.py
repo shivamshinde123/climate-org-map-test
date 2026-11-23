@@ -3,9 +3,11 @@
 
 This is the repository's primary entry point.  It coordinates four concerns that
 are deliberately kept in separate modules: IRS normalization, coordinate
-assignment, optional paid enrichment, and static-file serving.  Normal runs are
-incremental: an existing dataset and completed coordinates are reused, while
-``--rebuild`` explicitly opts into regenerating the IRS base.
+assignment, optional paid enrichment, and static-file serving.  Supabase is the
+only data store: every run loads the organizations from the database and saves
+the new and changed ones back.  Normal runs are incremental: existing records
+and completed coordinates are reused, while ``--rebuild`` explicitly opts into
+regenerating the IRS base.
 
 No API key is sent anywhere merely by starting the application.  Census calls
 require ``--use-census`` and paid OpenRouter calls require
@@ -15,13 +17,12 @@ require ``--use-census`` and paid OpenRouter calls require
 from __future__ import annotations
 
 import argparse
-import json
 import os
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
-from scripts.api_log import LOG_PATH as API_LOG_PATH
+from scripts import supabase_store as store
 from scripts.build_irs_dataset import build_dataset
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
@@ -32,8 +33,7 @@ from scripts.enrich_organizations_with_jev import (
     DEFAULT_SEARCH_MODEL,
     OPENROUTER_CHAT_ENDPOINT,
     OPENROUTER_DECISIONS_ENDPOINT,
-    enrich_geojson,
-    write_geojson,
+    enrich_payload,
 )
 
 
@@ -48,11 +48,8 @@ DEFAULT_CODES_PATH = (
     / "Research and Requirements"
     / "NTEE_Codes_to_Consider.txt"
 )
-DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "app" / "data" / "organizations.geojson"
 DEFAULT_CACHE_PATH = PROJECT_ROOT / "Data" / "Geocoding" / "census_geocodes.csv"
 DEFAULT_APP_DIR = PROJECT_ROOT / "app"
-DEFAULT_DISCOVERY_CACHE = PROJECT_ROOT / "Data" / "Website Enrichment" / "discovery-cache.jsonl"
-DEFAULT_JEV_CACHE = PROJECT_ROOT / "Data" / "Jev Classification" / "classification-cache.jsonl"
 
 # These fields are restored after a forced IRS rebuild when the preceding
 # dataset says that Jev completed classification.  The overlay prevents a
@@ -66,16 +63,13 @@ JEV_SCHEMA_FIELDS = {
 }
 
 
-def load_enrichment_overlay(path: Path) -> dict[str, dict]:
+def load_enrichment_overlay(payload: dict) -> dict[str, dict]:
     """Read reusable enrichment keyed by stable organization ID.
 
     Empty placeholder fields are intentionally excluded.  Website metadata is
     reusable independently, but GCC schema values are preserved only when the
     record proves that Jev classification completed successfully.
     """
-    if not path.exists():
-        return {}
-    payload = json.loads(path.read_text(encoding="utf-8"))
     overlay = {}
     for feature in payload.get("features", []):
         properties = feature.get("properties", {})
@@ -96,15 +90,12 @@ def load_enrichment_overlay(path: Path) -> dict[str, dict]:
     return overlay
 
 
-def restore_enrichment(path: Path, overlay: dict[str, dict]) -> int:
-    """Merge a previously captured enrichment overlay into rebuilt GeoJSON.
+def restore_enrichment(payload: dict, overlay: dict[str, dict]) -> int:
+    """Merge a previously captured enrichment overlay into the rebuilt records.
 
     Returns the number of organizations restored.  Unknown IDs are ignored so
     records removed from the current IRS selection cannot reappear by accident.
     """
-    if not overlay:
-        return 0
-    payload = json.loads(path.read_text(encoding="utf-8"))
     restored = 0
     for feature in payload.get("features", []):
         properties = feature.get("properties", {})
@@ -112,7 +103,6 @@ def restore_enrichment(path: Path, overlay: dict[str, dict]) -> int:
         if saved:
             properties.update(saved)
             restored += 1
-    write_geojson(path, payload)
     return restored
 
 
@@ -121,7 +111,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--codes", type=Path, default=DEFAULT_CODES_PATH)
-    parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--cache", type=Path, default=DEFAULT_CACHE_PATH)
     parser.add_argument(
         "--rebuild",
@@ -167,12 +156,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jev-model", default=os.environ.get("JEV_MODEL", DEFAULT_JEV_MODEL))
     parser.add_argument("--search-endpoint", default=os.environ.get("SEARCH_BASE_URL", OPENROUTER_CHAT_ENDPOINT), help=argparse.SUPPRESS)
     parser.add_argument("--jev-endpoint", default=os.environ.get("JEV_BASE_URL", OPENROUTER_DECISIONS_ENDPOINT), help=argparse.SUPPRESS)
-    parser.add_argument("--discovery-cache", type=Path, default=DEFAULT_DISCOVERY_CACHE, help=argparse.SUPPRESS)
-    parser.add_argument("--jev-cache", type=Path, default=DEFAULT_JEV_CACHE, help=argparse.SUPPRESS)
     parser.add_argument(
         "--no-serve",
         action="store_true",
-        help="Build and validate the dataset without starting the map server",
+        help="Run the pipeline without starting the local map server",
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
@@ -189,7 +176,7 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def validate_map_dataset(path: Path) -> tuple[int, int, int]:
+def validate_map_dataset(payload: dict) -> tuple[int, int, int]:
     """Validate map-critical GeoJSON invariants.
 
     The browser expects a non-empty FeatureCollection.  Null geometries are
@@ -197,13 +184,9 @@ def validate_map_dataset(path: Path) -> tuple[int, int, int]:
     contain at least one valid Point.  The returned tuple is
     ``(record_count, point_count, approximate_point_count)``.
     """
-    payload = json.loads(path.read_text(encoding="utf-8"))
-    if payload.get("type") != "FeatureCollection":
-        raise ValueError(f"{path} is not a GeoJSON FeatureCollection")
-
     features = payload.get("features")
     if not isinstance(features, list) or not features:
-        raise ValueError(f"{path} does not contain any organization features")
+        raise ValueError("The dataset does not contain any organization features")
 
     points = 0
     fallbacks = 0
@@ -226,7 +209,7 @@ def validate_map_dataset(path: Path) -> tuple[int, int, int]:
     return len(features), points, fallbacks
 
 
-def dataset_has_complete_coordinates(path: Path) -> bool:
+def dataset_has_complete_coordinates(payload: dict) -> bool:
     """Return whether every feature already has a final coordinate outcome.
 
     This inexpensive check is what lets ordinary runs skip the geocoder.  An
@@ -234,9 +217,6 @@ def dataset_has_complete_coordinates(path: Path) -> bool:
     upgraded to address-range matches. ``unavailable`` is final: neither a ZIP
     nor a city centroid matched, so the record has no point.
     """
-    if not path.exists():
-        return False
-    payload = json.loads(path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
 
     def resolved(feature: dict) -> bool:
@@ -253,37 +233,36 @@ def dataset_has_complete_coordinates(path: Path) -> bool:
 def run_pipeline(args: argparse.Namespace) -> None:
     """Execute enabled stages in dependency order and print concise progress."""
     phase_count = 4 if args.enrich_with_jev else 3
-    # A missing artifact must be built; an existing artifact is authoritative
+    payload = store.load_payload()
+    # An empty database must be built; existing records are authoritative
     # unless the operator explicitly requests a source refresh.
-    should_build = args.rebuild or not args.output.exists()
-    enrichment_overlay = load_enrichment_overlay(args.output) if should_build else {}
+    should_build = args.rebuild or not payload["features"]
     if should_build:
+        enrichment_overlay = load_enrichment_overlay(payload)
         print(f"[1/{phase_count}] Building normalized IRS dataset...", flush=True)
-        stats = build_dataset(args.input_dir, args.codes, args.output, args.limit)
+        payload, stats = build_dataset(args.input_dir, args.codes, args.limit)
         print(f"      Scanned {stats.source_rows:,} IRS rows")
-        print(f"      Wrote {stats.emitted:,} selected organizations")
+        print(f"      Selected {stats.emitted:,} organizations")
     else:
-        print(f"[1/{phase_count}] Reusing existing dataset: {args.output}", flush=True)
+        print(f"[1/{phase_count}] Loaded {len(payload['features']):,} organizations from Supabase", flush=True)
 
     # Survey-only organizations (no IRS record) are re-added on every run, so a
     # rebuild never drops them; they arrive already placed at their town center.
-    payload = json.loads(args.output.read_text(encoding="utf-8"))
     added = add_survey_organizations(payload)
     # Applied before enrichment too, so the paid run skips Jev for survey-verified records.
-    apply_survey_verifications(payload.get("features", []))
-    write_geojson(args.output, payload)
+    survey_evidence = store.survey_verifications()
+    apply_survey_verifications(payload["features"], survey_evidence)
     if added:
         print(f"      GCC survey organizations added: {added:,}")
 
-    mode ="Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
+    mode = "Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
     # Fallback-only coordinates are complete for map rendering.  Census mode is
     # nevertheless allowed to revisit them because it is an explicit upgrade.
-    should_geocode = args.use_census or not dataset_has_complete_coordinates(args.output)
+    should_geocode = args.use_census or not dataset_has_complete_coordinates(payload)
     if should_geocode:
         print(f"[2/{phase_count}] Applying {mode}...", flush=True)
         submitted, matched, unmatched, fallbacks = geocode_dataset(
-            args.output,
-            args.output,
+            payload,
             args.cache,
             args.endpoint,
             args.batch_size,
@@ -297,51 +276,52 @@ def run_pipeline(args: argparse.Namespace) -> None:
     else:
         print(f"[2/{phase_count}] Reusing existing coordinates", flush=True)
     if should_build:
-        restored = restore_enrichment(args.output, enrichment_overlay)
+        restored = restore_enrichment(payload, enrichment_overlay)
         if restored:
             print(f"      Preserved existing enrichment: {restored:,} organizations")
 
-    if args.enrich_with_jev:
-        print("[3/4] Discovering websites and classifying with Jev through OpenRouter...", flush=True)
-        stats = enrich_geojson(
-            args.output,
-            args.output,
-            os.environ["OPENROUTER_API_KEY"],
-            args.discovery_cache,
-            args.jev_cache,
-            args.search_model,
-            args.jev_model,
-            args.search_endpoint,
-            args.jev_endpoint,
-            args.enrichment_limit if args.enrichment_limit is not None else args.limit,
-            brave_key=os.environ.get("BRAVE_API_KEY") or None,
-            state=args.enrichment_state,
-            contact_fallback=args.contact_fallback,
-        )
-        print(f"      Organizations processed: {stats['processed']:,}")
-        print(f"      Official websites found: {stats['websites_found']:,}")
-        print(f"        - by Brave Search: {stats['brave_matches']:,}")
-        print(f"        - by OpenRouter web-search fallback: {stats['web_search_fallbacks']:,}")
-        print(f"      OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
-        print(f"      Organizations classified by Jev: {stats['classified']:,}")
-        print(f"      Survey answers kept (Jev skipped): {stats['survey_answers_kept']:,}")
-        print(f"      Already enriched and skipped: {stats['skipped_existing']:,}")
-        print(f"      Pending after this run: {stats['remaining']:,}")
-        print(f"      Enrichment errors: {stats['failed']:,}")
-        print(f"      Full request log: {API_LOG_PATH}")
+    try:
+        if args.enrich_with_jev:
+            print("[3/4] Discovering websites and classifying with Jev through OpenRouter...", flush=True)
+            stats = enrich_payload(
+                payload,
+                os.environ["OPENROUTER_API_KEY"],
+                args.search_model,
+                args.jev_model,
+                args.search_endpoint,
+                args.jev_endpoint,
+                args.enrichment_limit if args.enrichment_limit is not None else args.limit,
+                brave_key=os.environ.get("BRAVE_API_KEY") or None,
+                state=args.enrichment_state,
+                contact_fallback=args.contact_fallback,
+            )
+            print(f"      Organizations processed: {stats['processed']:,}")
+            print(f"      Official websites found: {stats['websites_found']:,}")
+            print(f"        - by Brave Search: {stats['brave_matches']:,}")
+            print(f"        - by OpenRouter web-search fallback: {stats['web_search_fallbacks']:,}")
+            print(f"      OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
+            print(f"      Organizations classified by Jev: {stats['classified']:,}")
+            print(f"      Survey answers kept (Jev skipped): {stats['survey_answers_kept']:,}")
+            print(f"      Already enriched and skipped: {stats['skipped_existing']:,}")
+            print(f"      Pending after this run: {stats['remaining']:,}")
+            print(f"      Enrichment errors: {stats['failed']:,}")
+            print("      Full request log: Supabase table api_log")
+    except BaseException:
+        # Enrichment stopped early (error, Brave key, Ctrl+C): keep the finished paid work.
+        print(f"      Organizations saved to Supabase: {store.save_payload(payload):,}")
+        raise
 
     # Survey verification is applied last so no earlier stage can overwrite it.
-    payload = json.loads(args.output.read_text(encoding="utf-8"))
-    marked = apply_survey_verifications(payload.get("features", []))
+    marked = apply_survey_verifications(payload["features"], survey_evidence)
     if marked:
-        write_geojson(args.output, payload)
         print(f"      Verified from GCC survey: {marked:,} organizations")
 
-    print(f"[{phase_count}/{phase_count}] Validating map dataset...", flush=True)
-    records, points, fallback_points = validate_map_dataset(args.output)
+    print(f"[{phase_count}/{phase_count}] Validating and saving to Supabase...", flush=True)
+    records, points, fallback_points = validate_map_dataset(payload)
     print(f"      Validated {records:,} records and {points:,} map points")
     print(f"      Approximate ZIP/city points: {fallback_points:,}")
     print(f"      Records without a map point: {records - points:,}")
+    print(f"      Organizations saved to Supabase: {store.save_payload(payload):,}")
 
 
 def serve_map(host: str, port: int) -> None:
@@ -362,10 +342,10 @@ def main() -> None:
     """Load local configuration, validate secrets, run stages, and optionally serve."""
     load_environment(PROJECT_ROOT / ".env")
     args = parse_args()
-    if args.enrich_with_jev:
-        missing = [name for name in ("OPENROUTER_API_KEY",) if not os.environ.get(name)]
-        if missing:
-            raise SystemExit(f"Missing required environment variable(s): {', '.join(missing)}")
+    required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"] + (["OPENROUTER_API_KEY"] if args.enrich_with_jev else [])
+    missing = [name for name in required if not os.environ.get(name)]
+    if missing:
+        raise SystemExit(f"Missing required environment variable(s): {', '.join(missing)}")
     run_pipeline(args)
     if not args.no_serve:
         serve_map(args.host, args.port)

@@ -12,11 +12,11 @@ This guide moves the whole project from the current owner's GitHub and Supabase 
 |---|---|---|
 | Code | `github.com/shivamshinde123/climate-organization-mapping` (branch `supabase-database`) | A repository in the CEO's GitHub account (main branch `master`) |
 | Public website | `shivamshinde123.github.io/climate-organization-mapping/` | `<ceo-username>.github.io/<repo-name>/`, deployed by GitHub Pages from the new repository |
-| Database (organizations, admins, survey answers) | The test Supabase project *Climate-org-mapping* | A new Supabase project in the CEO's account |
+| Database (organizations, admins, survey answers, API caches) | The test Supabase project *Climate-org-mapping* | A new Supabase project in the CEO's account |
 | Keys and admin emails | The current owner's `.env` file (never in Git) | A `.env` file with the CEO's keys on whichever computer runs the setup |
-| Pipeline source data (IRS files, caches, ~800 MB) | `Data/` folders on the current owner's computer (not in Git) | Only needed to re-run the IRS pipeline; see *Optional: pipeline data* |
+| Pipeline source data (IRS files, address lookups, ~330 MB) | `Data/` folders on the current owner's computer (not in Git) | Only needed to re-run the IRS pipeline; see *Optional: pipeline data* |
 
-The website reads organizations from `app/data/organizations.geojson` (in Git) plus live changes from Supabase, so the map works without the pipeline data.
+Supabase is the only place the organizations live: the website and the pipeline both read them from the database. Moving the database (Step 7) moves the map's data.
 
 ---
 
@@ -71,7 +71,8 @@ At this point the map shows the organizations from the data file but has no data
 1. In the project: **SQL Editor → New query**.
 2. Open `supabase/migrations/20261123000000_organizations.sql` from the repository, paste all of it, and click **Run**. It should say *Success. No rows returned*.
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
-4. Check **Table Editor**: three tables, `organizations`, `admins` and `survey_responses`, each marked *RLS enabled*.
+4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
+5. Check **Table Editor**: six tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log` and `survey_verifications`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
 
@@ -105,9 +106,12 @@ ADMIN_EMAILS=ceo@example.org
 - **The service_role key is a secret.** It stays in `.env`, which Git ignores. Never paste it into a file under `app/`, an email or a chat.
 - `OPENROUTER_API_KEY` and `BRAVE_API_KEY` are only for re-running the website-discovery pipeline; see `Docs/Setup/api-keys-setup.md` if the CEO will do that.
 
-## Step 7 — Load the organizations and connect the site
+## Step 7 — Copy the data and connect the site
 
-In the project folder:
+1. In the **old** project: **Table Editor → organizations → Export → Export table as CSV**. Do the same for `survey_responses` and `pipeline_cache` (saved website searches and category answers, so re-runs don't pay twice). `api_log` is only an audit trail; skip it.
+2. In the **new** project: **Table Editor → organizations → Insert → Import data from CSV**, choose the organizations file. Then the same for `survey_responses` and `pipeline_cache`.
+3. Check: **SQL Editor** → `select count(*) from organizations;` shows about 20,600.
+4. In the project folder:
 
 ```powershell
 python -m scripts.sync_supabase
@@ -116,11 +120,11 @@ python -m scripts.sync_supabase
 Expected ending:
 
 ```
-      Organizations sent: 20,607; inserted or changed: 20,607; admins: 1
+      Admins: 1
       Wrote app\supabase-config.js
 ```
 
-This copies every organization into Supabase, records the admin email(s), and writes the new project's public address and public (anon) key into `app/supabase-config.js`. The anon key is meant to be public; the access rules from Step 4 protect the data. Publish that file:
+This records the admin email(s) and writes the new project's public address and public (anon) key into `app/supabase-config.js`. The anon key is meant to be public; the access rules from Step 4 protect the data. Publish that file:
 
 ```powershell
 git add app/supabase-config.js
@@ -154,23 +158,6 @@ If a check fails, see *Troubleshooting* below.
 
 ---
 
-## Optional: bring over changes made in the test project
-
-Only needed if real organizations were approved, edited or verified, or real survey answers were collected, in the old test Supabase project. **Do this between Step 6 and Step 7.** Organizations changed by an admin must arrive before the sync, so the sync leaves them alone.
-
-1. In the **old** project's SQL Editor, run each query and click **Download CSV**:
-
-```sql
-select id, properties, review_status, updated_via, created_at from organizations where updated_via <> 'pipeline';
-```
-
-```sql
-select * from survey_responses;
-```
-
-2. In the **new** project: **Table Editor → organizations → Insert → Import data from CSV**, choose the first file; then the same for `survey_responses` with the second file.
-3. Continue with Step 7.
-
 ## Optional: pipeline data
 
 The map, forms and admin page do not need these. They are only needed to rebuild the organization list from new IRS data or to discover more websites. They are left out of Git because of their size:
@@ -178,12 +165,9 @@ The map, forms and admin page do not need these. They are only needed to rebuild
 | Folder | Size | What it is |
 |---|---|---|
 | `Data/IRS EO BMF/` | ~325 MB | IRS source files (can also be downloaded again from the IRS) |
-| `Data/Website Enrichment/` | ~180 MB | Saved website searches, so re-runs do not pay twice |
-| `Data/Jev Classification/` | ~11 MB | Saved category answers |
 | `Data/Geocoding/` | ~6 MB | Saved address lookups |
-| `Data/Logs/` | ~300 MB | Request logs; not needed |
 
-To hand them over, zip the first four and share them privately (for example a shared drive folder), then unzip into the same paths in the new copy.
+Saved website searches, category answers and request logs are in the database and move with Step 7. To hand the files over, zip them and share them privately (for example a shared drive folder), then unzip into the same paths in the new copy.
 
 ---
 
@@ -193,8 +177,8 @@ To hand them over, zip the first four and share them privately (for example a sh
 |---|---|
 | Add or remove an admin | Edit `ADMIN_EMAILS` in `.env`, run `python -m scripts.sync_supabase`. |
 | Review new organizations and surveys | `admin.html`: *New organizations to approve* and *Verification surveys to review*. |
-| Refresh the data from a new IRS release | Run the pipeline (`python main.py …`, see README), then `python -m scripts.sync_supabase`, commit and push `app/data/`. |
-| Keep the database awake | Free Supabase projects pause after about a week without visits. The map keeps working from its data file, but the forms and admin page stop until someone clicks **Restore** in Supabase. Supabase's paid plan avoids this. |
+| Refresh the data from a new IRS release | Run the pipeline (`python main.py --rebuild --no-serve`, see README). It saves straight to Supabase; nothing to commit. |
+| Keep the database awake | Free Supabase projects pause after about a week without visits. The map, forms and admin page all stop until someone clicks **Restore** in Supabase. Supabase's paid plan avoids this. |
 
 ## Troubleshooting
 
@@ -203,7 +187,8 @@ To hand them over, zip the first four and share them privately (for example a sh
 | Site shows GitHub's 404 page | Pages not set to *GitHub Actions* (Step 2), the workflow has not finished, or the repository is private on a free GitHub plan. |
 | Add form says submissions are not open | `app/supabase-config.js` was not committed and pushed after Step 7, or is still empty. |
 | Sync stops with *401* or *Invalid API key* | `SUPABASE_SERVICE_ROLE_KEY` is wrong or is the anon key. Use the legacy *service_role* key (Step 6). |
-| Sync stops with *relation "organizations" does not exist* | Step 4 was skipped or a file failed; run both SQL files again. |
+| Map says *The organization data could not be loaded* | `app/supabase-config.js` is empty or not pushed, the project is paused, or Step 7's import was skipped. |
+| Sync stops with *relation "admins" does not exist* | Step 4 was skipped or a file failed; run the SQL files again. |
 | Sign-in link opens an error or the wrong site | The redirect URLs in Step 5 do not match the site address exactly (check `https`, the repository name and `/admin.html`). |
 | Admin page says *… is not an admin* | That email is not in `ADMIN_EMAILS`; add it and run the sync. |
 | Sign-in email never arrives | Supabase's built-in sender limit (a few per hour); wait, or set up SMTP (Step 5). Check the spam folder. |

@@ -32,6 +32,7 @@ try:
         email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     from . import api_log
+    from . import supabase_store as store
     from .survey_verifications import is_survey_verified
 except ImportError:  # Allows direct execution from the repository root.
     from survey_verifications import is_survey_verified  # type: ignore
@@ -42,6 +43,7 @@ except ImportError:  # Allows direct execution from the repository root.
         email_matches_site, facebook_page, is_directory, normalize_phone, site_domain, tidy_summary,
     )
     import api_log  # type: ignore
+    import supabase_store as store  # type: ignore
 
 
 OPENROUTER_CHAT_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -261,7 +263,7 @@ def call_brave_pick(payload: dict, api_key: str, endpoint: str) -> dict:
 
 def pick_from_brave(
     properties: dict, model: str, api_key: str, endpoint: str,
-    cache: dict, cache_path: Path, caller: Callable[[dict, str, str], dict] | None = None,
+    cache: dict, caller: Callable[[dict, str, str], dict] | None = None,
 ) -> dict | None:
     """Return a discovery built from the Brave result the model calls official, or None.
 
@@ -279,7 +281,7 @@ def pick_from_brave(
     if answer is None:
         answer = (caller or call_brave_pick)(brave_pick_payload(properties, candidates, model), api_key, endpoint)
         cache[key] = answer
-        append_cache(cache_path, key, answer)
+        store.append_cache("picker", key, answer)
     index = answer.get("index", -1)
     if not isinstance(index, int) or not 0 <= index < len(candidates):
         api_log.decision("brave_pick_none", reason=str(answer.get("reason", ""))[:300], candidates=len(candidates))
@@ -542,25 +544,6 @@ def cache_key(material: dict) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def load_cache(path: Path) -> dict[str, dict]:
-    """Load an append-only JSON Lines cache, with later duplicates winning."""
-    if not path.exists():
-        return {}
-    cache = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            item = json.loads(line)
-            cache[item["cache_key"]] = item["result"]
-    return cache
-
-
-def append_cache(path: Path, key: str, result: dict) -> None:
-    """Append one API result immediately so completed work survives interruption."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(json.dumps({"cache_key": key, "result": result}, ensure_ascii=False, separators=(",", ":")) + "\n")
-
-
 WEBSEARCH_PROMPT_VERSION = "gcc-websearch-v2"  # bump when website_discovery_payload's wording changes
 
 
@@ -602,22 +585,9 @@ def enrichment_is_complete(properties: dict, search_model: str, jev_model: str) 
     )
 
 
-def write_geojson(path: Path, payload: dict) -> None:
-    """Atomically write GeoJSON so a terminated process cannot truncate output."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(payload, stream, ensure_ascii=False, separators=(",", ":"))
-        stream.write("\n")
-    temporary.replace(path)
-
-
-def enrich_geojson(
-    input_path: Path,
-    output_path: Path,
+def enrich_payload(
+    payload: dict,
     openrouter_key: str,
-    discovery_cache_path: Path,
-    jev_cache_path: Path,
     search_model: str = DEFAULT_SEARCH_MODEL,
     jev_model: str = DEFAULT_JEV_MODEL,
     search_endpoint: str = OPENROUTER_CHAT_ENDPOINT,
@@ -637,20 +607,16 @@ def enrich_geojson(
     Caller injection keeps network behavior testable. ``limit`` is applied after
     existing records are removed, so it always represents new work. Errors are
     recorded on individual features unless ``fail_on_error`` requests immediate
-    termination. Summary counts are returned and embedded in dataset metadata.
+    termination. Summary counts are returned; the caller saves ``payload``.
     """
-    payload = json.loads(input_path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
-    discovery_cache = load_cache(discovery_cache_path)
-    contact_cache_path = discovery_cache_path.with_name("contact-cache.jsonl")
-    contact_cache = load_cache(contact_cache_path)
+    discovery_cache = store.load_cache("discovery")
+    contact_cache = store.load_cache("contact")
     # Paid web-search answers, kept apart from the discovery cache so that a
     # discovery-rule change re-scores Brave results without re-paying these.
-    websearch_cache_path = discovery_cache_path.with_name("websearch-cache.jsonl")
-    websearch_cache = load_cache(websearch_cache_path)
-    picker_cache_path = discovery_cache_path.with_name("picker-cache.jsonl")
-    picker_cache = load_cache(picker_cache_path)
-    jev_cache = load_cache(jev_cache_path)
+    websearch_cache = store.load_cache("websearch")
+    picker_cache = store.load_cache("picker")
+    jev_cache = store.load_cache("jev")
     search = discovery_caller or call_web_search
     decide = jev_caller or (lambda body, key, endpoint: post_json(body, key, endpoint))
     contact_search = contact_caller or search
@@ -710,7 +676,7 @@ def enrich_geojson(
                         # from its results before paying for a fresh web search.
                         discovery = pick_from_brave(
                             properties, search_model, openrouter_key, search_endpoint,
-                            picker_cache, picker_cache_path, picker_caller,
+                            picker_cache, picker_caller,
                         )
                         route = "brave_pick" if discovery else ""
                 if discovery is None:
@@ -724,7 +690,7 @@ def enrich_geojson(
                         stats["web_search_fallbacks"] += 1
                         discovery = search(website_discovery_payload(properties, search_model), openrouter_key, search_endpoint)
                         websearch_cache[search_key] = discovery
-                        append_cache(websearch_cache_path, search_key, discovery)
+                        store.append_cache("websearch", search_key, discovery)
                     else:
                         api_log.decision("web_search_cache_hit", reason="reused cached web-search answer; no API call")
                     discovery = {**discovery, "summary": tidy_summary(discovery.get("summary", ""))}
@@ -738,7 +704,7 @@ def enrich_geojson(
                     stats["brave_picks"] += 1
                 validate_discovery(discovery)
                 discovery_cache[discovery_key] = discovery
-                append_cache(discovery_cache_path, discovery_key, discovery)
+                store.append_cache("discovery", discovery_key, discovery)
             else:
                 api_log.decision("discovery_cache_hit", reason="reused cached discovery; no API call")
                 validate_discovery(discovery)
@@ -798,7 +764,7 @@ def enrich_geojson(
                                 openrouter_key, search_endpoint,
                             )
                             contact_cache[contact_key] = raw
-                            append_cache(contact_cache_path, contact_key, raw)
+                            store.append_cache("contact", contact_key, raw)
                         else:
                             api_log.decision("contact_cache_hit", reason="reused cached contact lookup; no API call")
                         contacts = {k: str(raw.get(k, "")) for k in ("email", "phone", "contact_page_url")}
@@ -840,7 +806,7 @@ def enrich_geojson(
                 jev_response = decide(jev_request_payload(properties, discovery, jev_model), openrouter_key, jev_endpoint)
                 validate_jev_response(jev_response)
                 jev_cache[jev_key] = jev_response
-                append_cache(jev_cache_path, jev_key, jev_response)
+                store.append_cache("jev", jev_key, jev_response)
             else:
                 api_log.decision("jev_cache_hit", reason="reused cached classification; no API call")
             apply_enrichment(properties, discovery, jev_response, jev_model)
@@ -861,14 +827,6 @@ def enrich_geojson(
     # Failed and unvisited records remain pending, while successful ones do not.
     stats["remaining"] = len(pending) - stats["processed"] + stats["failed"]
 
-    payload.setdefault("metadata", {})["enrichment"] = {
-        **stats,
-        "website_search_model": search_model,
-        "classification_model": jev_model,
-        "classification_provider": "OpenRouter Decisions API",
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-    write_geojson(output_path, payload)
     if brave_failure:
         raise brave_failure
     return stats
@@ -877,8 +835,6 @@ def enrich_geojson(
 def parse_args() -> argparse.Namespace:
     """Parse enrichment settings, model overrides, caches, and batch limits."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=Path("app/data/organizations.geojson"))
-    parser.add_argument("--output", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument("--limit", type=int)
     parser.add_argument("--state", help="Only enrich organizations in this two-letter state, e.g. MA")
     parser.add_argument(
@@ -891,8 +847,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--jev-endpoint", default=os.environ.get("JEV_BASE_URL", OPENROUTER_DECISIONS_ENDPOINT))
     parser.add_argument("--openrouter-api-key-env", default="OPENROUTER_API_KEY")
     parser.add_argument("--brave-api-key-env", default="BRAVE_API_KEY")
-    parser.add_argument("--discovery-cache", type=Path, default=Path("Data/Website Enrichment/discovery-cache.jsonl"))
-    parser.add_argument("--jev-cache", type=Path, default=Path("Data/Jev Classification/classification-cache.jsonl"))
     parser.add_argument("--fail-on-error", action="store_true")
     args = parser.parse_args()
     if args.limit is not None and args.limit < 1:
@@ -908,13 +862,17 @@ def main() -> None:
     brave_key = os.environ.get(args.brave_api_key_env)
     if not openrouter_key:
         raise SystemExit(f"Missing API key environment variable: {args.openrouter_api_key_env}")
-    stats = enrich_geojson(
-        args.input, args.output, openrouter_key,
-        args.discovery_cache, args.jev_cache, args.search_model, args.jev_model,
-        args.search_endpoint, args.jev_endpoint, args.limit,
-        fail_on_error=args.fail_on_error, brave_key=brave_key or None, state=args.state,
-        contact_fallback=args.contact_fallback,
-    )
+    payload = store.load_payload()
+    try:
+        stats = enrich_payload(
+            payload, openrouter_key, args.search_model, args.jev_model,
+            args.search_endpoint, args.jev_endpoint, args.limit,
+            fail_on_error=args.fail_on_error, brave_key=brave_key or None, state=args.state,
+            contact_fallback=args.contact_fallback,
+        )
+    finally:
+        # Finished records are saved even when a run stops early.
+        print(f"Organizations saved to Supabase: {store.save_payload(payload):,}")
     print(f"Organizations processed: {stats['processed']:,}")
     print(f"Official websites found: {stats['websites_found']:,}")
     print(f"Organizations classified by Jev: {stats['classified']:,}")
@@ -922,7 +880,7 @@ def main() -> None:
     print(f"OpenRouter web-search fallbacks: {stats['web_search_fallbacks']:,}")
     print(f"OpenRouter contact fallbacks: {stats['contact_fallbacks']:,}")
     print(f"Errors: {stats['failed']:,}")
-    print(f"Full request log: {api_log.LOG_PATH}")
+    print("Full request log: Supabase table api_log")
 
 
 if __name__ == "__main__":

@@ -41,21 +41,21 @@ flowchart LR
     subgraph Enrich["4. Optional AI enrichment: --enrich-with-jev"]
         BraveSearch["Brave Search<br/>primary website discovery"]
         Discovery["OpenRouter web search<br/>fallback for low-confidence cases"]
-        DiscoveryCache[(Website discovery cache)]
+        DiscoveryCache[(Supabase pipeline_cache<br/>Brave, discovery, web search)]
         Crawl["Deterministic crawler<br/>email, phone, contact page"]
         ContactFallback["OpenRouter web search<br/>contact fallback when site blocked"]
         Jev["System One Jev via OpenRouter<br/>all 8 schema choices in one request"]
-        JevCache[(Jev classification cache)]
+        JevCache[(Supabase pipeline_cache<br/>Jev answers)]
     end
 
-    subgraph Publish["5. Validate and publish"]
-        GeoJSON[(app/data/organizations.geojson)]
+    subgraph Publish["5. Validate and save"]
+        GeoJSON[(Supabase organizations table)]
         Validate["main.py validation<br/>FeatureCollection, Points,<br/>coordinate ranges"]
         Server["Local static HTTP server"]
     end
 
     subgraph Browser["6. Browser map"]
-        App["app.js loads GeoJSON + schema"]
+        App["app.js loads approved organizations + schema"]
         Filters["Search, counts, and schema filters"]
         MapLibre["MapLibre clusters, points, and tooltips"]
         OSM["OpenStreetMap raster tiles"]
@@ -95,7 +95,8 @@ flowchart LR
 
     GeoJSON --> Validate
     Validate --> Server
-    Server --> App
+    Server -->|"static app files"| App
+    GeoJSON -->|"approved rows, map fields only"| App
     Schema --> App
     App --> Filters
     App --> MapLibre
@@ -106,14 +107,15 @@ flowchart LR
 
 </details>
 
-Solid arrows show the normal data path. Dashed arrows show optional, incremental, or externally configured work. OpenStreetMap supplies the background tiles; organization coordinates, tooltip content, and filter values come from the generated GeoJSON. See [`Docs/Planning/flow.md`](Docs/Planning/flow.md) for the detailed stage-by-stage description.
+Solid arrows show the normal data path. Dashed arrows show optional, incremental, or externally configured work. OpenStreetMap supplies the background tiles; organization coordinates, tooltip content, and filter values come from the Supabase `organizations` table, the only data store. See [`Docs/Planning/flow.md`](Docs/Planning/flow.md) for the detailed stage-by-stage description.
 
 ## Repository contents
 
 - `Data/`: supplied IRS state CSV files.
 - `Docs/Planning/`: living project plans, architecture, specifications, and decisions.
 - `Docs/Research and Requirements/`: supplied source requirements and research.
-- `scripts/build_irs_dataset.py`: IRS filter and GeoJSON build pipeline.
+- `scripts/build_irs_dataset.py`: IRS filter and normalization.
+- `scripts/supabase_store.py`: the pipeline's reads and writes to Supabase (organizations, API caches, API log).
 - `app/`: static map application.
 - `tests/`: ingestion unit tests.
 - `Docs/Planning/idea.md`: consolidated product and architecture concept.
@@ -165,9 +167,9 @@ For each selected organization, the enrichment pipeline:
 2. **Contact extraction** — deterministically crawls the accepted website (respecting `robots.txt`) to extract a public organizational email, phone number, and contact-page URL. If the crawler is blocked by `robots.txt` or the site is unreachable, an OpenRouter web-search call is used as a fallback to surface contact details from its cached index.
 3. **Jev classification** — sends the full evidence package to `typesafe/jev-1.13` through OpenRouter's Decisions API. Jev answers all eight controlled schema questions in one request. It is the sole model classifier in this enrichment path.
 
-Discovery, crawl results, and Jev responses are cached separately under `Data/Website Enrichment/` and `Data/Jev Classification/`. Rebuilt runs reuse successful enrichment and do not repeat paid calls. Review a representative labeled pilot before increasing the limit because model confidence is not the same as domain accuracy.
+Discovery, crawl results, and Jev responses are cached in the Supabase `pipeline_cache` table. Rebuilt runs reuse successful enrichment and do not repeat paid calls. Review a representative labeled pilot before increasing the limit because model confidence is not the same as domain accuracy.
 
-The pipeline is incremental by default. If `app/data/organizations.geojson` already exists, `main.py` reuses it instead of rescanning IRS files. Completed coordinates are also reused. Enrichment excludes records already completed with the current discovery version, search model, Jev question version, and Jev model before applying `--enrichment-limit`. Use `python main.py --rebuild` only when the IRS source data or normalization logic has changed.
+The pipeline is incremental by default. It loads the organizations from Supabase and reuses them instead of rescanning IRS files, then saves only new and changed records back. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`. Completed coordinates are also reused. Enrichment excludes records already completed with the current discovery version, search model, Jev question version, and Jev model before applying `--enrichment-limit`. Use `python main.py --rebuild` only when the IRS source data or normalization logic has changed.
 
 This command transmits each organization's public IRS street, city, state, and ZIP fields to `geocoding.geo.census.gov`. Results and non-matches are cached in `Data/Geocoding/census_geocodes.csv`, so unchanged addresses are not resubmitted. The public OpenStreetMap Nominatim server is intentionally not used for this nationwide bulk operation.
 
@@ -197,7 +199,7 @@ The normalizer recognizes common column names automatically. For an unusual sour
 
 Pass it with `--field-map path/to/field-map.json`.
 
-To serve an already-built dataset without rerunning the pipeline:
+To serve the map without running the pipeline:
 
 ```powershell
 python -m http.server 8000 --directory app
@@ -205,29 +207,23 @@ python -m http.server 8000 --directory app
 
 Open `http://localhost:8000` in a browser.
 
-Do not open `app/index.html` directly from the filesystem. Browsers normally block the dataset fetch from a `file://` page.
+Do not open `app/index.html` directly from the filesystem. Browsers normally block the schema fetch from a `file://` page.
 
 ## Build options
 
-Force a rebuild of existing normalized map data:
+Force a rebuild from the IRS files (existing website and Jev enrichment is kept):
 
 ```powershell
 python main.py --rebuild --no-serve
 ```
 
-Generate a smaller dataset for quick interface testing:
-
-```powershell
-python scripts/build_irs_dataset.py --limit 500
-```
-
 Show every supported argument:
 
 ```powershell
-python scripts/build_irs_dataset.py --help
+python main.py --help
 ```
 
-The default output is `app/data/organizations.geojson`.
+Results are saved to the Supabase `organizations` table.
 
 ## Verification
 
@@ -252,14 +248,14 @@ node --check app/app.js
 - IRS records do not contain latitude and longitude. The geocoding stage supplies map coordinates and records their precision.
 - Census matches use address-range coordinates. Unmatched records fall back to their ZIP centroid, then their city centroid (both from the Census Gazetteer), scattered up to ~550 m so pins don't stack. Records matching neither are left off the map.
 - Base IRS profiles do not contain websites or summaries. Optional enrichment can add an official website and source-grounded summary; provisional or model-generated GCC classifications are still not organization-verified.
-- Data is loaded as one static GeoJSON file; a production nationwide system may require vector tiles or server-side spatial queries.
+- The map loads every approved organization from Supabase on each visit (~1 MB compressed); a much larger nationwide dataset may require vector tiles or server-side spatial queries. Supabase Free includes ~5 GB egress a month (~5,000 map loads).
 - Public OpenStreetMap tiles and CDN assets are appropriate for prototype development, not an assumed production service agreement.
 
 ## Troubleshooting
 
 ### Dataset unavailable
 
-Run `python scripts/build_irs_dataset.py` and confirm that `app/data/organizations.geojson` exists. Serve the `app` directory through HTTP rather than opening the HTML file directly.
+Check that `app/supabase-config.js` has the project URL and anon key (`python -m scripts.sync_supabase` writes it) and that the Supabase project is not paused. Serve the `app` directory through HTTP rather than opening the HTML file directly.
 
 ### The basemap is blank
 

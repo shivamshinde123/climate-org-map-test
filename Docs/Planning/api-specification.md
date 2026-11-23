@@ -2,15 +2,17 @@
 
 ## Current release
 
-There is no network application API in the initial static prototype.
+The map reads organizations from Supabase's REST API with the public anon key; row-level security returns only `approved` rows.
 
 ### Map dataset
 
-`GET /data/organizations.geojson`
+`GET {SUPABASE_URL}/rest/v1/organizations?select=id,name:properties->>name,…,latitude:properties->latitude,longitude:properties->longitude&review_status=eq.approved&order=id&limit=1000&offset=N`
 
-Returns a GeoJSON `FeatureCollection`.
+The map asks only for the fields its pins, list, search and filters use (`name`, `address`, `city`, `state`, `postal_code`, `source_id`, `latitude`, `longitude` and the `gcc_*` filter fields from `map-schema.json`), 1,000 rows per request. The first request sends `Prefer: count=exact`; the total in its `Content-Range` header tells the map how many more pages to fetch in parallel. A row with no numeric latitude/longitude has no map point.
 
-Each feature contains a Point geometry and the complete normalized map schema:
+`GET {SUPABASE_URL}/rest/v1/organizations?select=properties&id=eq.{id}` loads one organization's full record when its popup opens.
+
+`properties` holds the complete normalized schema:
 
 - `id`, `name`, `website_url`, `source_url`, `email`, and `phone`
 - `address`, `city`, `state`, `postal_code`, `latitude`, and `longitude`
@@ -29,8 +31,6 @@ IRS provenance and tooltip fields are also retained:
 - `in_care_of`, `subsection`, `irs_status`, and `ruling_date`
 - `tax_period`, `asset_amount`, `income_amount`, and `revenue_amount`
 - `location_precision`
-
-The collection includes a top-level `metadata` object describing generation time, selected codes, source files, and record count.
 
 `website_url` stores the accepted official organization website as an HTTP(S) URL. `summary` stores the evidence-based plain-text organization description shown in the map popup. Empty values are permitted until enrichment succeeds; they must not be fabricated from insufficient evidence.
 

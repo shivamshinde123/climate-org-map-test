@@ -11,12 +11,11 @@ Climate Org Mapping/
 |       `-- deploy.yml                # GitHub Actions: auto-deploys app/ to GitHub Pages on push
 |-- app/
 |   |-- data/
-|   |   |-- organizations.geojson     # generated
 |   |   |-- map-schema.json           # filter and field vocabulary
 |   |   |-- survey.json               # every survey section, question, option and branch
 |   |   |-- zip-centroids.json        # ZIP -> [lat, lng] fallback for the forms (from Data/Geocoding)
 |   |   `-- towns/<STATE>.json        # town suggestions per state (scripts/build_town_lists.py)
-|   |-- app.js                        # map; overlays live changes from Supabase
+|   |-- app.js                        # map; loads approved organizations from Supabase
 |   |-- index.html
 |   |-- add.html                      # public "Add your organization" form and CSV upload
 |   |-- survey.html, survey.js        # verification survey (replaces the Google Form), drawn from data/survey.json
@@ -41,11 +40,12 @@ Climate Org Mapping/
 |   |-- normalize_external_data_without_llm.py  # generic external-source adapter
 |   |-- enrich_organizations_with_jev.py         # Brave/OpenRouter discovery + Jev classification
 |   |-- website_discovery.py          # Brave Search discovery and deterministic contact crawling
-|   |-- sync_supabase.py              # loads the GeoJSON into Supabase, writes supabase-config.js
+|   |-- supabase_store.py             # pipeline reads/writes organizations, caches, API log in Supabase
+|   |-- sync_supabase.py              # admin emails -> admins table, writes supabase-config.js
 |   |-- build_town_lists.py           # Census place + town names -> app/data/towns/
 |   `-- load_environment.py           # .env loader
 |-- supabase/
-|   `-- migrations/                   # database tables, access rules, sync function
+|   `-- migrations/                   # database tables, access rules, pipeline write function
 |-- tests/
 |   |-- test_build_irs_dataset.py
 |   |-- test_enrich_organizations_with_jev.py
@@ -53,5 +53,5 @@ Climate Org Mapping/
 `-- README.md
 ```
 
-Generated artifacts should be reproducible from source data and scripts.
+Organization data lives only in Supabase; `app/data/` holds only fixed settings (filter vocabulary, survey questions, ZIP centroids, town lists).
 

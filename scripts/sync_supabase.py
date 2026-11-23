@@ -1,14 +1,13 @@
-"""Copy the pipeline's map dataset into the Supabase ``organizations`` table.
+"""Apply the Supabase settings from ``.env``.
 
-Run after ``main.py`` (or on its own) with the keys in ``.env``:
+Run whenever ``ADMIN_EMAILS`` or the Supabase project changes:
 
     python -m scripts.sync_supabase
 
-It upserts every organization through the ``sync_pipeline_organizations``
-database function, which skips rows the admin or a visitor changed, makes the
-``admins`` table match ``ADMIN_EMAILS`` exactly (adding and removing emails;
+It makes the ``admins`` table match ``ADMIN_EMAILS`` exactly (adding and removing emails;
 an empty ``ADMIN_EMAILS`` leaves it unchanged), and writes the public URL and anon key to ``app/supabase-config.js``
-for the map and the forms. The service role key stays in ``.env``.
+for the map and the forms. The service role key stays in ``.env``. (The
+pipeline writes organizations to Supabase itself; see ``supabase_store.py``.)
 """
 
 from __future__ import annotations
@@ -26,19 +25,7 @@ except ImportError:  # Allows direct execution from the scripts directory.
     from load_environment import load_environment  # type: ignore
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-DATASET = PROJECT_ROOT / "app" / "data" / "organizations.geojson"
 CONFIG_JS = PROJECT_ROOT / "app" / "supabase-config.js"
-BATCH_SIZE = 500
-
-
-def pipeline_rows(payload: dict) -> list[dict]:
-    """Return one properties object per organization, keyed by its ``id``."""
-    return [feature["properties"] for feature in payload.get("features", []) if feature.get("properties", {}).get("id")]
-
-
-def batches(rows: list, size: int = BATCH_SIZE):
-    for start in range(0, len(rows), size):
-        yield rows[start : start + size]
 
 
 def config_js(url: str, anon_key: str) -> str:
@@ -72,9 +59,7 @@ def _post(url: str, key: str, path: str, body, prefer: str = "return=minimal", m
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--dataset", type=Path, default=DATASET)
-    args = parser.parse_args()
+    argparse.ArgumentParser(description=__doc__.splitlines()[0]).parse_args()
     load_environment(PROJECT_ROOT / ".env")
     url = os.environ["SUPABASE_URL"].rstrip("/")
     service_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
@@ -90,12 +75,7 @@ def main() -> None:
         # An empty setting is more likely a mistake than a wish to lock everyone out.
         print("      ADMIN_EMAILS is empty; admin list left unchanged.")
 
-    rows = pipeline_rows(json.loads(args.dataset.read_text(encoding="utf-8")))
-    written = 0
-    for batch in batches(rows):
-        written += int(_post(url, service_key, "rpc/sync_pipeline_organizations", {"rows": batch}, "return=representation"))
-        print(f"\r      Synced {min(written, len(rows)):,} changed of {len(rows):,}", end="", flush=True)
-    print(f"\n      Organizations sent: {len(rows):,}; inserted or changed: {written:,}; admins: {len(admins)}")
+    print(f"      Admins: {len(admins)}")
 
     CONFIG_JS.write_text(config_js(url, os.environ["SUPABASE_ANON_KEY"]), encoding="utf-8")
     print(f"      Wrote {CONFIG_JS.relative_to(PROJECT_ROOT)}")

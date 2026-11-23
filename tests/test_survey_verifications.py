@@ -1,6 +1,5 @@
 """Survey verification is matched on EIN and only touches listed organizations."""
 
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,10 +13,8 @@ class SurveyVerificationTests(unittest.TestCase):
             {"properties": {"source_id": "871173877", "gcc_verification": "Not Verified", "status": None}},
             {"properties": {"source_id": "123456789", "gcc_verification": "Not Verified"}},
         ]
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "overrides.json"
-            path.write_text(json.dumps([{"ein": "871173877", "survey": "gb_survey", "evidence": "answered itself"}]))
-            self.assertEqual(apply_survey_verifications(features, path), 1)
+        evidence = {"871173877": {"survey": "gb_survey", "evidence": "answered itself"}}
+        self.assertEqual(apply_survey_verifications(features, evidence), 1)
         self.assertEqual(features[0]["properties"]["gcc_verification"], "Verified")
         self.assertTrue(features[0]["properties"]["validated"])
         self.assertEqual(features[1]["properties"]["gcc_verification"], "Not Verified")
@@ -52,11 +49,8 @@ class SurveyVerificationTests(unittest.TestCase):
     def test_survey_answers_replace_categories_and_skip_jev(self):
         from scripts.enrich_organizations_with_jev import CONTACT_VERSION, DISCOVERY_VERSION, enrichment_is_complete
         properties = {"source_id": "871173877", "gcc_reach": "State / National", "gcc_resilience": "Mitigation"}
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "overrides.json"
-            path.write_text(json.dumps([{"ein": "871173877", "survey": "gb", "evidence": "x",
-                                         "survey_categories": {"reach": "Town / City"}}]))
-            apply_survey_verifications([{"properties": properties}], path)
+        evidence = {"871173877": {"survey": "gb", "evidence": "x", "survey_categories": {"reach": "Town / City"}}}
+        apply_survey_verifications([{"properties": properties}], evidence)
         self.assertEqual(properties["gcc_reach"], "Town / City")  # survey answer wins
         self.assertEqual(properties["gcc_resilience"], "Mitigation")  # unanswered question kept
         properties.update(website_discovery_version=DISCOVERY_VERSION, website_discovery_model="m",
@@ -73,8 +67,9 @@ class SurveyVerificationTests(unittest.TestCase):
         self.assertFalse(domain_is_exact_name("https://davisfarmland.com/", "FARMLAND CONSERVANCY INC", "DRACUT"))
         self.assertFalse(domain_is_exact_name("https://www.marblehead.org/", "MARBLEHEAD CONSERVANCY INC", "MARBLEHEAD"))
 
-    def test_missing_file_changes_nothing(self):
-        self.assertEqual(apply_survey_verifications([], Path("does-not-exist.json")), 0)
+    def test_no_evidence_changes_nothing(self):
+        features = [{"properties": {"source_id": "871173877", "gcc_verification": "Not Verified"}}]
+        self.assertEqual(apply_survey_verifications(features, {}), 0)
 
 
 if __name__ == "__main__":

@@ -16,15 +16,14 @@ from typing import Any
 
 try:
     from category_crosswalk import DEFAULT_CROSSWALK_PATH, resolve_source_category
-    from propublica_common import DEFAULT_DATA_DIR, DEFAULT_INPUT, feature_ein, first_present, iter_geojson_features
+    from propublica_common import DEFAULT_DATA_DIR, feature_ein, first_present, organization_features
 except ModuleNotFoundError:  # Package-style import used by tests and tooling.
     from scripts.category_crosswalk import DEFAULT_CROSSWALK_PATH, resolve_source_category
     from scripts.propublica_common import (
         DEFAULT_DATA_DIR,
-        DEFAULT_INPUT,
         feature_ein,
         first_present,
-        iter_geojson_features,
+        organization_features,
     )
 
 
@@ -52,10 +51,10 @@ def form_type_label(value: Any) -> str:
     return labels.get(numeric, f"UNKNOWN ({numeric})")
 
 
-def analyze(input_path: Path, data_dir: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+def analyze(features: list[dict[str, Any]], data_dir: Path) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     """Join cached API records to local features and calculate agreement stats."""
 
-    local_by_ein = {feature_ein(feature): feature for feature in iter_geojson_features(input_path)}
+    local_by_ein = {feature_ein(feature): feature for feature in features}
     rows: list[dict[str, Any]] = []
     field_presence: Counter[str] = Counter()
     form_types: Counter[str] = Counter()
@@ -183,13 +182,12 @@ def write_outputs(rows: list[dict[str, Any]], summary: dict[str, Any], data_dir:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=DEFAULT_INPUT)
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR)
     return parser
 
 
 if __name__ == "__main__":
     args = build_parser().parse_args()
-    comparison_rows, analysis_summary = analyze(args.input, args.data_dir)
+    comparison_rows, analysis_summary = analyze(organization_features(), args.data_dir)
     write_outputs(comparison_rows, analysis_summary, args.data_dir)
     print(json.dumps(analysis_summary, indent=2))

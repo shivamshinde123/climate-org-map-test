@@ -11,11 +11,10 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 
 
 PROPUBLICA_API_BASE = "https://projects.propublica.org/nonprofits/api/v2"
-DEFAULT_INPUT = Path("app/data/organizations.geojson")
 DEFAULT_DATA_DIR = Path("Data/ProPublica")
 
 
@@ -39,18 +38,17 @@ def normalize_ein(value: Any) -> str:
     return digits.zfill(9)
 
 
-def iter_geojson_features(path: Path) -> Iterator[dict[str, Any]]:
-    """Yield features from a GeoJSON FeatureCollection.
+def organization_features() -> list[dict[str, Any]]:
+    """Every approved map organization, read from Supabase (keys from ``.env``)."""
 
-    The current map artifact is small enough to load as one JSON object.  This
-    validation gives a useful error if a different file is passed accidentally.
-    """
-
-    with path.open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    if payload.get("type") != "FeatureCollection":
-        raise ValueError(f"Expected a GeoJSON FeatureCollection: {path}")
-    yield from payload.get("features", [])
+    try:
+        from . import supabase_store as store
+        from .load_environment import load_environment
+    except ImportError:  # Direct execution puts ``scripts`` on sys.path.
+        import supabase_store as store  # type: ignore
+        from load_environment import load_environment  # type: ignore
+    load_environment(Path(__file__).resolve().parents[1] / ".env")
+    return store.load_payload()["features"]
 
 
 def feature_ein(feature: dict[str, Any]) -> str:

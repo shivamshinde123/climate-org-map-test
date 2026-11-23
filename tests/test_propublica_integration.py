@@ -34,8 +34,6 @@ def test_analyzer_compares_bmf_and_propublica_without_inventing_categories(tmp_p
             }
         ],
     }
-    input_path = tmp_path / "organizations.geojson"
-    input_path.write_text(json.dumps(geojson), encoding="utf-8")
     raw_dir = tmp_path / "propublica" / "raw"
     raw_dir.mkdir(parents=True)
     response = {
@@ -50,7 +48,7 @@ def test_analyzer_compares_bmf_and_propublica_without_inventing_categories(tmp_p
     }
     (raw_dir / "123456789.json").write_text(json.dumps(response), encoding="utf-8")
 
-    rows, summary = analyze(input_path, raw_dir.parent)
+    rows, summary = analyze(geojson["features"], raw_dir.parent)
 
     assert rows[0]["ntee_exact_match"] is True
     assert rows[0]["subsection_exact_match"] is True

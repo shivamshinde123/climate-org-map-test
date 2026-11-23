@@ -1,15 +1,14 @@
 /**
  * Climate Org Mapping browser application.
  *
- * The page loads a generated GeoJSON dataset and the controlled filter schema,
- * canonicalizes legacy values, renders a searchable result list, and supplies
- * filtered points to MapLibre. OpenStreetMap provides only the raster basemap;
- * organization coordinates and attributes come from the local pipeline output.
+ * The page loads every approved organization from Supabase and the controlled
+ * filter schema, canonicalizes legacy values, renders a searchable result list,
+ * and supplies filtered points to MapLibre. OpenStreetMap provides only the
+ * raster basemap; organization coordinates and attributes come from Supabase.
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
 const ASSET_VERSION = "20261123-17";
-const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
 
@@ -153,32 +152,58 @@ function updateMenuLabel(menu) {
   menu.classList.toggle("has-selection", checked.length > 0);
 }
 
-async function applyLiveChanges(features) {
-  // The static file is the pipeline snapshot; Supabase holds what changed since
-  // (admin edits and approved submissions). Removed rows leave the map.
+// Only what the map, list, search and filters need; the popup's details
+// (website, contacts, summary) are fetched when a pin is opened.
+const MAP_FIELDS = ["name", "address", "city", "state", "postal_code", "source_id"];
+const PAGE_SIZE = 1000; // Supabase returns at most this many rows per request
+
+function supabaseGet(path, headers = {}) {
   const config = window.SUPABASE_CONFIG ?? {};
-  if (!config.url || !config.anonKey) return features;
-  try {
-    const response = await fetch(
-      `${config.url}/rest/v1/organizations?select=id,properties,review_status&updated_via=neq.pipeline&review_status=in.(approved,removed)`,
-      { headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` } },
-    );
-    if (!response.ok) throw new Error(`Live changes request failed with ${response.status}`);
-    const byId = new Map(features.map((feature) => [feature.properties.id, feature]));
-    (await response.json()).forEach(({ id, properties, review_status }) => {
-      if (review_status === "removed") return byId.delete(id);
-      const { latitude, longitude } = properties;
-      const geometry = Number.isFinite(latitude) && Number.isFinite(longitude)
-        ? { type: "Point", coordinates: [longitude, latitude] }
-        : null;
-      byId.set(id, { type: "Feature", geometry, properties });
-    });
-    return [...byId.values()];
-  } catch (error) {
-    // The map still works from the snapshot if the database is unreachable.
-    console.warn(error);
-    return features;
+  if (!config.url || !config.anonKey) throw new Error("Supabase is not configured");
+  return fetch(`${config.url}/rest/v1/${path}`, {
+    headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}`, ...headers },
+  }).then((response) => {
+    if (!response.ok) throw new Error(`Organizations request failed with ${response.status}`);
+    return response;
+  });
+}
+
+async function loadOrganizations(filterFields) {
+  // Every approved organization, a page at a time: the first request also
+  // returns the total, then the remaining pages are fetched in parallel.
+  const columns = [...MAP_FIELDS, ...filterFields].map((field) => `${field}:properties->>${field}`);
+  const query = `organizations?select=id,${columns},latitude:properties->latitude,longitude:properties->longitude`
+    + "&review_status=eq.approved&order=id";
+  const page = (offset) => `${query}&limit=${PAGE_SIZE}&offset=${offset}`;
+  const first = await supabaseGet(page(0), { Prefer: "count=exact" });
+  const total = Number(first.headers.get("content-range")?.split("/")[1] ?? 0);
+  const offsets = [];
+  for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) offsets.push(offset);
+  const pages = await Promise.all([first.json(), ...offsets.map((offset) => supabaseGet(page(offset)).then((r) => r.json()))]);
+  return pages.flat().map(({ latitude, longitude, ...properties }) => ({
+    type: "Feature",
+    geometry: Number.isFinite(latitude) && Number.isFinite(longitude)
+      ? { type: "Point", coordinates: [longitude, latitude] }
+      : null,
+    properties: { ...properties, latitude, longitude },
+  }));
+}
+
+const details = new Map();
+
+async function organizationDetails(properties) {
+  // The full record for a popup; falls back to the map fields if the request fails.
+  if (!details.has(properties.id)) {
+    details.set(properties.id, supabaseGet(`organizations?select=properties&id=eq.${encodeURIComponent(properties.id)}`)
+      .then((response) => response.json())
+      .then((rows) => rows[0]?.properties ?? properties)
+      .catch((error) => {
+        console.warn(error);
+        details.delete(properties.id);
+        return properties;
+      }));
   }
+  return { ...properties, ...(await details.get(properties.id)) };
 }
 
 function featureCollection(features) {
@@ -256,13 +281,13 @@ function fitPopupInView(popup) {
   if (dx || dy) map.panBy([-dx, -dy], { duration: 250 });
 }
 
-function openFeaturePopup(feature) {
+async function openFeaturePopup(feature) {
   // Make long popup content keyboard-scrollable and stop its scroll gestures
   // from zooming/panning the map underneath it. Focusing the card itself (not
   // its first link) keeps it from scrolling past the organization's name.
   const popup = new maplibregl.Popup({ offset: 12, maxWidth: "320px", focusAfterOpen: false })
     .setLngLat(feature.geometry.coordinates)
-    .setHTML(popupMarkup(feature.properties))
+    .setHTML(popupMarkup(await organizationDetails(feature.properties)))
     .addTo(map);
   const content = popup.getElement()?.querySelector(".maplibregl-popup-content");
   if (content) {
@@ -454,15 +479,11 @@ function initializeMap(data) {
 }
 
 async function start() {
-  // Data and schema are independent static assets and can be fetched in parallel.
   try {
-    const [response, schemaResponse] = await Promise.all([
-      fetch(DATA_URL),
-      fetch(SCHEMA_URL),
-    ]);
-    if (!response.ok) throw new Error(`Dataset request failed with ${response.status}`);
+    const schemaResponse = await fetch(SCHEMA_URL);
     if (!schemaResponse.ok) throw new Error(`Schema request failed with ${schemaResponse.status}`);
-    const [data, schema] = await Promise.all([response.json(), schemaResponse.json()]);
+    const schema = await schemaResponse.json();
+    const data = featureCollection(await loadOrganizations(schema.filters.map(({ field }) => field)));
     // The schema controls order and allowed labels; observed values are appended
     // later as a compatibility safeguard for older generated datasets.
     filterOptions = Object.fromEntries(
@@ -472,7 +493,6 @@ async function start() {
       ]),
     );
     // Records without a ZIP or city match carry null geometry and cannot be shown.
-    data.features = await applyLiveChanges(data.features ?? []);
     allFeatures = data.features.filter((feature) => feature.geometry);
     // Canonicalize records once at startup so filtering remains a cheap equality
     // comparison on every keystroke or select change.

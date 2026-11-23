@@ -14,10 +14,8 @@ values while the original NTEE fields remain intact.
 
 from __future__ import annotations
 
-import argparse
 import csv
 import hashlib
-import json
 import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -334,10 +332,9 @@ def iter_features(
 def build_dataset(
     input_dir: Path,
     codes_path: Path,
-    output_path: Path,
     limit: int | None = None,
-) -> BuildStats:
-    """Build and atomically publish a normalized FeatureCollection.
+) -> tuple[dict, BuildStats]:
+    """Build a normalized FeatureCollection (``main.py --rebuild`` saves it).
 
     The optional limit is applied after NTEE filtering, making it useful for UI
     pilots while preserving the same transformation logic as a full build.
@@ -370,42 +367,5 @@ def build_dataset(
         "features": features,
     }
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    # Write-then-replace prevents an interrupted build from leaving truncated
-    # JSON at the path consumed by the browser.
-    temporary_path = output_path.with_suffix(output_path.suffix + ".tmp")
-    with temporary_path.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(collection, stream, ensure_ascii=False, separators=(",", ":"))
-        stream.write("\n")
-    temporary_path.replace(output_path)
-    return stats
+    return collection, stats
 
-
-def parse_args() -> argparse.Namespace:
-    """Parse standalone builder options."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input-dir", type=Path, default=Path("Data"))
-    parser.add_argument(
-        "--codes",
-        type=Path,
-        default=Path("Docs/Research and Requirements/NTEE_Codes_to_Consider.txt"),
-    )
-    parser.add_argument(
-        "--output", type=Path, default=Path("app/data/organizations.geojson")
-    )
-    parser.add_argument(
-        "--limit", type=int, default=None, help="Optional feature limit for quick tests"
-    )
-    return parser.parse_args()
-
-
-def main() -> None:
-    """Run the standalone IRS build and report its counters."""
-    args = parse_args()
-    stats = build_dataset(args.input_dir, args.codes, args.output, args.limit)
-    print(f"Scanned {stats.source_rows:,} IRS rows")
-    print(f"Wrote {stats.emitted:,} selected organizations to {args.output}")
-
-
-if __name__ == "__main__":
-    main()

@@ -16,7 +16,6 @@ import csv
 import difflib
 import hashlib
 import io
-import json
 import math
 import re
 import time
@@ -28,6 +27,13 @@ from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
+
+try:
+    from . import supabase_store as store
+    from .load_environment import load_environment
+except ImportError:  # Allows direct execution from the scripts directory.
+    import supabase_store as store  # type: ignore
+    from load_environment import load_environment  # type: ignore
 
 
 DEFAULT_ENDPOINT = (
@@ -487,21 +493,19 @@ def apply_result(feature: dict, result: GeocodeResult) -> bool:
 
 
 def geocode_dataset(
-    input_path: Path,
-    output_path: Path,
+    payload: dict,
     cache_path: Path,
     endpoint: str,
     batch_size: int,
     limit: int | None,
     fallback_only: bool = False,
 ) -> tuple[int, int, int, int]:
-    """Geocode a GeoJSON dataset and write its completed geometry atomically.
+    """Assign coordinates to every feature of ``payload`` in place.
 
     ``fallback_only`` disables network submissions but still consumes valid
     cached matches. The returned counts are, in order: newly submitted records,
     applied Census matches, cached non-matches, and ZIP/city fallbacks.
     """
-    payload = json.loads(input_path.read_text(encoding="utf-8"))
     features = payload.get("features", [])
     cache = load_cache(cache_path)
 
@@ -554,36 +558,12 @@ def geocode_dataset(
             if apply_fallback(feature, city_centroids, zip_centroids):
                 fallbacks += 1
 
-    metadata = payload.setdefault("metadata", {})
-    metadata["location_notice"] = (
-        "Coordinates were assigned by geocode_organizations.py. Census address-range "
-        "matches are preferred; other organizations fall back to their ZIP centroid, "
-        "then their city centroid. Organizations matching neither have no map point."
-    )
-    metadata["geocoding"] = {
-        "provider": "US Census Geocoder",
-        "mode": "fallback_only" if fallback_only else "census_then_zip_city_fallback",
-        "matched": matched,
-        "unmatched": unmatched,
-        "approximate_fallbacks": fallbacks,
-        "cached_results": len(cache),
-        "updated_at": datetime.now(timezone.utc).isoformat(),
-    }
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = output_path.with_suffix(output_path.suffix + ".tmp")
-    with temporary.open("w", encoding="utf-8", newline="\n") as stream:
-        json.dump(payload, stream, ensure_ascii=False, separators=(",", ":"))
-        stream.write("\n")
-    temporary.replace(output_path)
     return len(eligible), matched, unmatched, fallbacks
 
 
 def parse_args() -> argparse.Namespace:
     """Parse and validate the geocoder command-line interface."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--input", type=Path, default=Path("app/data/organizations.geojson"))
-    parser.add_argument("--output", type=Path, default=Path("app/data/organizations.geojson"))
     parser.add_argument(
         "--cache", type=Path, default=Path("Data/Geocoding/census_geocodes.csv")
     )
@@ -604,9 +584,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> None:
     """Run the command-line geocoding stage and print an audit summary."""
     args = parse_args()
+    load_environment(Path(__file__).resolve().parents[1] / ".env")
+    payload = store.load_payload()
     submitted, matched, unmatched, fallbacks = geocode_dataset(
-        args.input,
-        args.output,
+        payload,
         args.cache,
         args.endpoint,
         args.batch_size,
@@ -617,6 +598,7 @@ def main() -> None:
     print(f"Coordinates applied: {matched:,}")
     print(f"Cached non-matches: {unmatched:,}")
     print(f"ZIP/city fallbacks applied: {fallbacks:,}")
+    print(f"Organizations saved to Supabase: {store.save_payload(payload):,}")
 
 
 if __name__ == "__main__":

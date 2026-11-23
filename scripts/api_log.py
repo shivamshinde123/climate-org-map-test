@@ -1,9 +1,10 @@
 """Audit log for every Brave and OpenRouter request and every routing decision.
 
-Each line of ``Data/Logs/api-requests.jsonl`` is one JSON object: a ``request``
-entry holds the full URL, request body, response status, headers, body and
-timing; a ``decision`` entry records which path the pipeline chose and why.
-API keys and cookies are never written.
+Each row of the Supabase ``api_log`` table holds one entry: a ``request``
+entry holds the URL, request body, response status, headers, body and timing;
+a ``decision`` entry records which path the pipeline chose and why. API keys
+and cookies are never written. Bodies over ``MAX_BODY`` characters are cut to
+keep the database small (full Brave answers made the old log file ~300 MB).
 """
 
 from __future__ import annotations
@@ -15,9 +16,13 @@ import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
-from pathlib import Path
 
-LOG_PATH = Path(__file__).resolve().parents[1] / "Data" / "Logs" / "api-requests.jsonl"
+try:
+    from . import supabase_store as store
+except ImportError:  # Allows direct execution from the scripts directory.
+    import supabase_store as store  # type: ignore
+
+MAX_BODY = 4000
 _SECRET_HEADERS = {"authorization", "x-subscription-token", "cookie", "set-cookie"}
 
 # The organization currently being enriched, attached to every entry.
@@ -32,6 +37,8 @@ def _decode(raw: bytes | None):
     if not raw:
         return None
     text = raw.decode("utf-8", errors="replace")
+    if len(text) > MAX_BODY:
+        return text[:MAX_BODY] + f"... [{len(text) - MAX_BODY:,} more characters]"
     try:
         return json.loads(text)
     except ValueError:
@@ -43,9 +50,10 @@ def _headers(items) -> dict[str, str]:
 
 
 def _write(entry: dict) -> None:
-    LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with LOG_PATH.open("a", encoding="utf-8", newline="\n") as stream:
-        stream.write(json.dumps(entry, ensure_ascii=False, default=str) + "\n")
+    try:
+        store.write_log(entry)
+    except Exception as error:  # A logging outage must not stop a paid run.
+        print(f"      [log] not saved: {error}", flush=True)
 
 
 def decision(kind: str, **details) -> None:

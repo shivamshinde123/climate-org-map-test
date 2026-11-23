@@ -2,14 +2,13 @@
 
 import io
 import json
-import tempfile
 import unittest
 import urllib.error
 import urllib.request
-from pathlib import Path
 from unittest import mock
 
 from scripts import api_log, website_discovery
+from tests.fake_store import FakeStore
 
 
 class FakeResponse(io.BytesIO):
@@ -27,20 +26,10 @@ class FakeResponse(io.BytesIO):
 
 class ApiLogTests(unittest.TestCase):
     def setUp(self):
-        self.directory = tempfile.TemporaryDirectory()
-        self.log = Path(self.directory.name) / "api.jsonl"
-        for target, attribute, value in (
-            (api_log, "LOG_PATH", self.log),
-            (website_discovery, "BRAVE_CACHE_PATH", Path(self.directory.name) / "brave.jsonl"),
-            (website_discovery, "_brave_cache", None),
-        ):
-            patcher = mock.patch.object(target, attribute, value)
-            patcher.start()
-            self.addCleanup(patcher.stop)
-        self.addCleanup(self.directory.cleanup)
+        self.store = FakeStore(self)
 
     def entries(self):
-        return [json.loads(line) for line in self.log.read_text(encoding="utf-8").splitlines()]
+        return self.store.log
 
     def test_request_is_logged_in_full_without_secrets(self):
         request = urllib.request.Request(
@@ -58,7 +47,7 @@ class ApiLogTests(unittest.TestCase):
         self.assertEqual(entry["request_body"], {"model": "m"})
         self.assertEqual(entry["response_body"]["usage"]["cost"], 0.01)
         self.assertEqual(entry["status"], 200)
-        self.assertNotIn("sk-secret", self.log.read_text(encoding="utf-8"))
+        self.assertNotIn("sk-secret", json.dumps(self.store.log))
         self.assertNotIn("set-cookie", entry["response_headers"])
 
     def test_http_error_is_logged_and_body_stays_readable(self):
@@ -125,18 +114,18 @@ class ApiLogTests(unittest.TestCase):
             calls.append(json.loads(payload["messages"][1]["content"]))
             return {"index": 1, "reason": "actlocalri.org is ACT's own site"}
 
-        cache, path = {}, Path(self.directory.name) / "picker.jsonl"
+        cache = {}
         with mock.patch.object(website_discovery, "page_profile", return_value={
                 "description": "Aquidneck Community Table builds a just local food system on Aquidneck Island.",
                 "paragraphs": [], "excerpt": ""}):
-            found = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, path, caller)
-            again = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, path, caller)
+            found = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, caller)
+            again = pick_from_brave(org, "openai/gpt-5.4-nano", "k", "e", cache, caller)
         self.assertEqual(found["website_url"], "https://actlocalri.org/about/")
         self.assertTrue(found["rationale"].startswith("Brave Search result picked"))
         self.assertEqual(len(calls), 1)  # second pick came from the cache
         self.assertEqual(len(calls[0]["results"]), 2)  # the directory was never offered
         self.assertEqual(again["website_url"], found["website_url"])
-        self.assertIsNone(pick_from_brave({**org, "city": "NEWPORT"}, "m", "k", "e", {}, path, caller))  # nothing cached
+        self.assertIsNone(pick_from_brave({**org, "city": "NEWPORT"}, "m", "k", "e", {}, caller))  # nothing cached
 
     def test_facebook_page_comes_from_cached_results_only(self):
         org = {"name": "MIDDLE DAM POND CONSERVATION ASSOCIATION", "city": "COVENTRY", "state": "RI"}

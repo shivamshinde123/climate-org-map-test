@@ -29,21 +29,21 @@ flowchart LR
     subgraph Enrich["4. Optional AI enrichment: --enrich-with-jev"]
         BraveSearch["Brave Search<br/>primary website discovery"]
         Discovery["OpenRouter web search<br/>fallback for low-confidence cases"]
-        DiscoveryCache[(Website discovery cache)]
+        DiscoveryCache[(Supabase pipeline_cache<br/>Brave, discovery, web search)]
         Crawl["Deterministic crawler<br/>email, phone, contact page"]
         ContactFallback["OpenRouter web search<br/>contact fallback when site blocked"]
         Jev["System One Jev via OpenRouter<br/>all 8 schema choices in one request"]
-        JevCache[(Jev classification cache)]
+        JevCache[(Supabase pipeline_cache<br/>Jev answers)]
     end
 
-    subgraph Publish["5. Validate and publish"]
-        GeoJSON[(app/data/organizations.geojson)]
+    subgraph Publish["5. Validate and save"]
+        GeoJSON[(Supabase organizations table)]
         Validate["main.py validation<br/>FeatureCollection, Points,<br/>coordinate ranges"]
         Server["Local static HTTP server"]
     end
 
     subgraph Browser["6. Browser map"]
-        App["app.js loads GeoJSON + schema"]
+        App["app.js loads approved organizations + schema"]
         Filters["Search, counts, and schema filters"]
         MapLibre["MapLibre clusters, points, and tooltips"]
         OSM["OpenStreetMap raster tiles"]
@@ -85,7 +85,8 @@ flowchart LR
 
     GeoJSON --> Validate
     Validate --> Server
-    Server --> App
+    Server -->|"static app files"| App
+    GeoJSON -->|"approved rows, map fields only"| App
     Schema --> App
     App --> Filters
     App --> MapLibre
@@ -101,11 +102,11 @@ and Jev classification unless their inputs or version keys change.
 
 ## Main entry-point flow
 
-1. `main.py` loads missing settings from `.env`, resolves project-relative paths, and parses command options.
-2. Reuse the existing normalized dataset, or run the IRS build flow when the output is absent or `--rebuild` is explicit.
+1. `main.py` loads missing settings from `.env` (the Supabase URL and service role key are required), parses command options, and loads every approved organization from Supabase.
+2. Reuse those records, or run the IRS build flow when the table is empty or `--rebuild` is explicit.
 3. Reuse complete existing coordinates, run safe fallback assignment when needed, or enable Census submissions with `--use-census`.
 4. When `--enrich-with-jev` is explicit, discover official websites, collect evidence and summaries, and classify all schema fields with Jev through OpenRouter.
-5. Validate the generated GeoJSON, point geometry, coordinate ranges, and fallback count.
+5. Validate point geometry, coordinate ranges, and fallback count, then save new and changed records to Supabase through `sync_pipeline_organizations` (if enrichment stops early, finished records are saved first).
 6. Start the static map server unless `--no-serve` is supplied.
 
 ## Website and Jev enrichment flow
@@ -132,12 +133,12 @@ and Jev classification unless their inputs or version keys change.
 7. Apply narrow organization-name evidence only where the documented rules allow it.
 8. Normalize accepted fields and attach mapping basis/version provenance.
 9. Derive a stable ID and emit null geometry with `location_precision=ungeocoded`.
-10. Write the GeoJSON atomically.
+10. Return the FeatureCollection to `main.py`, which saves it to Supabase after geocoding.
 11. Print processed, emitted, and skipped counts.
 
 ## Geocoding flow
 
-1. Load the normalized GeoJSON and the existing Census cache.
+1. Take the records from `main.py` (or load them from Supabase when run on its own) and the existing Census cache.
 2. Apply reusable cached Census matches.
 3. Unless `--fallback-only` is active, select uncached complete addresses and submit batches of up to 5,000 to the official U.S. Census Geocoder.
 4. Persist each submitted batch immediately, including non-matches.
@@ -147,8 +148,8 @@ and Jev classification unless their inputs or version keys change.
 
 ## Browser flow
 
-1. Load the generated GeoJSON.
-2. If `supabase-config.js` is filled, fetch rows changed outside the pipeline (approved or removed) and merge them by id: approved rows replace or add features, removed rows are dropped. On failure the snapshot is used.
+1. Load `map-schema.json`, then every `approved` organization from Supabase: only the map fields (name, address, city, state, ZIP, EIN, coordinates and the filter fields), 1,000 rows per request, the first request returning the total and the rest fetched in parallel.
+2. Opening a popup fetches that organization's full record (website, contacts, summary) and caches it for the visit.
 3. Populate filter values from feature properties.
 3. Initialize MapLibre and its cluster layers.
 4. Apply text and select filters when controls change.
@@ -159,7 +160,7 @@ and Jev classification unless their inputs or version keys change.
 
 - `add.html`: validate → geocode the street address with the Census one-line geocoder (JSONP, since it sends no CORS headers), falling back to the ZIP center from `data/zip-centroids.json`; a picked Photon address suggestion with a house number is used directly → build properties → insert as `pending` / `public_form` / `Not Verified`. CSV uploads (≤200 rows) run the same steps per row.
 - `admin.html`: email-link sign-in (Supabase Auth) → `is_admin()` check → approve or delete pending rows, search and edit any row (saved as `admin`, `approved`), add new ones, delete, CSV upload (live immediately, may set Verified).
-- Pipeline: `main.py` → `python -m scripts.sync_supabase`, which skips rows the admin or a visitor changed.
+- Pipeline: `main.py` saves straight to Supabase. Rows the admin or a visitor changed keep their values; the pipeline only fills their empty fields and its own bookkeeping fields.
 
 ## Survey flow
 

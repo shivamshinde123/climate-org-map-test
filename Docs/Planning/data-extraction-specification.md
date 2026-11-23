@@ -45,7 +45,7 @@ Organization Type, Audience Focus, and Reach use conservative organization-name 
 
 ## Output
 
-GeoJSON in `app/data/organizations.geojson`. The builder does not skip otherwise valid records merely because coordinates are unavailable.
+Rows in the Supabase `organizations` table (`main.py` saves new and changed records). The builder does not skip otherwise valid records merely because coordinates are unavailable.
 
 ## Geocoding
 

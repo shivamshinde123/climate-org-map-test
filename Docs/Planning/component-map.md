@@ -11,7 +11,8 @@
 - `Data/ProPublica/category-crosswalk.json`: authoritative machine-readable mapping for category-level IRS, ProPublica, and equivalent external-source classifications.
 - `Docs/Research and Requirements/NTEE_Codes_to_Consider.txt`: filter configuration.
 - `Docs/Planning/irs-schema-classification.md`: exact deterministic IRS-to-GCC category rules and limitations.
-- `app/data/organizations.geojson`: generated map data.
+- `scripts/supabase_store.py`: the pipeline's only data store: loads and saves organizations, API caches, the API log and survey evidence in Supabase.
+- Supabase `organizations` table: every organization; the map, admin portal and pipeline all read it.
 - `app/data/map-schema.json`: runtime field and filter vocabulary.
 - `Data/Geocoding/census_geocodes.csv`: resumable geocoding cache.
 

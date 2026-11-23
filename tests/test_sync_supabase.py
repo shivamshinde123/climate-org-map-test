@@ -5,17 +5,10 @@ import unittest
 
 from urllib.parse import unquote
 
-from scripts.sync_supabase import admin_emails, batches, config_js, pipeline_rows, removal_filter
+from scripts.sync_supabase import admin_emails, config_js, removal_filter
 
 
 class SyncSupabaseTests(unittest.TestCase):
-    def test_rows_are_properties_with_ids_only(self):
-        payload = {"features": [{"properties": {"id": "a", "name": "A"}}, {"properties": {"name": "no id"}}, {"properties": {}}]}
-        self.assertEqual(pipeline_rows(payload), [{"id": "a", "name": "A"}])
-
-    def test_batches_cover_every_row_once(self):
-        self.assertEqual([len(b) for b in batches(list(range(1201)), 500)], [500, 500, 201])
-
     def test_admin_emails_are_normalized(self):
         self.assertEqual(admin_emails(" B@y.org, a@x.org,,b@y.org "), ["a@x.org", "b@y.org"])
         self.assertEqual(admin_emails(""), [])
