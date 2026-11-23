@@ -726,3 +726,7 @@ body.form-page { overflow: auto; }
 .survey-progress-bar span { display: block; height: 100%; background: var(--forest); border-radius: 3px; transition: width 200ms ease; }
 /* A link styled as the main button (for example "Yes, verify it"). */
 a.primary-button { display: inline-block; text-decoration: none; }
+
+/* Admin review sections: a clear heading so the two queues are easy to tell apart. */
+.review-heading { margin: 0 0 8px; color: var(--forest); font-size: 17px; font-weight: 500; letter-spacing: -0.01em; }
+.review-heading .multi-count { margin-left: 4px; font-size: 13px; }
