@@ -6,9 +6,9 @@ The map reads organizations from Supabase's REST API with the public anon key; r
 
 ### Map dataset
 
-`GET {SUPABASE_URL}/rest/v1/organizations?select=id,name:properties->>name,…,latitude:properties->latitude,longitude:properties->longitude&review_status=eq.approved&order=id&limit=1000&offset=N`
+`GET {SUPABASE_URL}/rest/v1/rpc/map_organizations`
 
-The map asks only for the fields its pins, list, search and filters use (`name`, `address`, `city`, `state`, `postal_code`, `source_id`, `latitude`, `longitude` and the `gcc_*` filter fields from `map-schema.json`), 1,000 rows per request. The first request sends `Prefer: count=exact`; the total in its `Content-Range` header tells the map how many more pages to fetch in parallel. A row with no numeric latitude/longitude has no map point.
+Returns every organization the caller may read (`approved` only, through row-level security) as one JSON array. Each row is a compact array from the stored `map` column, in this order: `id`, `name`, `address`, `city`, `state`, `postal_code`, `source_id`, the eight `gcc_*` filter fields (`organization_type`, `audience_focus`, `resilience`, `activity`, `action_category`, `climate_category`, `reach`, `verification`), `latitude`, `longitude`. `MAP_FIELDS` in `app/app.js` must use the same order. A row with no numeric latitude/longitude has no map point. One request takes about 50 ms in the database; paging through the full `properties` took about 1 s per 1,000 rows and timed out when the map fetched pages in parallel.
 
 `GET {SUPABASE_URL}/rest/v1/organizations?select=properties&id=eq.{id}` loads one organization's full record when its popup opens.
 

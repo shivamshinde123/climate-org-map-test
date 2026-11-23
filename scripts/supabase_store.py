@@ -11,11 +11,15 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import urllib.parse
 import urllib.request
 
 PAGE_SIZE = 1000  # PostgREST's default maximum rows per response
 BATCH_SIZE = 500
+# A JSON-escaped NUL (an odd number of backslashes, then u0000); an escaped
+# backslash followed by the text "u0000" is left alone.
+_NUL = re.compile(r"(?<!\\)((?:\\\\)*)\\u0000")
 
 # Serialized properties as loaded, so a save sends only what changed.
 _loaded: dict[str, str] = {}
@@ -24,9 +28,11 @@ _loaded: dict[str, str] = {}
 def _request(path: str, body=None, method: str = "GET", prefer: str = "return=minimal") -> bytes:
     url = os.environ["SUPABASE_URL"].rstrip("/")
     key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+    # Postgres text cannot hold NUL; scraped pages sometimes contain it.
+    data = None if body is None else _NUL.sub(r"\1", json.dumps(body, ensure_ascii=False, default=str)).encode()
     request = urllib.request.Request(
         f"{url}/rest/v1/{path}",
-        data=json.dumps(body, ensure_ascii=False, default=str).encode() if body is not None else None,
+        data=data,
         method=method,
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": prefer},
     )

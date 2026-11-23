@@ -148,7 +148,7 @@ and Jev classification unless their inputs or version keys change.
 
 ## Browser flow
 
-1. Load `map-schema.json`, then every `approved` organization from Supabase: only the map fields (name, address, city, state, ZIP, EIN, coordinates and the filter fields), 1,000 rows per request, the first request returning the total and the rest fetched in parallel.
+1. Load `map-schema.json`, then every `approved` organization from Supabase: only the map fields (name, address, city, state, ZIP, EIN, coordinates and the filter fields), in one `rpc/map_organizations` request that reads the stored compact `map` column.
 2. Opening a popup fetches that organization's full record (website, contacts, summary) and caches it for the visit.
 3. Populate filter values from feature properties.
 3. Initialize MapLibre and its cluster layers.

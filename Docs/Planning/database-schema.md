@@ -14,6 +14,7 @@ Organizations live in one Supabase (Postgres) table, created by `supabase/migrat
 | `updated_via` | text | Who last changed the row: `pipeline`, `admin`, `public_form`. |
 | `created_at`, `updated_at` | timestamptz | `updated_at` is set by a trigger on every update. |
 | `name`, `city`, `state`, `verification` | text, generated | Read-only copies of `properties` fields for admin search. |
+| `map` | jsonb, generated | Compact array of the fields the map needs (order in `20261124010000_map_rows.sql`, matching `MAP_FIELDS` in `app/app.js`). `map_organizations()` returns these for every approved row in one call. |
 
 Deleting: rows added through the forms are deleted outright. A pipeline row would be re-created by the next `--rebuild`, so a deleted pipeline row stays as `removed` / `admin`: the map and the pipeline skip it.
 
