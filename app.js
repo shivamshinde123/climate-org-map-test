@@ -181,14 +181,6 @@ async function applyLiveChanges(features) {
   }
 }
 
-/** The verification survey, pre-filled with this listing (survey.html reads these). */
-function verifySurveyUrl(properties) {
-  const params = new URLSearchParams({ org: properties.id ?? "" });
-  [["name", "name"], ["website", "website_url"], ["address", "address"], ["city", "city"], ["state", "state"], ["zip", "postal_code"]]
-    .forEach(([param, field]) => properties[field] && params.set(param, text(properties[field])));
-  return `survey.html?${params}`;
-}
-
 function featureCollection(features) {
   // MapLibre sources require a complete GeoJSON object, not a feature array.
   return { type: "FeatureCollection", features };

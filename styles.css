@@ -724,3 +724,5 @@ body.form-page { overflow: auto; }
 .survey-page:disabled { cursor: default; }
 .survey-progress-bar { height: 6px; overflow: hidden; background: var(--stone); border-radius: 3px; }
 .survey-progress-bar span { display: block; height: 100%; background: var(--forest); border-radius: 3px; transition: width 200ms ease; }
+/* A link styled as the main button (for example "Yes, verify it"). */
+a.primary-button { display: inline-block; text-decoration: none; }

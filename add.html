@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-21" />
+    <link rel="stylesheet" href="styles.css?v=20261123-23" />
   </head>
   <body class="form-page" data-page="add">
     <main class="form-shell">
@@ -41,7 +41,7 @@
           <li><strong>Suggestions:</strong> as you type a street address, matching addresses appear; picking one fills in the town, state and ZIP and places the pin exactly. Town/City also suggests towns in the chosen state. Both are only suggestions: you can type any address or town. Address suggestions come from Photon (OpenStreetMap), so what you type in the street address box is sent to that service.</li>
           <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code. If neither works, the organization is still submitted and our team places it during review.</li>
           <li><strong>Filters</strong> (type, audience, resilience and so on): pick the closest option, or "Unknown" if you are not sure. In a CSV, use the values listed below; capitalization does not matter, and a blank cell means "Unknown".</li>
-          <li><strong>Verification</strong> is done by our team, not on this page. To get an organization marked Verified, open it on the map and use <em>Claim and verify this listing</em>.</li>
+          <li><strong>Verification:</strong> after you submit, you can choose to verify the organization right away by taking a short survey; our team then marks it Verified. For an organization already on the map, open it and use <em>Claim and verify this listing</em>.</li>
           <li><strong>CSV files:</strong> up to 200 organizations per file. The first row must be the column names below (the same as the template). Column order does not matter and other columns are ignored. Save the file as CSV (in Excel: <em>File → Save As → CSV UTF-8</em>).</li>
         </ul>
 
@@ -83,8 +83,24 @@
       </section>
     </main>
 
+    <!-- Shown after a successful submission: offers the verification survey for the new organization. -->
+    <dialog id="verify-offer" class="confirm-dialog" aria-labelledby="verify-offer-title">
+      <form method="dialog">
+        <h2 id="verify-offer-title" class="confirm-title">You just added <span id="verify-offer-name"></span>.</h2>
+        <p class="form-help">
+          It will appear on the map once our team reviews it. <strong>Do you also want to verify this organization?</strong>
+          Verified organizations show a "Verified organization" badge on the map. It takes a short survey (about 5–10 minutes),
+          and the details you just entered are filled in for you.
+        </p>
+        <div class="button-row confirm-buttons">
+          <button class="text-button" value="later">Not now</button>
+          <a id="verify-offer-link" class="primary-button" href="survey.html">Yes, verify it</a>
+        </div>
+      </form>
+    </dialog>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="supabase-config.js?v=20261123-21"></script>
-    <script src="forms.js?v=20261123-21"></script>
+    <script src="supabase-config.js?v=20261123-23"></script>
+    <script src="forms.js?v=20261123-23"></script>
   </body>
 </html>
