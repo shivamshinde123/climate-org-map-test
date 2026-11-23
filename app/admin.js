@@ -115,17 +115,24 @@ async function deleteOrganization(id, name) {
   return true;
 }
 
-async function openEditor(id) {
+/**
+ * Open the editor for an organization (`id`) or a new one (null). A survey
+ * review passes `fromResponse` (the response) and `overrides` (values from its
+ * answers, shown on top of the current listing).
+ */
+async function openEditor(id, { overrides = null, fromResponse = null } = {}) {
   if (id) {
     const row = check(await client.from("organizations").select("id, properties").eq("id", id).single());
     editing = { id: row.id, properties: row.properties };
-    ui.editorTitle.textContent = `Edit ${row.properties.name}`;
+    ui.editorTitle.textContent = `${fromResponse ? "Verify" : "Edit"} ${row.properties.name}`;
   } else {
     editing = { id: null, properties: null };
-    ui.editorTitle.textContent = "Add a new organization";
+    ui.editorTitle.textContent = fromResponse ? `Add ${overrides?.name ?? "organization"} from the survey` : "Add a new organization";
   }
+  editing.fromResponse = fromResponse;
   renderOrganizationFields(ui.editorFields, filters, { admin: true });
   if (editing.properties) fillForm(ui.editorForm, editing.properties);
+  if (overrides) fillForm(ui.editorForm, overrides);
   enhanceOrganizationFields(ui.editorForm, {
     // An exact address pick places the pin right away (shown in the coordinates).
     onPick: (picked) => {
@@ -135,7 +142,8 @@ async function openEditor(id) {
       ui.editorForm.dataset.precision = "address_suggestion";
     },
   });
-  ui.editorForm.dataset.precision = "";
+  // An exact point picked in the survey is kept unless the address is edited here.
+  ui.editorForm.dataset.precision = overrides?.location_precision ?? "";
   ui.remove.hidden = !editing.id;
   ui.editor.hidden = false;
   ui.editor.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -171,13 +179,28 @@ async function saveEditor(event) {
     const location = await locateInto(values);
     note = location ? locationNote(location, values) : "The address was not found, so the map pin was not moved. Enter latitude and longitude to place it.";
   }
-  const properties = await buildProperties(values, filters, base ? { base } : { source: "GCC admin", note: "Added by the GCC admin." });
-  if (values.gcc_verification === "Verified" && base?.gcc_verification !== "Verified") {
-    properties.verification_source = `Verified by the GCC admin on ${new Date().toISOString().slice(0, 10)}.`;
+  const response = editing.fromResponse;
+  const newOptions = response
+    ? { source: "GCC survey", note: "Added from the GCC verification survey." }
+    : { source: "GCC admin", note: "Added by the GCC admin." };
+  const properties = await buildProperties(values, filters, base ? { base } : newOptions);
+  const today = new Date().toISOString().slice(0, 10);
+  if (response && values.gcc_verification === "Verified") {
+    properties.verification_source = `Answered the GCC verification survey on ${response.created_at.slice(0, 10)}; verified by the GCC admin on ${today}.`;
+  } else if (values.gcc_verification === "Verified" && base?.gcc_verification !== "Verified") {
+    properties.verification_source = `Verified by the GCC admin on ${today}.`;
   }
   const row = { properties, review_status: "approved", updated_via: "admin" };
   if (editing.id) check(await client.from("organizations").update(row).eq("id", editing.id));
   else check(await client.from("organizations").insert({ id: properties.id, ...row }));
+  if (response) {
+    check(
+      await client
+        .from("survey_responses")
+        .update({ review_status: "approved", applied_organization_id: editing.id ?? properties.id, reviewed_at: new Date().toISOString() })
+        .eq("id", response.id),
+    );
+  }
   const live = Number.isFinite(properties.latitude) ? "It is live on the map." : "It has no map pin yet, so it is not shown on the map.";
   showMessage(ui.message, `Saved <strong>${escapeText(properties.name)}</strong>. ${live}${note ? ` ${escapeText(note)}` : ""}`, "success");
   closeEditor();
@@ -186,10 +209,132 @@ async function saveEditor(event) {
 
 let lastQuery = "";
 
-/** Reload the review list and re-run the last search so statuses are current. */
+/** Reload the review lists and re-run the last search so statuses are current. */
 async function refreshLists() {
-  await loadPending();
+  await Promise.all([loadPending(), loadSurveyResponses()]);
   if (lastQuery) await search();
+}
+
+/* ---------------- Survey responses ---------------- */
+
+let survey; // data/survey.json
+let surveyQuestions = []; // Every question in survey order (no example card).
+let surveyRows = [];
+const CONNECTION_LABELS = { organization: "Organization", municipality: "Municipality", individual: "Individual" };
+
+const questionByField = (field) => surveyQuestions.find((q) => q.map_field === field);
+const answer = (row, field) => row.answers[questionByField(field)?.id] ?? "";
+const asText = (value) => (Array.isArray(value) ? value.join(", ") : String(value ?? ""));
+
+function respondentName(row) {
+  return [answer(row, "respondent_first_name"), answer(row, "respondent_last_name")].filter(Boolean).join(" ") || "Unnamed respondent";
+}
+
+async function loadSurveyResponses() {
+  let query = client.from("survey_responses").select("*").order("created_at", { ascending: false });
+  if (!document.querySelector("#survey-show-all").checked) query = query.eq("review_status", "pending");
+  surveyRows = check(await query);
+  const pending = surveyRows.filter((row) => row.review_status === "pending").length;
+  document.querySelector("#survey-count").textContent = pending ? `(${pending} waiting)` : "";
+  document.querySelector("#survey-list").innerHTML = surveyRows.length
+    ? surveyRows.map(surveyRowHtml).join("")
+    : `<p class="form-help">${document.querySelector("#survey-show-all").checked ? "No responses yet." : "Nothing waiting."}</p>`;
+}
+
+function surveyRowHtml(row) {
+  const organization = answer(row, "name");
+  const place = row.connection === "organization"
+    ? [answer(row, "city"), answer(row, "state")].filter(Boolean).join(", ")
+    : "";
+  const status = { pending: "waiting to verify", approved: "verified on the map", research: "research only" }[row.review_status];
+  const answered = (q) => row.answers[q.id] !== undefined;
+  const answers = surveyQuestions
+    .filter(answered)
+    .map((q) => `<div><dt>${escapeText(q.title)}</dt><dd>${escapeText(asText(row.answers[q.id]))}</dd></div>`)
+    .join("");
+  return `
+    <div class="admin-row survey-row" data-response="${escapeText(row.id)}">
+      <div class="admin-row-copy">
+        <strong>${escapeText(organization || respondentName(row))}</strong>
+        <span>${escapeText(CONNECTION_LABELS[row.connection])}${organization ? ` · ${escapeText(respondentName(row))}` : ""}${place ? ` · ${escapeText(place)}` : ""} · ${escapeText(row.created_at.slice(0, 10))} · ${escapeText(status)}</span>
+      </div>
+      <div class="button-row">
+        ${row.review_status === "pending" ? `<button class="primary-button small" data-action="review" type="button">Review &amp; verify</button>` : ""}
+        <button class="text-button danger" data-action="delete-response" type="button">Delete</button>
+      </div>
+      <details class="survey-answers">
+        <summary>View all answers</summary>
+        <dl>${answers}</dl>
+      </details>
+    </div>`;
+}
+
+/** Open the editor on the listing this response describes, filled in from its answers. */
+async function reviewResponse(row) {
+  const overrides = {
+    name: answer(row, "name"),
+    website_url: answer(row, "website_url"),
+    address: answer(row, "address"),
+    city: answer(row, "city"),
+    state: stateCode(answer(row, "state")) ?? "",
+    postal_code: answer(row, "postal_code"),
+    ...filtersFromFocus([].concat(answer(row, "focus") || [])),
+    gcc_verification: "Verified",
+    ...(row.answers._location ?? {}),
+  };
+  // The listing it was opened from, else an existing listing with the same name and state.
+  let id = row.organization_id;
+  if (!id) {
+    const matches = check(
+      await client.from("organizations").select("id").ilike("name", overrides.name.replace(/[%_]/g, " ")).eq("state", overrides.state).limit(1),
+    );
+    id = matches[0]?.id ?? null;
+  }
+  await openEditor(id, { overrides, fromResponse: row });
+  showMessage(
+    ui.message,
+    id
+      ? "Matched an existing listing. Check the values from the survey, then Save to verify it."
+      : "No listing matched, so this adds a new organization. Check the values, then Save to add and verify it.",
+  );
+}
+
+async function deleteResponse(row) {
+  const confirmed = await confirmAction(
+    `Delete the response from ${respondentName(row)}?`,
+    "Its answers will be removed from the database and from future downloads. This cannot be undone.",
+    "Delete",
+  );
+  if (!confirmed) return;
+  check(await client.from("survey_responses").delete().eq("id", row.id));
+  showMessage(ui.message, "Response deleted.", "success");
+  await loadSurveyResponses();
+}
+
+/** All responses as a CSV with one column per question, like the old Google Sheet. */
+async function downloadResponses() {
+  const rows = check(await client.from("survey_responses").select("*").order("created_at"));
+  const seen = new Map();
+  const headers = surveyQuestions.map((q) => {
+    // Google Sheets numbers repeated question titles ("… 2"); this keeps the same columns.
+    const count = (seen.get(q.title) ?? 0) + 1;
+    seen.set(q.title, count);
+    return count > 1 ? `${q.title} ${count}` : q.title;
+  });
+  const cell = (value) => `"${asText(value).replace(/"/g, '""')}"`;
+  const lines = [
+    ["Timestamp", "Connection", "Review status", "Map listing", ...headers].map(cell).join(","),
+    ...rows.map((row) =>
+      [row.created_at, CONNECTION_LABELS[row.connection], row.review_status, row.applied_organization_id ?? row.organization_id ?? "",
+        ...surveyQuestions.map((q) => row.answers[q.id] ?? "")].map(cell).join(","),
+    ),
+  ];
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([`﻿${lines.join("\n")}\n`], { type: "text/csv;charset=utf-8" }));
+  link.download = `survey-responses-${new Date().toISOString().slice(0, 10)}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  showMessage(ui.message, `Downloaded ${rows.length} responses.`, "success");
 }
 
 async function search(event) {
@@ -269,7 +414,7 @@ async function showSignedIn(session) {
   }
   ui.message.hidden = true;
   ui.area.hidden = false;
-  await loadPending();
+  await refreshLists();
 }
 
 async function startAdmin() {
@@ -277,6 +422,8 @@ async function startAdmin() {
   if (!config) throw new Error("Supabase is not configured yet. Run python -m scripts.sync_supabase after adding the keys to .env.");
   client = window.supabase.createClient(config.url, config.anonKey);
   filters = await loadFilterSchema();
+  survey = await (await fetch("data/survey.json")).json();
+  surveyQuestions = survey.sections.flatMap((section) => section.questions).filter((q) => q.type !== "example");
   document.querySelector("#csv-template").href = csvTemplateUrl({ admin: true });
   renderRules(filters, { admin: true });
 
@@ -327,6 +474,19 @@ async function startAdmin() {
     }
   });
   ui.cancelEdit.addEventListener("click", closeEditor);
+  document.querySelector("#survey-list").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const row = surveyRows.find((r) => r.id === button.closest("[data-response]").dataset.response);
+    try {
+      if (button.dataset.action === "review") await reviewResponse(row);
+      else await deleteResponse(row);
+    } catch (error) {
+      fail(error);
+    }
+  });
+  document.querySelector("#survey-show-all").addEventListener("change", () => loadSurveyResponses().catch(fail));
+  document.querySelector("#survey-download").addEventListener("click", () => downloadResponses().catch(fail));
   ui.csvInput.addEventListener("change", uploadCsv);
 
   client.auth.onAuthStateChange((_event, session) => {

@@ -161,6 +161,10 @@ and Jev classification unless their inputs or version keys change.
 - `admin.html`: email-link sign-in (Supabase Auth) → `is_admin()` check → approve or delete pending rows, search and edit any row (saved as `admin`, `approved`), add new ones, delete, CSV upload (live immediately, may set Verified).
 - Pipeline: `main.py` → `python -m scripts.sync_supabase`, which skips rows the admin or a visitor changed.
 
+## Survey flow
+
+`survey.html` loads `data/survey.json` and shows one section at a time. Next checks the section's required questions, then follows a branch chosen by an answer (`options[].goto`) or the section's `after` (`next`, `submit` or a section id). Submit sends the answers from the sections on the path taken to `survey_responses`. Opened from a map listing, it pre-fills that organization. On `admin.html`, "Review & verify" maps the answers to listing fields and filters, opens the editor, and Save updates `organizations` and marks the response `approved`.
+
 ## External-source normalization flow
 
 1. Read CSV, JSON, or GeoJSON records.

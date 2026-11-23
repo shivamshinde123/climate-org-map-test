@@ -8,11 +8,10 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261123-2";
+const ASSET_VERSION = "20261123-17";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
-const VERIFICATION_FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLScmfNbX1kS9CqZ3oEc7ARCFda46mWpNpz1lN1QKC0KjmOz4KQ/viewform";
 
 // Legacy lowercase values are normalized before counting or comparison. This
 // avoids visually duplicated options such as "action" and "Action".
@@ -182,6 +181,14 @@ async function applyLiveChanges(features) {
   }
 }
 
+/** The verification survey, pre-filled with this listing (survey.html reads these). */
+function verifySurveyUrl(properties) {
+  const params = new URLSearchParams({ org: properties.id ?? "" });
+  [["name", "name"], ["website", "website_url"], ["address", "address"], ["city", "city"], ["state", "state"], ["zip", "postal_code"]]
+    .forEach(([param, field]) => properties[field] && params.set(param, text(properties[field])));
+  return `survey.html?${params}`;
+}
+
 function featureCollection(features) {
   // MapLibre sources require a complete GeoJSON object, not a feature array.
   return { type: "FeatureCollection", features };
@@ -241,7 +248,7 @@ function popupMarkup(properties) {
       <div><dt>Reach:</dt><dd>${escapeHtml(properties.gcc_reach || "Unknown")}</dd></div>
     </dl>
     ${websiteAndSummary}
-    ${verified ? "" : `<a class="popup-link popup-verify" href="${VERIFICATION_FORM_URL}" target="_blank" rel="noopener noreferrer">Claim and verify this listing</a>`}
+    ${verified ? "" : `<a class="popup-link popup-verify" href="${escapeHtml(verifySurveyUrl(properties))}" target="_blank" rel="noopener">Claim and verify this listing</a>`}
   `;
 }
 

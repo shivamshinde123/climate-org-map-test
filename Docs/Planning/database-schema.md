@@ -17,6 +17,20 @@ Organizations live in one Supabase (Postgres) table, created by `supabase/migrat
 
 Deleting: rows added through the forms are deleted outright. Pipeline rows are also in the static GeoJSON and would be re-sent by the next sync, so a deleted pipeline row stays as `removed` / `admin`: the map drops it and the sync leaves it alone.
 
+### `survey_responses`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid, primary key | |
+| `created_at` | timestamptz | |
+| `connection` | text | `organization`, `municipality` or `individual` (the first question's answer). |
+| `organization_id` | text | Map listing the survey was opened from ("Claim and verify"), if any. |
+| `answers` | jsonb | Question id from `app/data/survey.json` → answer (text, or a list for check boxes). `_location` holds an exact point picked from the address suggestions. |
+| `review_status` | text | `pending` (organization, waiting for the admin), `approved` (applied to the map), `research` (municipal or individual). |
+| `applied_organization_id`, `reviewed_at` | text, timestamptz | Set when the admin verifies it. |
+
+Access: visitors may only insert, with the status their connection requires (`pending` for organizations, `research` otherwise); only admins can read, change or delete. Created by `supabase/migrations/20261123020000_survey_responses.sql`.
+
 ### `admins`
 
 `email` (primary key). Readable and writable only with the service role key. `scripts/sync_supabase.py` keeps it equal to `ADMIN_EMAILS` (adds and removes; an empty setting changes nothing).

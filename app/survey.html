@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Verify your organization on the Climate Organizations Map and take part in the Localized Climate Action Initiative survey."
+    />
+    <title>Map Verification Survey</title>
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20261123-19" />
+  </head>
+  <body class="form-page" data-page="survey">
+    <main class="form-shell">
+      <header class="masthead">
+        <div class="eyebrow"><img src="logo.png" alt="" width="40" height="40" /> Green Community Catalysts</div>
+        <h1>Climate Organizations Map<br /><em>verification survey</em></h1>
+        <a class="back-link" href="./">← Back to the map</a>
+      </header>
+
+      <p id="survey-verifying" class="notice notice-success" hidden>You are verifying <strong></strong>. Its details are filled in below; please check and correct them.</p>
+
+      <!-- Sections come from data/survey.json; one is shown at a time. The survey
+           checks each section itself, since hidden sections hold required fields. -->
+      <form id="survey-form" novalidate>
+        <div id="survey-sections"></div>
+        <div class="button-row survey-nav">
+          <button id="survey-back" class="text-button" type="button" hidden>← Back</button>
+          <button id="survey-next" class="primary-button" type="submit">Next</button>
+        </div>
+        <div id="survey-message" class="notice" role="status" hidden></div>
+      </form>
+
+      <section id="survey-done" class="form-card" hidden>
+        <h2 class="survey-section-title">Thank you</h2>
+        <div class="survey-help"></div>
+        <a class="back-link" href="./">← Back to the map</a>
+      </section>
+    </main>
+
+    <script src="supabase-config.js?v=20261123-19"></script>
+    <script src="forms.js?v=20261123-19"></script>
+    <script src="survey.js?v=20261123-19"></script>
+  </body>
+</html>

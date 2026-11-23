@@ -13,11 +13,13 @@ Climate Org Mapping/
 |   |-- data/
 |   |   |-- organizations.geojson     # generated
 |   |   |-- map-schema.json           # filter and field vocabulary
+|   |   |-- survey.json               # every survey section, question, option and branch
 |   |   |-- zip-centroids.json        # ZIP -> [lat, lng] fallback for the forms (from Data/Geocoding)
 |   |   `-- towns/<STATE>.json        # town suggestions per state (scripts/build_town_lists.py)
 |   |-- app.js                        # map; overlays live changes from Supabase
 |   |-- index.html
 |   |-- add.html                      # public "Add your organization" form and CSV upload
+|   |-- survey.html, survey.js        # verification survey (replaces the Google Form), drawn from data/survey.json
 |   |-- admin.html                    # admin: approve, verify, edit, add, delete, CSV upload
 |   |-- admin.js
 |   |-- forms.js                      # shared form, validation, geocoding, CSV code
