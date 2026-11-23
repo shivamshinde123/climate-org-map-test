@@ -541,3 +541,7 @@ body.form-page { overflow: auto; }
 .admin-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--snow); border-radius: 10px; }
 .admin-row-copy { display: grid; gap: 2px; min-width: 0; font-size: 14px; }
 .admin-row-copy span { color: var(--pewter); font-size: 13px; }
+/* The signed-in cards sit inside #admin-area, so they need their own gap.
+   :not([hidden]) keeps the hidden attribute working. */
+#admin-area:not([hidden]) { display: grid; gap: 24px; }
+#admin-area > .form-help { margin: 0; }
