@@ -78,37 +78,44 @@ function escapeText(value) {
   return String(value ?? "").replace(/[&<>'"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[c]);
 }
 
+/**
+ * The input for one organization field (`key`): a strict state dropdown, town
+ * and street-address inputs with suggestion lists (wired by
+ * enhanceOrganizationFields), or a plain text input. Shared with survey.js.
+ */
+function organizationControl(key, formId, { required = false, placeholder = "", maxlength = "" } = {}) {
+  const req = required ? "required" : "";
+  if (key === "state") {
+    const stateOptions = Object.entries(US_STATES)
+      .sort(([, a], [, b]) => a.localeCompare(b))
+      .map(([code, name]) => `<option value="${code}">${escapeText(name)} (${code})</option>`)
+      .join("");
+    return `<select name="state" ${req}><option value="">Choose a state</option>${stateOptions}</select>`;
+  }
+  if (key === "city") {
+    // Suggests towns for the chosen state but accepts any name.
+    return `<div class="combo">
+        <input name="city" type="text" ${req} autocomplete="off"
+          role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-town-list" />
+        <ul id="${formId}-town-list" class="suggestions" role="listbox" hidden></ul>
+      </div>`;
+  }
+  if (key === "address") {
+    return `<div class="combo">
+        <input name="address" type="text" ${req} placeholder="Start typing, e.g. 123 Main St" autocomplete="off"
+          role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-address-list" />
+        <ul id="${formId}-address-list" class="suggestions" role="listbox" hidden></ul>
+      </div>
+      <small class="field-note">Suggestions © OpenStreetMap contributors (Photon). Any address can be typed.</small>`;
+  }
+  return `<input name="${key}" type="text" ${req}
+    ${placeholder ? `placeholder="${placeholder}"` : ""} ${maxlength ? `maxlength="${maxlength}"` : ""} />`;
+}
+
 /** Render the text inputs and one select per filter into `container`. */
 function renderOrganizationFields(container, filters, { admin = false } = {}) {
   const formId = container.closest("form").id;
-  const stateOptions = Object.entries(US_STATES)
-    .sort(([, a], [, b]) => a.localeCompare(b))
-    .map(([code, name]) => `<option value="${code}">${escapeText(name)} (${code})</option>`)
-    .join("");
-  const control = (field) => {
-    const required = field.required ? "required" : "";
-    if (field.key === "state") {
-      return `<select name="state" ${required}><option value="">Choose a state</option>${stateOptions}</select>`;
-    }
-    if (field.key === "city") {
-      // Suggests towns for the chosen state but accepts any name.
-      return `<div class="combo">
-          <input name="city" type="text" ${required} autocomplete="off"
-            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-town-list" />
-          <ul id="${formId}-town-list" class="suggestions" role="listbox" hidden></ul>
-        </div>`;
-    }
-    if (field.key === "address") {
-      return `<div class="combo">
-          <input name="address" type="text" placeholder="Start typing, e.g. 123 Main St" autocomplete="off"
-            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-address-list" />
-          <ul id="${formId}-address-list" class="suggestions" role="listbox" hidden></ul>
-        </div>
-        <small class="field-note">Suggestions © OpenStreetMap contributors (Photon). Any address can be typed.</small>`;
-    }
-    return `<input name="${field.key}" type="text" ${required}
-      ${field.placeholder ? `placeholder="${field.placeholder}"` : ""} ${field.maxlength ? `maxlength="${field.maxlength}"` : ""} />`;
-  };
+  const control = (field) => organizationControl(field.key, formId, field);
   const text = TEXT_FIELDS.map(
     (field) => `
       <label class="field ${field.key === "address" ? "field-address" : ""}">
@@ -237,6 +244,33 @@ async function locateOrganization(values, form = null) {
   zipCentroids ??= fetch("data/zip-centroids.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
   const center = (await zipCentroids)[zip];
   return center ? { latitude: center[0], longitude: center[1], location_precision: "zip_level_fallback" } : null;
+}
+
+/**
+ * Map filters from the survey's question 6 ("focus, audience and/or initiative
+ * topics"), with the rules used for every survey organization so far: all
+ * audiences ticked are kept in schema order, a pair ticked together becomes
+ * "Both", and the first topic and first reach ticked are used.
+ */
+function filtersFromFocus(picked) {
+  const has = (start) => picked.some((answer) => answer.toLowerCase().startsWith(start));
+  const first = (pairs) => pairs.find(([start]) => has(start))?.[1] ?? "Unknown";
+  const audience = [["work with residents", "Residents"], ["work with municipalities", "Municipality"], ["work with businesses", "Businesses"]]
+    .filter(([start]) => has(start))
+    .map(([, value]) => value)
+    .join(" / ");
+  const pair = (a, b, aValue, bValue) => (has(a) && has(b) ? "Both" : has(a) ? aValue : has(b) ? bValue : "Unknown");
+  return {
+    gcc_organization_type: "Nonprofit / Grassroots",
+    gcc_audience_focus: audience || "Unknown",
+    gcc_resilience: pair("mitigation", "adaptation", "Mitigation", "Adaptation"),
+    gcc_activity: pair("advocacy", "action", "Advocacy", "Action"),
+    gcc_climate_category: first([
+      ["energy efficiency", "Energy Efficiency"], ["transportation", "Transportation"], ["environmental", "Environmental"],
+      ["food", "Food & Food Waste"], ["waste reduction", "Waste Reduction"], ["green economics", "Green Economics"],
+    ]),
+    gcc_reach: first([["focus our efforts on our town", "Town / City"], ["focus our efforts regionally", "Regional"], ["focus our efforts state-wide", "State / National"]]),
+  };
 }
 
 /** Plain-language note about where a located organization was pinned. */

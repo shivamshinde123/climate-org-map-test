@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-16" />
+    <link rel="stylesheet" href="styles.css?v=20261123-19" />
   </head>
   <body class="form-page" data-page="admin">
     <main class="form-shell">
@@ -56,6 +56,7 @@
           <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code (approximate). With neither, the organization is saved but not shown on the map until you open Edit and enter latitude and longitude (right-click the spot in Google Maps to copy them).</li>
             <li><strong>Filter columns</strong> must use one of the values listed below. Capitalization does not matter; leave a cell blank for "Unknown".</li>
             <li><strong>Verification:</strong> "Verified" or "Not Verified" (default). Marking an organization Verified records today's date as its verification.</li>
+            <li><strong>Survey responses:</strong> answers to the verification survey (the map's "Claim and verify this listing" link) arrive under <em>Survey responses</em>. An organization's response waits there: <em>Review &amp; verify</em> opens the editor with its listing (or a new one) filled in from the answers and set to Verified; Save puts it on the map. Municipal and individual responses are research only. <em>Download all responses</em> gives every answer as a CSV with the same columns as the old Google Sheet.</li>
             <li><strong>Delete:</strong> organizations added through the forms or a CSV are deleted permanently. Organizations from the original map data are hidden instead, and can be restored by searching for them, opening Edit and clicking Save.</li>
             <li><strong>CSV files:</strong> the first row must be the column names below (the same as the template). Column order does not matter and other columns are ignored. Save the file as CSV (in Excel: <em>File → Save As → CSV UTF-8</em>).</li>
           </ul>
@@ -76,6 +77,20 @@
         <section class="form-card">
           <h2 class="section-label">Waiting for review <span id="pending-count" class="multi-count"></span></h2>
           <div id="pending-list" class="admin-list"></div>
+        </section>
+
+        <section class="form-card">
+          <h2 class="section-label">Survey responses <span id="survey-count" class="multi-count"></span></h2>
+          <p class="form-help">
+            Answers to the <a class="popup-link" href="survey.html" target="_blank" rel="noopener">verification survey</a>.
+            An organization's response waits here until you <strong>Review &amp; verify</strong> it: that opens the editor
+            filled in from its answers, and Save marks the organization Verified on the map.
+          </p>
+          <div class="button-row">
+            <button id="survey-download" class="primary-button small" type="button">Download all responses (CSV)</button>
+            <label class="choice survey-filter"><input id="survey-show-all" type="checkbox" /> <span>Show all responses, not only those waiting</span></label>
+          </div>
+          <div id="survey-list" class="admin-list"></div>
         </section>
 
         <section class="form-card">
@@ -134,8 +149,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <script src="supabase-config.js?v=20261123-16"></script>
-    <script src="forms.js?v=20261123-16"></script>
-    <script src="admin.js?v=20261123-16"></script>
+    <script src="supabase-config.js?v=20261123-19"></script>
+    <script src="forms.js?v=20261123-19"></script>
+    <script src="admin.js?v=20261123-19"></script>
   </body>
 </html>

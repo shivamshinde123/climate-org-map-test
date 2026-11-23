@@ -1,0 +1,2004 @@
+{
+ "source": "Imported from the Google Form 'Climate Organizations Map VERIFICATION' on 2026-11-23.",
+ "title": "Climate Organizations Map VERIFICATION",
+ "confirmation": "Thank you for taking the survey. The verification status will be updated within 7 days.\n\nWe will be in touch to share progress on the Localized Climate Action Initiative. To learn more about the Initiative or to contact us, go to: GreenCommunityCatalysts.com/localized-climate-action-initiative",
+ "sections": [
+  {
+   "id": "start",
+   "title": "Climate Organizations Map VERIFICATION",
+   "help": "Complete this short survey to provide accurate information about your organization on the Climate Organizations Map. See the image below for an example of the content we will publicly display.\n\nAdditional content collected by this survey will contribute to the ongoing research of the Localized Climate Action Initiative. This information will be summarized and not shared in any way that identifies the responder. \n\nSummarized findings are used to:\n* identify barriers faced by climate-focused organizations and municipalities\n* provide a framework to identify opportunities for solutions and collaboration, and \n* highlight communities with \"climate action deserts\" that need support\n\nYour participation in the Map and the overall Initiative is intended to boost Adaptation and Mitigation efforts. More can be achieved when local climate-focused organizations and municipalities work collaboratively (not in silos) to build awareness, plan initiatives and implement projects in the community.\n\nTHANK YOU in advance for taking this survey.\n\nEstimated completion time: 5-10 minutes\n______________________________________________________________________\n\nMap Verification status will be updated within 7 days of submission.\n\nA link to Green Community Catalysts (GCC) and our Localized Climate Action Initiative, will be shared after submitting the survey.\n",
+   "questions": [
+    {
+     "id": "1882547876",
+     "type": "example",
+     "title": "An example of survey content displayed on the Map",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "554755556",
+     "type": "short",
+     "title": "Preferred email address:",
+     "help": "",
+     "required": true,
+     "map_field": "respondent_email"
+    },
+    {
+     "id": "1165899669",
+     "type": "short",
+     "title": "Your FIRST name:",
+     "help": "",
+     "required": true,
+     "map_field": "respondent_first_name"
+    },
+    {
+     "id": "649216712",
+     "type": "short",
+     "title": "Your LAST name:",
+     "help": "",
+     "required": true,
+     "map_field": "respondent_last_name"
+    },
+    {
+     "id": "2055606931",
+     "type": "radio",
+     "title": "What is your connection or interest in local climate/sustainability?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "I'm part of a local climate/sustainability focused organization (group or nonprofit)",
+       "goto": "2086661487"
+      },
+      {
+       "label": "I'm part of a municipal department or am a local elected official",
+       "goto": "824610463"
+      },
+      {
+       "label": "Neither, but I'm an individual passionate about climate/sustainability",
+       "goto": "1348885054"
+      }
+     ],
+     "map_field": "connection"
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "2086661487",
+   "title": "Section 2 of 4: Local Climate/Sustainability Focused Organization",
+   "help": "Please answer the questions in this section based on your understanding of the ORGANIZATION you are a part of. (2a)",
+   "questions": [
+    {
+     "id": "1464810686",
+     "type": "short",
+     "title": "1. Organization's Name",
+     "help": "",
+     "required": true,
+     "map_field": "name"
+    },
+    {
+     "id": "536293416",
+     "type": "short",
+     "title": "2. Organization's website URL (or if none, Facebook or other online presence identifier)",
+     "help": "",
+     "required": true,
+     "map_field": "website_url"
+    },
+    {
+     "id": "911927311",
+     "type": "short",
+     "title": "3a. Street Address",
+     "help": "(Needed to add your organization to the map)",
+     "required": true,
+     "map_field": "address"
+    },
+    {
+     "id": "1974588667",
+     "type": "short",
+     "title": "3b. Town/City",
+     "help": "",
+     "required": true,
+     "map_field": "city"
+    },
+    {
+     "id": "1717313952",
+     "type": "short",
+     "title": "3c. State",
+     "help": "",
+     "required": true,
+     "map_field": "state"
+    },
+    {
+     "id": "1843643241",
+     "type": "short",
+     "title": "3d. Zip Code",
+     "help": "",
+     "required": true,
+     "map_field": "postal_code"
+    },
+    {
+     "id": "421448233",
+     "type": "radio",
+     "title": "4. How many staff people (paid or unpaid, full or part-time) in your organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "1-5"
+      },
+      {
+       "label": "6-10"
+      },
+      {
+       "label": "11-20"
+      },
+      {
+       "label": "21+"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "649098175",
+     "type": "radio",
+     "title": "5. How long has organization been around?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Less than 2 years"
+      },
+      {
+       "label": "2-5 years"
+      },
+      {
+       "label": "5-10 years"
+      },
+      {
+       "label": "10+ years"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "1952136777",
+     "type": "checkbox",
+     "title": "6. How would you describe your organization's focus, audience and/or initiative topics (select all that apply)",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "work with residents"
+      },
+      {
+       "label": "work with municipalities"
+      },
+      {
+       "label": "work with businesses"
+      },
+      {
+       "label": "energy efficiency (heating/cooling, weatherization, solar, etc.)"
+      },
+      {
+       "label": "transportation (public options, electric vehicles, etc.)"
+      },
+      {
+       "label": "environmental (pollinators, native plants, clean air/water, etc.)"
+      },
+      {
+       "label": "food & food waste (composting, food choices, local farming, etc)"
+      },
+      {
+       "label": "waste reduction (reuse, repair, repurpose, recycle, refuse, etc)"
+      },
+      {
+       "label": "green economics (buying local, supporting sustainable businesses, green investing, etc.)"
+      },
+      {
+       "label": "mitigation (refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions)"
+      },
+      {
+       "label": "adaptation (means taking action to prepare for and adjust to the current and projected impacts of climate change)"
+      },
+      {
+       "label": "advocacy-oriented (lobbying for policies at any governmental level)"
+      },
+      {
+       "label": "action-oriented (providing information and/or support for your audience to act)"
+      },
+      {
+       "label": "focus our efforts on our town/city"
+      },
+      {
+       "label": "focus our efforts regionally"
+      },
+      {
+       "label": "focus our efforts state-wide or nationally"
+      }
+     ],
+     "other": true,
+     "map_field": "focus"
+    },
+    {
+     "id": "1594941619",
+     "type": "checkbox",
+     "title": "7. What are the 3 Primary Barriers to achieving your organization’s goals/mission?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Low residential engagement & action"
+      },
+      {
+       "label": "Not enough people to do the work (staff and volunteers)"
+      },
+      {
+       "label": "Don’t have consistent help - people come and go"
+      },
+      {
+       "label": "Difficulty achieving/maintaining diversity in the staff (age, race, socio-economic, etc.)"
+      },
+      {
+       "label": "Missing specific skills on the team (graphic design, marketing/social media, fundraising, subject-matter expertise, etc.)"
+      },
+      {
+       "label": "Not enough money to pay staff"
+      },
+      {
+       "label": "Not enough money for program implementation"
+      },
+      {
+       "label": "Lack of support and/or collaboration from others in the community (municipality, business, other orgs, schools, etc.)"
+      },
+      {
+       "label": "No one knows us in the community"
+      },
+      {
+       "label": "Can’t reach/engage specific demographics"
+      },
+      {
+       "label": "Lack of strategic plan/direction to accomplish our mission/goals"
+      },
+      {
+       "label": "We don’t have a mission and clear goals"
+      },
+      {
+       "label": "We are happy with our efforts and don’t have any barriers"
+      },
+      {
+       "label": "I don’t know"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1669735948",
+     "type": "radio",
+     "title": "8. Do you have any ideas for overcoming these barriers?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "1976597712",
+     "type": "paragraph",
+     "title": "9. If yes, please share.",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1411809694",
+     "type": "checkbox",
+     "title": "10. What Tools/Formats would you prefer to overcome these barriers?",
+     "help": "(select all that apply)",
+     "required": true,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other CBO members"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic Focused Classes - 2-4 sessions over 2-4 weeks (ex, securing funding, community building/engagement, creating/maintaining a board)"
+      },
+      {
+       "label": "Master's Level Semester Course - 12 sessions over 12 weeks, comprehensive training with Certification"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "102612209",
+   "title": "Section 3 of 4: Individual Preferences (1b)",
+   "help": "Please answer the remaining survey questions from your PERSONAL EXPERIENCE, not as a representative of the organization you work at.",
+   "questions": [
+    {
+     "id": "416722606",
+     "type": "radio",
+     "title": "11. Do you reside in the town/city where your organization is based?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, skip to Q17"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "189368564",
+     "type": "radio",
+     "title": "12. If no, does the town/city you reside in also have a climate/sustainability focused organization?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No, skip to Q14"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "368962138",
+     "type": "short",
+     "title": "13. If yes, please provide the organization's name.",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "488961523",
+     "type": "short",
+     "title": "14. If your place of residence does not have a local climate/sustainability focused organization, is there anyone in your community that would be a good candidate for leading/running/starting one?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "584602300",
+     "type": "short",
+     "title": "15. What town/city do you reside in?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "595369784",
+     "type": "short",
+     "title": "16. State you reside in?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1572895335",
+     "type": "checkbox",
+     "title": "17. What are the benefits that you’d like to get from a local climate organization? Please share your top 3 benefits:",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Coaching / advice on how-to's by topic (ex. clean energy options, buying EVs, pollinator friendly landscapes, etc.)"
+      },
+      {
+       "label": "Information on Rebates / incentives for doing sustainable things"
+      },
+      {
+       "label": "Community/educational Events"
+      },
+      {
+       "label": "Hyper-local resources (i.e. composting services, bike shops, local policies)"
+      },
+      {
+       "label": "Local advocacy on my behalf"
+      },
+      {
+       "label": "Local sustainability news and updates"
+      },
+      {
+       "label": "Facilitated meetings/discussions with like-minded community members"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "407337558",
+     "type": "paragraph",
+     "title": "18. Are there any additional climate-focused organizations in your region that we should be made aware of?",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "103226344",
+   "title": "Section 4 of 4: PERSONAL EXPERIENCE supporting a community-based organization (1c)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1170769290",
+     "type": "radio",
+     "title": "19. As an individual or family, have you considered donating (in any amount) to a local climate focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, I have or am currently donating"
+      },
+      {
+       "label": "Yes, I am interested but want more information"
+      },
+      {
+       "label": "No, but I give to other local organizations"
+      },
+      {
+       "label": "No"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "2047838450",
+     "type": "checkbox",
+     "title": "20. If you are interested in donating to a local climate/sustainability focused organization, what Guidance would be most beneficial to help you act?",
+     "help": "(select all that apply)",
+     "required": false,
+     "options": [
+      {
+       "label": "Understanding the potential impact of donating to a local organization vs alternatives"
+      },
+      {
+       "label": "Finding the right organization to support"
+      },
+      {
+       "label": "How to vet local climate organizations"
+      },
+      {
+       "label": "Understanding the needs of a local climate organization (unrestricted vs restricted, typical ranges, etc.)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "145919689",
+     "type": "checkbox",
+     "title": "21. How would you like to receive this guidance?",
+     "help": "(select all that apply)",
+     "required": false,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other donors"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Modular, topical classes - 2-4 sessions over 2-4 weeks (ex, Vetting climate organizations for donation)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "331846446",
+     "type": "radio",
+     "title": "22. What level of financial support (annually) would you consider to help a local organization that works to improve our climate/sustainability?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "No amount"
+      },
+      {
+       "label": "Under $100"
+      },
+      {
+       "label": "$100 - $1,000"
+      },
+      {
+       "label": "$1,000 - $5,000"
+      },
+      {
+       "label": "$5,000 - $20,000"
+      },
+      {
+       "label": "Over $20,000"
+      }
+     ]
+    },
+    {
+     "id": "760271654",
+     "type": "checkbox",
+     "title": "23. As an individual, how would you like to see climate mitigation and adaptation efforts in your town/city funded? (select all that apply)",
+     "help": "Climate Mitigation refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions. Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "A form of tax on residents for municipal coordination/activity"
+      },
+      {
+       "label": "A form of tax on employers/businesses for municipal coordination/activity"
+      },
+      {
+       "label": "Personal donations from individual residents to local climate/sustainability focused organizations"
+      },
+      {
+       "label": "Donations from businesses to local climate/sustainability focused organizations"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "940554774",
+   "title": "THANK YOU for your survey answers and contributing to Green Community Catalysts Localized Climate Action Initiative (1d)",
+   "help": "",
+   "questions": [
+    {
+     "id": "21280264",
+     "type": "paragraph",
+     "title": "24. Before submitting this survey (below), any additional comments/suggestions that you'd like to share with us?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "945892022",
+     "type": "radio",
+     "title": "25. As part of this research, we’d like to dive deeper with select individuals to get a better understanding of their experiences. Would you consider participating in a 20 minute virtual interview?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "Maybe - I’d like more information"
+      }
+     ]
+    }
+   ],
+   "after": "submit"
+  },
+  {
+   "id": "824610463",
+   "title": "Section 2 of 4: Municipal Staff or Elected Official (2a)",
+   "help": "Please answer the questions in this section based on your understanding of the MUNICIPALITY you are a part of.",
+   "questions": [
+    {
+     "id": "1209475893",
+     "type": "short",
+     "title": "1. Municipal website:",
+     "help": "",
+     "required": true
+    },
+    {
+     "id": "1182274535",
+     "type": "short",
+     "title": "2. Your role/title:",
+     "help": "",
+     "required": true
+    },
+    {
+     "id": "1352250182",
+     "type": "radio",
+     "title": "3. Does the Town/City have a sustainability position(s)?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, we have dedicated staff"
+      },
+      {
+       "label": "Yes, we have staff with part-time responsibility"
+      },
+      {
+       "label": "No, but we would like to"
+      },
+      {
+       "label": "No, not a priority"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "827769783",
+     "type": "radio",
+     "title": "4. Do you have a climate action plan?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "Not yet, but we would like one or are working on one"
+      },
+      {
+       "label": "No, instead we are focusing on incremental initiatives when we have the resources"
+      },
+      {
+       "label": "No, we don't have an interest in climate action or don't see the need"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "952260004",
+     "type": "radio",
+     "title": "5. How important is engaging your town/city’s citizens related to CLIMATE ADAPTATION?",
+     "help": "Climate Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "0 - not at all"
+      },
+      {
+       "label": "1 - our climate action plan does not include citizen engagement, but I could see where it could be helpful"
+      },
+      {
+       "label": "2 - some actions in our climate action plan involve citizen engagement"
+      },
+      {
+       "label": "3 - most actions in our climate action plan require citizen engagement"
+      },
+      {
+       "label": "4 - our climate action plan includes entire sections based on shifting residential behavior"
+      },
+      {
+       "label": "5 - critical to achieving climate goals"
+      },
+      {
+       "label": "6 - we do not have a climate action plan"
+      }
+     ]
+    },
+    {
+     "id": "520364722",
+     "type": "radio",
+     "title": "6. How important is engaging your town/city’s citizens related to CLIMATE MITIGATION?",
+     "help": "Climate Mitigation refers to actions or activities that limit emissions of greenhouse gases from entering the atmosphere and/or reduce their levels in the atmosphere. ",
+     "required": true,
+     "options": [
+      {
+       "label": "0 - not at all"
+      },
+      {
+       "label": "1 - our climate action plan does not include citizen engagement, but I could see where it could be helpful"
+      },
+      {
+       "label": "2 - some actions in our climate action plan involve citizen engagement"
+      },
+      {
+       "label": "3 - most actions in our climate action plan require citizen engagement"
+      },
+      {
+       "label": "4 - our climate action plan includes entire sections based on shifting residential behavior"
+      },
+      {
+       "label": "5 - critical to achieving climate goals"
+      },
+      {
+       "label": "6 - we do not have a climate action plan"
+      }
+     ]
+    },
+    {
+     "id": "120877434",
+     "type": "checkbox",
+     "title": "7. What are your Barriers to engaging citizens? (To achieve various levels of engagement including taking action in their homes/lifestyles to approving/supporting policies and investments.)",
+     "help": "(select all that apply)",
+     "required": true,
+     "options": [
+      {
+       "label": "Lack of staff"
+      },
+      {
+       "label": "Lack of funding/budget"
+      },
+      {
+       "label": "Concern about political ramifications"
+      },
+      {
+       "label": "Don’t know how to approach/engage specific demographics"
+      },
+      {
+       "label": "Don’t have partners in the community to work with for implementing initiatives/programs"
+      },
+      {
+       "label": "We don’t have any barriers, our efforts engaging citizens have been successful"
+      },
+      {
+       "label": "No barriers, we don’t engage citizens around climate mitigation or adaptation"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1072658638",
+     "type": "checkbox",
+     "title": "8. What Tools/Formats would you prefer to overcome these barriers?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other municipal sustainability colleagues"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic focused classes - 2-4 sessions over 2-4 weeks (ex, securing funding, community building/engagement)"
+      },
+      {
+       "label": "Master's Level Semester Course - 12 sessions over 12 weeks, comprehensive training with Certification"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "576829261",
+     "type": "radio",
+     "title": "9. Do you have a climate/sustainability focused organization in the town/city where you work?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "1467096537",
+     "type": "paragraph",
+     "title": "10. If yes, are you collaborating with them in any way? Explain and include their name.",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "1688253259",
+   "title": "Section 3 of 4: Individual Preferences (2b)",
+   "help": "Please answer the remaining survey questions from your PERSONAL EXPERIENCE, not as a representative of your municipality.",
+   "questions": [
+    {
+     "id": "1192875811",
+     "type": "radio",
+     "title": "11. Do you reside in the same Municipality where you work?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, skip to Q14"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "796275061",
+     "type": "short",
+     "title": "12. What town/city do you reside in?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "647681063",
+     "type": "short",
+     "title": "13. State you reside in?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1908534979",
+     "type": "radio",
+     "title": "14. Does the town/city you reside in have a climate/sustainability focused organization?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "1506478947",
+     "type": "short",
+     "title": "15. If yes, please provide the organization's name.",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "838520128",
+     "type": "short",
+     "title": "16. If your town/city does not have an organization, is there anyone in your community that would be a good candidate for leading/running/starting a climate-focused organization?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1153266270",
+     "type": "checkbox",
+     "title": "17. What are the benefits that you would like to get from a local climate-focused organization? Please share your top 3 benefits:",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Coaching / advice on how-to's by topic (ex. clean energy options, buying EVs, pollinator friendly landscapes, etc.)"
+      },
+      {
+       "label": "Information on Rebates / incentives for doing sustainable things"
+      },
+      {
+       "label": "Community/educational Events"
+      },
+      {
+       "label": "Hyper-local resources (i.e. composting services, bike shops, local policies)"
+      },
+      {
+       "label": "Local advocacy on my behalf"
+      },
+      {
+       "label": "Local sustainability news and updates"
+      },
+      {
+       "label": "Facilitated meetings/discussions with like-minded community members"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "47460585",
+     "type": "paragraph",
+     "title": "18. Are there any other climate/sustainability focused organizations in your region that we should be made aware of?",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "704737124",
+   "title": "Section 4 of 4: PERSONAL EXPERIENCE supporting a local climate/sustainability focused organization (2c)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1956467214",
+     "type": "radio",
+     "title": "19. As an individual/family, have you considered donating to a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, I am interested"
+      },
+      {
+       "label": "Yes, I have or am currently donating"
+      },
+      {
+       "label": "No, but I give to other organizations"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "983760953",
+     "type": "checkbox",
+     "title": "20. If you are interested in donating to a local climate/sustainability focused organization, what Guidance would be most beneficial to help you act?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Understanding the potential impact of donating to a local climate/sustainability focused organization vs alternatives"
+      },
+      {
+       "label": "Finding the right local organization to support"
+      },
+      {
+       "label": "How to vet a local organization"
+      },
+      {
+       "label": "Understanding a local organization's needs (unrestricted vs restricted, typical ranges, etc.)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "2100412887",
+     "type": "checkbox",
+     "title": "21. How would you like to receive this guidance?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other donors"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Modular, topical classes - 2-4 sessions over 2-4 weeks (ex, Vetting climate organizations for donation)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1211421955",
+     "type": "radio",
+     "title": "22. What level of financial support (annually) would you consider to help a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "No amount"
+      },
+      {
+       "label": "Under $100"
+      },
+      {
+       "label": "$100 - $1,000"
+      },
+      {
+       "label": "$1,000 - $5,000"
+      },
+      {
+       "label": "$5,000 - $20,000"
+      },
+      {
+       "label": "Over $20,000"
+      }
+     ]
+    },
+    {
+     "id": "1259716269",
+     "type": "checkbox",
+     "title": "23. As an individual, how would you like to see climate mitigation and adaptation efforts in your town/city funded? (select all that apply)",
+     "help": "Climate Mitigation refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions. Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "A form of tax on residents for municipal coordination/activity"
+      },
+      {
+       "label": "A form of tax on employers/businesses for municipal coordination/activity"
+      },
+      {
+       "label": "Personal donations from individual residents to local climate/sustainability focused organizations"
+      },
+      {
+       "label": "Donations from businesses to local climate/sustainability focused organizations"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "577074800",
+   "title": "THANK YOU for your survey answers and contributing to Green Community Catalysts Localized Climate Action Initiative (2d)",
+   "help": "",
+   "questions": [
+    {
+     "id": "436033286",
+     "type": "paragraph",
+     "title": "24. Before submitting this survey (below), any additional comments/suggestions that you'd like to share with us?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1614280963",
+     "type": "radio",
+     "title": "25. As part of this research, we’d like to dive deeper with select individuals to get a better understanding of their experiences. Would you be interested in a 20 minute virtual interview?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "Maybe - I’d like more information"
+      }
+     ]
+    }
+   ],
+   "after": "submit"
+  },
+  {
+   "id": "1348885054",
+   "title": "Section 2 of 5: Individual passionate about climate or sustainability (3)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1928681786",
+     "type": "radio",
+     "title": "1. Where does your climate/sustainability interest lie? I would like to:",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "BE A PART OF a local climate-focused organization (as staff, board or volunteer)",
+       "goto": "1317448285"
+      },
+      {
+       "label": "START/LEAD a local climate-focused organization",
+       "goto": "440174030"
+      },
+      {
+       "label": "Simply BENEFIT FROM the activities of a climate-focused organization",
+       "goto": "1558873911"
+      }
+     ]
+    },
+    {
+     "id": "861716158",
+     "type": "short",
+     "title": "2. What town/city do you reside in?",
+     "help": "",
+     "required": true
+    },
+    {
+     "id": "345103986",
+     "type": "short",
+     "title": "3. State you reside in?",
+     "help": "",
+     "required": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "1317448285",
+   "title": "Section 3 of 5: I would like to be part of a local climate/sustainability focused organization (3a)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1046995495",
+     "type": "checkbox",
+     "title": "4. How do you want to be involved; how would you consider contributing?",
+     "help": "(check all that apply)",
+     "required": true,
+     "options": [
+      {
+       "label": "Volunteer time"
+      },
+      {
+       "label": "Take a paid position"
+      },
+      {
+       "label": "Be on the Board of Directors"
+      },
+      {
+       "label": "Donate to the organization"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1128881805",
+     "type": "checkbox",
+     "title": "5. What are your Barriers to moving forward?",
+     "help": "(select all that apply)",
+     "required": true,
+     "options": [
+      {
+       "label": "Don’t know if my community has a climate-focused organization"
+      },
+      {
+       "label": "Don’t know who to contact at a local climate-focused organization"
+      },
+      {
+       "label": "Don’t know what the expectations would be (time, skills, financial support, etc.)"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "866495184",
+   "title": "Section 4 of 5: Individual Preferences (3a)",
+   "help": "Please answer the questions in this section from your personal experience with local organizations.",
+   "questions": [
+    {
+     "id": "1711284507",
+     "type": "radio",
+     "title": "6. Do you have a local climate-focused organization where you reside?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "378774320",
+     "type": "short",
+     "title": "7. If yes, what is its name?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1811804440",
+     "type": "short",
+     "title": "8, If no, is there anyone in your community that would be a good candidate for leading/running/starting a climate-focused organization?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1678251171",
+     "type": "checkbox",
+     "title": "9. What are the benefits that you’d like to get from a local climate/sustainability focused organization?",
+     "help": "(select all that apply)",
+     "required": true,
+     "options": [
+      {
+       "label": "Coaching / advice on how-to's by topic (ex. clean energy options, buying EVs, pollinator friendly landscapes, etc.)"
+      },
+      {
+       "label": "Information on Rebates / incentives for doing sustainable things"
+      },
+      {
+       "label": "Community/educational Events"
+      },
+      {
+       "label": "Hyper-local resources (i.e. composting services, bike shops, local policies)"
+      },
+      {
+       "label": "Local advocacy on my behalf"
+      },
+      {
+       "label": "Local sustainability news and updates"
+      },
+      {
+       "label": "Facilitated meetings/discussions with like-minded community members"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1057817271",
+     "type": "paragraph",
+     "title": "10. Are there any additional climate-focused organizations in your region that we should be made aware of?",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "1957715037",
+   "title": "Section 5 of 5: Personal experience supporting local climate focused organizations (3a)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1687654383",
+     "type": "radio",
+     "title": "11. As an individual or family, have you considered donating to a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, I am interested"
+      },
+      {
+       "label": "Yes, I have or am currently donating"
+      },
+      {
+       "label": "No, but I give to other organizations"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "1298806153",
+     "type": "checkbox",
+     "title": "12. If you are interested in donating to a local climate/sustainability focused organization, what Guidance would be most beneficial to help you act?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Understanding the potential impact of donating to a local climate focused organization vs alternatives"
+      },
+      {
+       "label": "Finding the right local climate focused organization to support"
+      },
+      {
+       "label": "How to vet local climate focused organziations"
+      },
+      {
+       "label": "Understanding a local organization's needs (unrestricted vs restricted, typical donation amounts, annual budget, etc.)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1151336888",
+     "type": "checkbox",
+     "title": "13. How would you like to receive this guidance?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other donors"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic focused classes - 2-4 sessions over 2-4 weeks (ex, Vetting climate organizations for donation)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "905827800",
+     "type": "radio",
+     "title": "14. What level of financial support (annually) would you consider to help a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "No amount"
+      },
+      {
+       "label": "Under $100"
+      },
+      {
+       "label": "$100 - $1,000"
+      },
+      {
+       "label": "$1,000 - $5,000"
+      },
+      {
+       "label": "$5,000 - $20,000"
+      },
+      {
+       "label": "Over $20,000"
+      }
+     ]
+    },
+    {
+     "id": "945051498",
+     "type": "checkbox",
+     "title": "15. As an individual, how would you like to see climate mitigation and adaptation efforts in your town/city funded? (Select all that apply)",
+     "help": "Climate Mitigation refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions. Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "A form of tax on residents for municipal coordination/activity"
+      },
+      {
+       "label": "A form of tax on employers/businesses for municipal coordination/activity"
+      },
+      {
+       "label": "Personal donations from individual residents to local climate/sustainability focused organizations"
+      },
+      {
+       "label": "Donations from businesses to local climate/sustainability focused organizations"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "291529574",
+   "title": "THANK YOU for your survey answers and contributing to Green Community Catalysts Localized Climate Action Initiative (3a)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1926921070",
+     "type": "paragraph",
+     "title": "16. Before submitting this survey (below), any additional comments/suggestions you would like to share with us?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "147786311",
+     "type": "radio",
+     "title": "17. As part of this research, we’d like to dive deeper with select individuals to get a better understanding of their experiences. Would you be interested in a 20 minute virtual interview?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "Maybe - I’d like more information"
+      }
+     ]
+    }
+   ],
+   "after": "submit"
+  },
+  {
+   "id": "440174030",
+   "title": "Section 3 of 5: I would like to Start/Lead a local climate/sustainability focused organization (3b)",
+   "help": "",
+   "questions": [
+    {
+     "id": "720393235",
+     "type": "checkbox",
+     "title": "4. What are your Top 3 Barriers to starting/leading a local organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Unsure what to focus on; create a mission"
+      },
+      {
+       "label": "Don’t know how to start"
+      },
+      {
+       "label": "Don’t know how to run an organization"
+      },
+      {
+       "label": "Don’t know how to engage the community"
+      },
+      {
+       "label": "Don’t have enough time"
+      },
+      {
+       "label": "Need others to help (volunteers, staff and advisors)"
+      },
+      {
+       "label": "Not enough funding"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1389144109",
+     "type": "checkbox",
+     "title": "5. What Tools/Formats would you prefer to overcome these barriers?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other CBO leaders"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic focused classes - 2-4 sessions over 2-4 weeks (ex. securing funding, creating/managing a board, community building/engagement)"
+      },
+      {
+       "label": "Master's Level Semester Course - 12 sessions over 12 weeks, comprehensive training with Certification"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "40838853",
+   "title": "Section 4 of 5: Individual Preferences (3b)",
+   "help": "Please answer the questions in this section from your PERSONAL EXPERIENCE with local organizations.",
+   "questions": [
+    {
+     "id": "1607753205",
+     "type": "radio",
+     "title": "6. Do you have a climate/sustainability focused organization where you reside?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "1843255382",
+     "type": "short",
+     "title": "7. If yes, what is its name?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "2087150134",
+     "type": "radio",
+     "title": "8. If no, is there anyone in your community that you would want to partner with to lead/run/start a climate-focused organization?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Yes, I have someone in mind"
+      },
+      {
+       "label": "No, but I would like to find someone"
+      },
+      {
+       "label": "No, I'm not interested in a partner"
+      },
+      {
+       "label": "Maybe, I want to learn more"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "193735818",
+     "type": "checkbox",
+     "title": "9. What are the benefits that you’d like to get from a local climate-focused organization?  Please share your top 3 benefits:",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Coaching / advice on how-to's by topic (ex. clean energy options, buying EVs, pollinator friendly landscapes, etc.)"
+      },
+      {
+       "label": "Information on Rebates / incentives for doing sustainable things"
+      },
+      {
+       "label": "Community/educational Events"
+      },
+      {
+       "label": "Hyper-local resources (i.e. composting services, bike shops, local policies)"
+      },
+      {
+       "label": "Local advocacy on my behalf"
+      },
+      {
+       "label": "Local sustainability news and updates"
+      },
+      {
+       "label": "Facilitated meetings/discussions with like-minded community members"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1562271270",
+     "type": "paragraph",
+     "title": "10. Are there any additional climate-focused organizations in your region that we should be made aware of?",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "1858521110",
+   "title": "Section 5 of 5: Personal experience supporting a climate/sustainability focused organization (3b)",
+   "help": "",
+   "questions": [
+    {
+     "id": "2132581782",
+     "type": "radio",
+     "title": "11. As an individual/family, have you considered donating to a local climate-focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, I am interested"
+      },
+      {
+       "label": "Yes, I have or am currently donating"
+      },
+      {
+       "label": "No, but I give to other organizations"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "229607332",
+     "type": "checkbox",
+     "title": "12. If you are interested in donating to a local climate/sustainability focused organization, what Guidance would be most beneficial to help you act?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Understanding the potential impact of donating to a local climate focused organization vs alternatives"
+      },
+      {
+       "label": "Finding the right local organization to support"
+      },
+      {
+       "label": "How to vet a local organization"
+      },
+      {
+       "label": "Understanding a local organization's needs (unrestricted vs restricted, typical donation amounts, annual budget, etc.)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1697616128",
+     "type": "checkbox",
+     "title": "13. How would you like to receive this guidance?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other donors"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic focused classes - 2-4 sessions over 2-4 weeks (ex, Vetting climate organizations for donation)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "673067472",
+     "type": "radio",
+     "title": "14. What level of financial support (annually) would you consider to help a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "No amount"
+      },
+      {
+       "label": "Under $100"
+      },
+      {
+       "label": "$100 - $1,000"
+      },
+      {
+       "label": "$1,000 - $5,000"
+      },
+      {
+       "label": "$5,000 - $20,000"
+      },
+      {
+       "label": "Over $20,000"
+      }
+     ]
+    },
+    {
+     "id": "418951107",
+     "type": "checkbox",
+     "title": "15. As an individual, how would you like to see climate mitigation and adaptation efforts in your town/city funded? (select all that apply)",
+     "help": "Climate Mitigation refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions. Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "A form of tax on residents for municipal coordination/activity"
+      },
+      {
+       "label": "A form of tax on employers/businesses for municipal coordination/activity"
+      },
+      {
+       "label": "Personal donations from individual residents to a local climate/sustainability focused organizations"
+      },
+      {
+       "label": "Donations from businesses to a local climate/sustainability focused organizations"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "644170924",
+   "title": "THANK YOU for your survey answers and contributing to Green Community Catalysts Localized Climate Action Initiative (3b)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1246905579",
+     "type": "paragraph",
+     "title": "16. Before submitting this survey (below), any additional comments/suggestions that you'd like to share with us?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "809319988",
+     "type": "radio",
+     "title": "17. As part of this research, we’d like to dive deeper with select individuals to get a better understanding of their experiences. Would you be interested in a 20 minute virtual interview?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "Maybe - I’d like more information"
+      }
+     ]
+    }
+   ],
+   "after": "submit"
+  },
+  {
+   "id": "1558873911",
+   "title": "Section 3 of 5: Individual's BENEFITS from the activity of a local climate/sustainability focused organization (3c)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1418698647",
+     "type": "radio",
+     "title": "4. Do you have a local (town/city) climate/sustainability focused organization where you reside?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "I don't know"
+      }
+     ]
+    },
+    {
+     "id": "1556876010",
+     "type": "short",
+     "title": "5. If yes, what is its name?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "925846362",
+     "type": "short",
+     "title": "6. If no, is there anyone in your community that would be a good candidate for leading/running/starting a climate-focused organization?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "1703819304",
+     "type": "checkbox",
+     "title": "7. What are the benefits that you’d like to get from a local climate-focused organization? Please share your top 3 benefits:",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Coaching / advice on how-to's by topic (ex. clean energy options, buying EVs, pollinator friendly landscapes, etc.)"
+      },
+      {
+       "label": "Information on Rebates / incentives for doing sustainable things"
+      },
+      {
+       "label": "Community/educational Events"
+      },
+      {
+       "label": "Hyper-local resources (i.e. composting services, bike shops, local policies)"
+      },
+      {
+       "label": "Local advocacy on my behalf"
+      },
+      {
+       "label": "Local sustainability news and updates"
+      },
+      {
+       "label": "Facilitated meetings/discussions with like-minded community members"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1511631230",
+     "type": "paragraph",
+     "title": "8. Are there any additional climate-focused organizations in your region that we should be made aware of?",
+     "help": "",
+     "required": false
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "145226507",
+   "title": "Section 4 of 5: Personal experience supporting a local climate/sustainability focused organization (3c)",
+   "help": "",
+   "questions": [
+    {
+     "id": "1927902466",
+     "type": "radio",
+     "title": "9. As an individual/family, have you considered donating to a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes, I am interested"
+      },
+      {
+       "label": "Yes, I have or am currently donating"
+      },
+      {
+       "label": "No, but I give to other organizations"
+      },
+      {
+       "label": "No"
+      }
+     ]
+    },
+    {
+     "id": "1537887915",
+     "type": "checkbox",
+     "title": "10. If you are interested in donating to a local climate/sustainability focused organization, what Guidance would be most beneficial to help you act?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "Understanding the potential impact of donating to a local climate focused organization vs alternatives"
+      },
+      {
+       "label": "Finding the right local climate organization to support"
+      },
+      {
+       "label": "How to vet a local climate organization"
+      },
+      {
+       "label": "Understanding a local climate organization's needs (unrestricted vs restricted, typical ranges, etc.)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1310078126",
+     "type": "checkbox",
+     "title": "11. How would you like to receive this guidance?",
+     "help": "",
+     "required": false,
+     "options": [
+      {
+       "label": "An ‘easy to follow’ Template"
+      },
+      {
+       "label": "Case studies"
+      },
+      {
+       "label": "Whitepapers"
+      },
+      {
+       "label": "A regular Meetup with other donors"
+      },
+      {
+       "label": "Consultant and/or Mentor"
+      },
+      {
+       "label": "Educational Webinars - 1 hour"
+      },
+      {
+       "label": "Topic focused classes - 2-4 sessions over 2-4 weeks (ex, Vetting climate organizations for donation)"
+      }
+     ],
+     "other": true
+    },
+    {
+     "id": "1963160136",
+     "type": "radio",
+     "title": "12. What level of financial support (annually) would you consider to help a local climate/sustainability focused organization?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "No amount"
+      },
+      {
+       "label": "Under $100"
+      },
+      {
+       "label": "$100 - $1,000"
+      },
+      {
+       "label": "$1,000 - $5,000"
+      },
+      {
+       "label": "$5,000 - $20,000"
+      },
+      {
+       "label": "Over $20,000"
+      }
+     ]
+    },
+    {
+     "id": "906848453",
+     "type": "checkbox",
+     "title": "13. As an individual, how would you like to see climate mitigation and adaptation efforts in your town/city funded? (select all that apply)",
+     "help": "Climate Mitigation refers to the actions and activities that are taken to reduce or prevent further release of green house gas emissions. Adaptation means taking action to prepare for and adjust to the current and projected impacts of climate change.",
+     "required": true,
+     "options": [
+      {
+       "label": "A form of tax on residents for municipal coordination/activity"
+      },
+      {
+       "label": "A form of tax on employers/businesses for municipal coordination/activity"
+      },
+      {
+       "label": "Personal donations from individual residents to local climate/sustainability focused organizations"
+      },
+      {
+       "label": "Donations from businesses to local climate/sustainability focused organizations"
+      }
+     ],
+     "other": true
+    }
+   ],
+   "after": "next"
+  },
+  {
+   "id": "994862577",
+   "title": "THANK YOU for your survey answers and contributing to Green Community Catalysts Localized Climate Action Initiative (3c)",
+   "help": "",
+   "questions": [
+    {
+     "id": "2025204952",
+     "type": "paragraph",
+     "title": "14. Before submitting the survey (below), any additional comments/suggestions you would like to share with us?",
+     "help": "",
+     "required": false
+    },
+    {
+     "id": "654671816",
+     "type": "radio",
+     "title": "15. As part of this research, we’d like to dive deeper with select individuals to get a better understanding of their experiences. Would you be interested in a 20 minute virtual interview?",
+     "help": "",
+     "required": true,
+     "options": [
+      {
+       "label": "Yes"
+      },
+      {
+       "label": "No"
+      },
+      {
+       "label": "Maybe - I’d like more information"
+      }
+     ]
+    }
+   ],
+   "after": "submit"
+  }
+ ]
+}

@@ -658,3 +658,40 @@ body.form-page { overflow: auto; }
   padding-right: 36px;
   background: var(--snow) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231c3a13' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;
 }
+
+/* Survey (survey.html): one section card at a time, Google-Form-like questions in the site style. */
+.survey-section { display: grid; gap: 22px; }
+.survey-section-title { margin: 0; font-size: 20px; font-weight: 400; line-height: 1.3; letter-spacing: -0.01em; }
+.survey-help { color: var(--forest); font-size: 15px; line-height: 1.6; }
+.survey-help p { margin: 0 0 12px; }
+.survey-help ul { margin: 0 0 12px; padding-left: 20px; }
+.survey-help hr { margin: 16px 0; border: 0; border-top: 1px solid var(--frost); }
+.question { display: grid; gap: 8px; padding: 16px; background: var(--snow); border-radius: 12px; }
+.question.has-error { box-shadow: inset 0 0 0 1.5px #8a2c0d; }
+.question-title { color: var(--forest); font-size: 15px; font-weight: 500; line-height: 1.45; }
+.required-mark { color: #8a2c0d; }
+.question-help { margin: 0; color: var(--pewter); font-size: 13px; line-height: 1.5; }
+.question-error { color: #8a2c0d; font-size: 13px; }
+.question input[type="text"], .question input[type="email"], .question textarea, .question select {
+  width: 100%;
+  padding: 10px 12px;
+  color: var(--forest);
+  background: var(--snow);
+  border: 1px solid var(--frost);
+  border-radius: 10px;
+  font: inherit;
+  font-size: 15px;
+}
+.question textarea { resize: vertical; }
+.question input:focus, .question textarea:focus, .question select:focus { border-color: var(--forest); outline: none; }
+.choices { display: grid; gap: 6px; }
+.choice { display: flex; align-items: flex-start; gap: 10px; padding: 6px 4px; font-size: 14px; line-height: 1.45; cursor: pointer; }
+.choice input[type="radio"], .choice input[type="checkbox"] { flex: none; width: 18px; height: 18px; margin: 1px 0 0; accent-color: var(--forest); }
+.choice-other { align-items: center; }
+.choice-other input[type="text"] { flex: 1; padding: 6px 10px; }
+.survey-nav { justify-content: space-between; margin-top: 20px; }
+.survey-nav .primary-button { margin-left: auto; }
+.survey-example { display: grid; gap: 10px; margin: 0; }
+.example-card { max-width: 340px; padding: 20px; background: var(--snow); border: 1px solid var(--frost); border-radius: 12px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+#survey-verifying { margin: 0; }
