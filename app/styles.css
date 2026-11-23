@@ -649,3 +649,7 @@ body.form-page { overflow: auto; }
 .suggestions li { padding: 8px 10px; color: var(--forest); font-size: 14px; line-height: 1.35; border-radius: 6px; cursor: pointer; }
 .suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--stone); }
 .field-note { color: var(--pewter); font-size: 11px; }
+/* At most about seven rows show; longer lists scroll inside with a slim bar. */
+.suggestions { max-height: 264px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ash) transparent; }
+.suggestions::-webkit-scrollbar { width: 6px; }
+.suggestions::-webkit-scrollbar-thumb { background: var(--ash); border-radius: 3px; }
