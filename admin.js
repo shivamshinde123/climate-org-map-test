@@ -57,7 +57,7 @@ async function loadPending() {
   const rows = check(
     await client.from("organizations").select("id, properties").eq("review_status", "pending").order("created_at"),
   );
-  ui.pendingCount.textContent = rows.length ? `(${rows.length})` : "";
+  ui.pendingCount.textContent = rows.length ? `(${rows.length} waiting)` : "";
   ui.pendingList.innerHTML = rows.length
     ? rows
         .map(
@@ -72,7 +72,7 @@ async function loadPending() {
           </div>`,
         )
         .join("")
-    : `<p class="form-help">Nothing waiting.</p>`;
+    : `<p class="form-help">No new organizations waiting for approval.</p>`;
 }
 
 async function setReviewStatus(id, review_status) {
@@ -238,7 +238,7 @@ async function loadSurveyResponses() {
   document.querySelector("#survey-count").textContent = pending ? `(${pending} waiting)` : "";
   document.querySelector("#survey-list").innerHTML = surveyRows.length
     ? surveyRows.map(surveyRowHtml).join("")
-    : `<p class="form-help">${document.querySelector("#survey-show-all").checked ? "No responses yet." : "Nothing waiting."}</p>`;
+    : `<p class="form-help">${document.querySelector("#survey-show-all").checked ? "No survey responses yet." : "No verification surveys waiting for review."}</p>`;
 }
 
 function surveyRowHtml(row) {
