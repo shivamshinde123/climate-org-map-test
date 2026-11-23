@@ -193,8 +193,34 @@ function nextSectionId(section) {
   return section.after;
 }
 
+/** The pages still ahead from `section`, following the answers given so far (defaults where unanswered). */
+function remainingPath(section) {
+  const path = [section];
+  for (let id = nextSectionId(section); id && path.length < survey.sections.length; id = nextSectionId(sectionById[id])) {
+    path.push(sectionById[id]);
+  }
+  return path;
+}
+
+/** "Page 2 of 5", the progress bar, and page buttons (earlier pages can be revisited). */
+function updateProgress() {
+  const pages = [...history, ...remainingPath(current)];
+  const number = history.length + 1;
+  document.querySelector("#survey-page-label").textContent = `Page ${number} of ${pages.length}`;
+  document.querySelector("#survey-progress-fill").style.width = `${(number / pages.length) * 100}%`;
+  document.querySelector("#survey-pages").innerHTML = pages
+    .map((section, index) => {
+      const state = index < history.length ? "done" : index === history.length ? "current" : "ahead";
+      const label = `Page ${index + 1}${state === "done" ? " (go back)" : state === "current" ? " (current)" : ""}`;
+      return `<li><button type="button" class="survey-page ${state}" data-page="${index}" aria-label="${label}"
+        ${state === "current" ? 'aria-current="step"' : ""} ${state === "ahead" ? "disabled" : ""}>${index + 1}</button></li>`;
+    })
+    .join("");
+}
+
 function updateNextLabel() {
   page.next.textContent = nextSectionId(current) ? "Next" : "Submit";
+  updateProgress();
 }
 
 function show(section) {
@@ -279,6 +305,15 @@ async function startSurvey() {
 
   page.form.addEventListener("change", updateNextLabel);
   page.back.addEventListener("click", () => show(history.pop()));
+  // A page button jumps back to an earlier page; answers on every page are kept.
+  document.querySelector("#survey-pages").addEventListener("click", (event) => {
+    const button = event.target.closest("button.done");
+    if (!button) return;
+    const index = Number(button.dataset.page);
+    const target = history[index];
+    history.length = index;
+    show(target);
+  });
   page.form.addEventListener("submit", async (event) => {
     event.preventDefault();
     if (!validateSection(current)) return;
