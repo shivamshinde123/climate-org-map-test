@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-8" />
+    <link rel="stylesheet" href="styles.css?v=20261123-9" />
   </head>
   <body class="form-page" data-page="add">
     <main class="form-shell">
@@ -25,6 +25,37 @@
         </p>
         <a class="back-link" href="./">← Back to the map</a>
       </header>
+
+      <!-- Collapsed by default so the form stays in view. -->
+      <details class="form-card rules">
+        <summary class="rules-summary">
+          <span class="rules-summary-title">How to add an organization</span>
+          <span class="rules-summary-hint">Rules, CSV columns and an example</span>
+        </summary>
+        <ul class="rules-list">
+          <li><strong>What belongs on the map:</strong> community-focused climate and sustainability organizations, such as nonprofits, grassroots groups, coalitions and town committees.</li>
+          <li><strong>Every submission is reviewed.</strong> It appears on the map once the Green Community Catalysts team approves it.</li>
+          <li><strong>Required:</strong> organization name, town/city, and a two-letter state code such as <code>MA</code>. Everything else is optional, but a website and street address help us review it faster.</li>
+          <li><strong>One organization = name + state.</strong> If an organization with the same name and state has already been submitted, it is not accepted again.</li>
+          <li><strong>Website:</strong> <code>example.org</code> is fine; <code>https://</code> is added automatically.</li>
+          <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code. If neither works, the organization is still submitted and our team places it during review.</li>
+          <li><strong>Filters</strong> (type, audience, resilience and so on): pick the closest option, or "Unknown" if you are not sure. In a CSV, use the values listed below; capitalization does not matter, and a blank cell means "Unknown".</li>
+          <li><strong>Verification</strong> is done by our team, not on this page. To get an organization marked Verified, open it on the map and use <em>Claim and verify this listing</em>.</li>
+          <li><strong>CSV files:</strong> up to 200 organizations per file. The first row must be the column names below (the same as the template). Column order does not matter and other columns are ignored. Save the file as CSV (in Excel: <em>File → Save As → CSV UTF-8</em>).</li>
+        </ul>
+
+        <h3 class="rules-heading">Columns</h3>
+        <div class="table-scroll">
+          <table class="rules-table">
+            <thead><tr><th>Column</th><th>Required</th><th>What to enter</th><th>Example</th></tr></thead>
+            <tbody id="rules-columns"></tbody>
+          </table>
+        </div>
+
+        <h3 class="rules-heading">Example CSV</h3>
+        <p class="form-help">A file with this content (one header row, one organization) uploads correctly:</p>
+        <pre id="rules-example" class="rules-example"></pre>
+      </details>
 
       <section class="form-card">
         <h2 class="section-label">One organization</h2>
@@ -52,7 +83,7 @@
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="supabase-config.js?v=20261123-8"></script>
-    <script src="forms.js?v=20261123-8"></script>
+    <script src="supabase-config.js?v=20261123-9"></script>
+    <script src="forms.js?v=20261123-9"></script>
   </body>
 </html>
