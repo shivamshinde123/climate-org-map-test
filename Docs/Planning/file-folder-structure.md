@@ -32,6 +32,7 @@ Climate Org Mapping/
 |       `-- README.md
 |-- Docs/
 |   |-- Planning/                     # living project documentation
+|   |-- Setup/                        # api-keys-setup.md, transfer-guide.md (moving to a new owner)
 |   `-- Research and Requirements/    # supplied source material
 |-- scripts/
 |   |-- build_irs_dataset.py          # IRS filter, normalize, stable IDs, provisional GCC fields

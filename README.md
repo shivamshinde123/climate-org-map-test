@@ -277,3 +277,5 @@ Run `python scripts/geocode_organizations.py` again. Completed matches and non-m
 
 Start with [`Docs/Planning/idea.md`](Docs/Planning/idea.md), [`Docs/Planning/product-requirements-document.md`](Docs/Planning/product-requirements-document.md), [`Docs/Planning/technical-design-document.md`](Docs/Planning/technical-design-document.md), and [`Docs/Planning/irs-schema-classification.md`](Docs/Planning/irs-schema-classification.md).
 
+
+To move the project to another GitHub account and Supabase project (code, website, database, admin page and survey), follow [`Docs/Setup/transfer-guide.md`](Docs/Setup/transfer-guide.md).
