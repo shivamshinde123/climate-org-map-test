@@ -2,7 +2,33 @@
 
 ## Current release
 
-The first slice uses generated GeoJSON and has no application database.
+Organizations live in one Supabase (Postgres) table, created by `supabase/migrations/20261123000000_organizations.sql`. The generated GeoJSON stays as the map's fast-loading snapshot.
+
+### `organizations`
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | text, primary key | Same id as the map feature (`org_…` for IRS, `survey_…` for survey-only, `added_…` for form/CSV additions; `added_` ids hash name + state, so the same organization cannot be added twice). |
+| `properties` | jsonb | Exactly the map feature's properties, so the pipeline, the map and the forms share one shape. |
+| `review_status` | text | `pending` (visitor submission), `approved` (on the map), `removed` (deleted by the admin; kept only for pipeline rows), `rejected` (unused). |
+| `updated_via` | text | Who last changed the row: `pipeline`, `admin`, `public_form`. |
+| `created_at`, `updated_at` | timestamptz | `updated_at` is set by a trigger on every update. |
+| `name`, `city`, `state`, `verification` | text, generated | Read-only copies of `properties` fields for admin search. |
+
+Deleting: rows added through the forms are deleted outright. Pipeline rows are also in the static GeoJSON and would be re-sent by the next sync, so a deleted pipeline row stays as `removed` / `admin`: the map drops it and the sync leaves it alone.
+
+### `admins`
+
+`email` (primary key). Readable and writable only with the service role key; filled from `ADMIN_EMAILS` by `scripts/sync_supabase.py`.
+
+### Access rules (row-level security)
+
+- Anyone may read rows with `updated_via <> 'pipeline'` and `review_status` `approved` or `removed`; the map overlays these on the snapshot.
+- Anyone may insert a row only if it is `pending`, `public_form`, `Not Verified`, and under 16 KB.
+- An email in `admins` (checked by `is_admin()`) may read, change and delete every row.
+- `sync_pipeline_organizations(rows jsonb)` upserts pipeline rows and never overwrites a row with `updated_via` other than `pipeline`. Only the service role may call it.
+
+## Planned logical entities (longer term)
 
 ## Planned logical entities
 

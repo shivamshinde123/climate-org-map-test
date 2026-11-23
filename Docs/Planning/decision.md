@@ -76,6 +76,18 @@ The `app/` directory is deployed automatically to GitHub Pages on every push to 
 
 After a website is confirmed, `website_discovery.crawl_for_contacts` fetches the homepage and the first same-domain contact page found through link-text matching. It checks `robots.txt` before each fetch and extracts `email`, `phone`, and `contact_page_url` from `mailto:` and `tel:` links first, then falls back to text regex. The function returns `accessible=False` when `robots.txt` denies the crawler or the site is unreachable. In that case, `enrich_organizations_with_jev` makes a second OpenAI web-search call using `contact_search_payload` and the low-cost `search_context_size: low` setting to surface contacts from OpenAI's cached index. No contact details are inferred or guessed. Named individual contacts are not stored. Contact fields remain blank when neither path finds a public organizational contact.
 
+## 2026-11-23 — Supabase database, public add form, admin page
+
+At the project owner's request, organizations move into a Supabase table so new and verified organizations can be added, edited and deleted without editing files and pushing to GitHub. All current organizations are loaded; the pipeline keeps producing the GeoJSON and `scripts/sync_supabase.py` copies it in, never overwriting a row the admin or a visitor changed.
+
+The map keeps loading the static GeoJSON and merges only rows changed outside the pipeline from Supabase on each visit. Reading all 20,600 rows from the database on every visit would be slow; the static file plus a small live overlay gives instant edits without a deploy.
+
+Anyone can add an organization on `add.html` (form or CSV), but submissions are `pending` and can never be marked Verified; the owner, the only admin, approves or deletes them on `admin.html`. A public form that wrote straight to the map would let anyone publish spam or a fake "Verified" listing. The admin signs in with an emailed link (no password to manage), and database row-level security — not the page — enforces who can write, because the anon key is public.
+
+Deleting a form-added organization removes its row. Deleting a pipeline organization keeps a `removed` marker instead, because the organization is still in the static GeoJSON and in the next sync; the marker hides it and stops the sync from restoring it.
+
+Addresses are geocoded in the browser with the Census one-line geocoder through JSONP (it sends no CORS headers), matching the pipeline's geocoder. New organizations' filters are chosen directly from the GCC schema values, so no survey-answer mapping is needed. Work is on the `supabase-database` branch, which does not deploy until merged into `master`.
+
 ## 2026-11-23 — Add the remaining verified responses from the MAP Verification survey
 
 The "MAP Verification - Localized Climate Action Survey (Responses)" workbook has four responses. Cool Future was already on the map. Boston Climate Action Network (42 Seaverns Ave, Boston, MA 02130) and Cool Petaluma (245 Kentucky St, Suite B, Petaluma, CA) were added to `Data/Survey/survey-organizations.csv` as verified survey organizations, pinned at their Census-geocoded street addresses, with filters taken from their own answers (the first listed topic and reach, as for Cool Future). Neither has an IRS record on the map. The "Loopy" response (first name "Test", website "None", an invalid address) is a test submission and was not added. Cool Petaluma shares Cool Future's address, so their pins overlap; both appear in the results list.

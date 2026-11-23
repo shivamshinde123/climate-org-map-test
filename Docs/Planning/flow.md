@@ -148,11 +148,18 @@ and Jev classification unless their inputs or version keys change.
 ## Browser flow
 
 1. Load the generated GeoJSON.
-2. Populate filter values from feature properties.
+2. If `supabase-config.js` is filled, fetch rows changed outside the pipeline (approved or removed) and merge them by id: approved rows replace or add features, removed rows are dropped. On failure the snapshot is used.
+3. Populate filter values from feature properties.
 3. Initialize MapLibre and its cluster layers.
 4. Apply text and select filters when controls change.
 5. Update the map source, counts, and bounded result list.
 6. Fly to and display a popup when a result or point is selected.
+
+## Add and admin flows
+
+- `add.html`: validate → geocode the street address with the Census one-line geocoder (JSONP, since it sends no CORS headers) → build properties → insert as `pending` / `public_form` / `Not Verified`. CSV uploads (≤200 rows) run the same steps per row.
+- `admin.html`: email-link sign-in (Supabase Auth) → `is_admin()` check → approve or delete pending rows, search and edit any row (saved as `admin`, `approved`), add new ones, delete, CSV upload (live immediately, may set Verified).
+- Pipeline: `main.py` → `python -m scripts.sync_supabase`, which skips rows the admin or a visitor changed.
 
 ## External-source normalization flow
 

@@ -14,6 +14,17 @@ The geocoding script accepts input, output, cache, endpoint, batch-size, and opt
 
 Future geocoding, map-tile, CRM, and third-party source credentials must be supplied through environment variables and must never be committed. Variable names are TBD.
 
+## Supabase
+
+Run the migration in `supabase/migrations/` once (Supabase SQL Editor), then `python -m scripts.sync_supabase`. The script copies `app/data/organizations.geojson` into the database, records the admin emails, and writes `app/supabase-config.js` (public URL and anon key) for the map and forms. Re-run it after every pipeline run.
+
+- `SUPABASE_URL`: project URL (Project Settings → API).
+- `SUPABASE_ANON_KEY`: public anon key; ends up in `app/supabase-config.js`, which is safe because row-level security protects the data.
+- `SUPABASE_SERVICE_ROLE_KEY`: secret; used only by the sync script. Never put it in `app/`.
+- `ADMIN_EMAILS`: comma-separated emails allowed to sign in to `admin.html`.
+
+In the Supabase dashboard, Authentication → URL Configuration must list the admin page URLs (the GitHub Pages `admin.html` and `http://localhost:8000/admin.html`) as redirect URLs for the email sign-in link.
+
 ## Website discovery and Jev classification
 
 Step-by-step account and key creation for both providers: [../Setup/api-keys-setup.md](../Setup/api-keys-setup.md).
