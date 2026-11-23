@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Map Admin</title>
+    <link rel="icon" type="image/png" href="logo.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css?v=20261123-2" />
+  </head>
+  <body class="form-page" data-page="admin">
+    <main class="form-shell">
+      <header class="masthead">
+        <div class="eyebrow"><img src="logo.png" alt="" width="40" height="40" /> Green Community Catalysts</div>
+        <h1>Map<br /><em>admin</em></h1>
+        <p class="lede">Approve submissions, verify, edit, add and delete organizations. Changes appear on the map right away.</p>
+        <a class="back-link" href="./">← Back to the map</a>
+      </header>
+
+      <div id="admin-message" class="notice" role="status" hidden></div>
+
+      <!-- Signed out -->
+      <section id="sign-in" class="form-card" hidden>
+        <h2 class="section-label">Sign in</h2>
+        <form id="sign-in-form" class="inline-form">
+          <label class="field">
+            <span>Admin email</span>
+            <input name="email" type="email" required autocomplete="email" />
+          </label>
+          <button class="primary-button" type="submit">Email me a sign-in link</button>
+        </form>
+      </section>
+
+      <!-- Signed in -->
+      <div id="admin-area" hidden>
+        <p class="form-help">Signed in as <strong id="admin-email"></strong>. <button id="sign-out" class="text-button" type="button">Sign out</button></p>
+
+        <section class="form-card">
+          <h2 class="section-label">Waiting for review <span id="pending-count" class="multi-count"></span></h2>
+          <div id="pending-list" class="admin-list"></div>
+        </section>
+
+        <section class="form-card">
+          <h2 class="section-label">Find an organization to verify or edit</h2>
+          <form id="search-form" class="inline-form">
+            <label class="field">
+              <span>Name</span>
+              <input name="query" type="search" placeholder="e.g. Green Beverly" required />
+            </label>
+            <button class="primary-button" type="submit">Search</button>
+            <button id="new-organization" class="text-button" type="button">or add a new organization</button>
+          </form>
+          <div id="search-results" class="admin-list"></div>
+        </section>
+
+        <section id="editor" class="form-card" hidden>
+          <h2 class="section-label" id="editor-title">Edit organization</h2>
+          <form id="editor-form" autocomplete="off">
+            <div id="editor-fields" class="form-grid"></div>
+            <div class="button-row">
+              <button class="primary-button" type="submit">Save</button>
+              <button id="locate" class="text-button" type="button">Locate from address</button>
+              <button id="remove" class="text-button danger" type="button">Delete</button>
+              <button id="cancel-edit" class="text-button" type="button">Cancel</button>
+            </div>
+          </form>
+        </section>
+
+        <section class="form-card">
+          <h2 class="section-label">Upload organizations (CSV)</h2>
+          <p class="form-help">
+            Rows go live immediately. Start from the
+            <a id="csv-template" class="popup-link" download="organizations-template.csv">template</a>;
+            the <code>verification</code> column accepts "Verified" or "Not Verified".
+          </p>
+          <label class="file-field">
+            <span>Choose a CSV file</span>
+            <input id="csv-file" type="file" accept=".csv,text/csv" />
+          </label>
+          <div id="csv-message" class="notice" role="status" hidden></div>
+        </section>
+      </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <script src="supabase-config.js?v=20261123-2"></script>
+    <script src="forms.js?v=20261123-2"></script>
+    <script src="admin.js?v=20261123-2"></script>
+  </body>
+</html>

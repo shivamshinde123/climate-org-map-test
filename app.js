@@ -8,7 +8,7 @@
  */
 
 // The explicit version bypasses stale browser/proxy caches after data releases.
-const ASSET_VERSION = "20261123-1";
+const ASSET_VERSION = "20261123-2";
 const DATA_URL = `data/organizations.geojson?v=${ASSET_VERSION}`;
 const SCHEMA_URL = `data/map-schema.json?v=${ASSET_VERSION}`;
 const MAX_RESULTS = 80;
@@ -152,6 +152,34 @@ function updateMenuLabel(menu) {
   menu.querySelector("summary").textContent =
     checked.length === 0 ? menu.dataset.all : checked.length === 1 ? checked[0] : `${checked.length} selected`;
   menu.classList.toggle("has-selection", checked.length > 0);
+}
+
+async function applyLiveChanges(features) {
+  // The static file is the pipeline snapshot; Supabase holds what changed since
+  // (admin edits and approved submissions). Removed rows leave the map.
+  const config = window.SUPABASE_CONFIG ?? {};
+  if (!config.url || !config.anonKey) return features;
+  try {
+    const response = await fetch(
+      `${config.url}/rest/v1/organizations?select=id,properties,review_status&updated_via=neq.pipeline&review_status=in.(approved,removed)`,
+      { headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` } },
+    );
+    if (!response.ok) throw new Error(`Live changes request failed with ${response.status}`);
+    const byId = new Map(features.map((feature) => [feature.properties.id, feature]));
+    (await response.json()).forEach(({ id, properties, review_status }) => {
+      if (review_status === "removed") return byId.delete(id);
+      const { latitude, longitude } = properties;
+      const geometry = Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? { type: "Point", coordinates: [longitude, latitude] }
+        : null;
+      byId.set(id, { type: "Feature", geometry, properties });
+    });
+    return [...byId.values()];
+  } catch (error) {
+    // The map still works from the snapshot if the database is unreachable.
+    console.warn(error);
+    return features;
+  }
 }
 
 function featureCollection(features) {
@@ -445,7 +473,8 @@ async function start() {
       ]),
     );
     // Records without a ZIP or city match carry null geometry and cannot be shown.
-    allFeatures = (data.features ?? []).filter((feature) => feature.geometry);
+    data.features = await applyLiveChanges(data.features ?? []);
+    allFeatures = data.features.filter((feature) => feature.geometry);
     // Canonicalize records once at startup so filtering remains a cheap equality
     // comparison on every keystroke or select change.
     schema.filters.forEach(({ field }) => {
