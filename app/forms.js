@@ -303,7 +303,7 @@ function photonSuggestion(feature, typed, chosenState) {
  * (role=listbox). `search(text)` returns suggestions (strings or objects with
  * a `label`); `pick(item)` fills the form. Typing anything else is always fine.
  */
-function attachSuggestions(input, list, { search, pick, delay = 0 }) {
+function attachSuggestions(input, list, { search, pick, delay = 0, openOnFocus = false }) {
   let results = [];
   let active = -1;
   let timer;
@@ -330,18 +330,31 @@ function attachSuggestions(input, list, { search, pick, delay = 0 }) {
     close();
     pick(item);
   };
+  // `opening` is true when the list opens by click, focus or ArrowDown rather than typing.
+  const update = async (opening = false) => {
+    const request = ++latest;
+    const found = await search(input.value.trim(), { opening });
+    if (request !== latest) return; // A newer keystroke already answered.
+    results = found;
+    // Reopening on a chosen value highlights it in the full list.
+    active = opening ? results.findIndex((item) => label(item) === input.value.trim()) : -1;
+    render();
+  };
   input.addEventListener("input", () => {
     clearTimeout(timer);
-    timer = setTimeout(async () => {
-      const request = ++latest;
-      const found = await search(input.value.trim());
-      if (request !== latest) return; // A newer keystroke already answered.
-      results = found;
-      active = -1;
-      render();
-    }, delay);
+    timer = setTimeout(update, delay);
   });
+  if (openOnFocus) {
+    // Behaves like a dropdown: clicking or tabbing in shows the list.
+    input.addEventListener("focus", () => update(true));
+    input.addEventListener("click", () => list.hidden && update(true));
+  }
   input.addEventListener("keydown", (event) => {
+    if (list.hidden && openOnFocus && event.key === "ArrowDown") {
+      event.preventDefault();
+      update(true);
+      return;
+    }
     if (list.hidden) return;
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
@@ -354,7 +367,10 @@ function attachSuggestions(input, list, { search, pick, delay = 0 }) {
       close();
     }
   });
-  input.addEventListener("blur", () => setTimeout(close, 150));
+  // Close shortly after leaving, unless the field is focused again first.
+  let closeTimer;
+  input.addEventListener("blur", () => (closeTimer = setTimeout(close, 150)));
+  input.addEventListener("focus", () => clearTimeout(closeTimer));
   // mousedown (not click) so the pick happens before the input loses focus.
   list.addEventListener("mousedown", (event) => {
     const item = event.target.closest("[data-index]");
@@ -364,10 +380,13 @@ function attachSuggestions(input, list, { search, pick, delay = 0 }) {
   });
 }
 
-/** Up to `limit` towns matching `text`: names starting with it first, then names containing it. */
-function matchTowns(names, text, limit = 8) {
+/**
+ * Towns for the list: every town when nothing is typed (the list scrolls),
+ * otherwise names starting with the text first, then names containing it.
+ */
+function matchTowns(names, text, limit = 50) {
   const query = text.toLowerCase();
-  if (!query) return [];
+  if (!query) return names;
   const starts = names.filter((name) => name.toLowerCase().startsWith(query));
   const contains = names.filter((name) => !name.toLowerCase().startsWith(query) && name.toLowerCase().includes(query));
   return [...starts, ...contains].slice(0, limit);
@@ -382,9 +401,19 @@ function enhanceOrganizationFields(form, { onPick = () => {} } = {}) {
   const { state, city, address, postal_code: zip } = form.elements;
 
   attachSuggestions(city, city.nextElementSibling, {
-    search: async (text) => matchTowns(await loadTowns(state.value), text),
+    openOnFocus: true,
+    search: async (text, { opening }) => {
+      const names = await loadTowns(state.value);
+      // Opening on a town already chosen shows the whole list, so another is easy to pick.
+      return opening && names.includes(text) ? names : matchTowns(names, text);
+    },
     pick: (name) => (city.value = name),
   });
+  const townHint = () => {
+    city.placeholder = state.value ? "Pick from the list or type a town" : "Choose a state first to see its towns";
+  };
+  state.addEventListener("change", townHint);
+  townHint();
 
   let controller;
   attachSuggestions(address, address.nextElementSibling, {
@@ -414,6 +443,7 @@ function enhanceOrganizationFields(form, { onPick = () => {} } = {}) {
       if (suggestion.city) city.value = suggestion.city;
       if (suggestion.postal_code) zip.value = suggestion.postal_code;
       state.value = suggestion.state;
+      townHint();
       form.addressSuggestion = suggestion;
       onPick(suggestion);
     },

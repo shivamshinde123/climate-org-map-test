@@ -653,3 +653,8 @@ body.form-page { overflow: auto; }
 .suggestions { max-height: 264px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--ash) transparent; }
 .suggestions::-webkit-scrollbar { width: 6px; }
 .suggestions::-webkit-scrollbar-thumb { background: var(--ash); border-radius: 3px; }
+/* Town / City reads as a dropdown: a chevron like the selects, but any town can be typed. */
+.combo input[aria-controls$="-town-list"] {
+  padding-right: 36px;
+  background: var(--snow) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%231c3a13' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 14px center;
+}
