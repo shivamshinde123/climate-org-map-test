@@ -14,7 +14,7 @@ const TEXT_FIELDS = [
   { key: "website_url", label: "Website", placeholder: "example.org" },
   { key: "address", label: "Street address", placeholder: "123 Main St" },
   { key: "city", label: "Town / City", required: true },
-  { key: "state", label: "State", required: true, placeholder: "MA", maxlength: 2 },
+  { key: "state", label: "State", required: true },
   { key: "postal_code", label: "ZIP code", maxlength: 10 },
 ];
 
@@ -41,6 +41,28 @@ const LEGACY_FIELDS = {
   gcc_reach: "reach",
 };
 
+// The only accepted states (strict): code -> name. Towns and addresses are suggestions only.
+const US_STATES = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California", CO: "Colorado",
+  CT: "Connecticut", DE: "Delaware", DC: "District of Columbia", FL: "Florida", GA: "Georgia",
+  HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana", IA: "Iowa", KS: "Kansas", KY: "Kentucky",
+  LA: "Louisiana", ME: "Maine", MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota",
+  MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska", NV: "Nevada", NH: "New Hampshire",
+  NJ: "New Jersey", NM: "New Mexico", NY: "New York", NC: "North Carolina", ND: "North Dakota",
+  OH: "Ohio", OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island", SC: "South Carolina",
+  SD: "South Dakota", TN: "Tennessee", TX: "Texas", UT: "Utah", VT: "Vermont", VA: "Virginia",
+  WA: "Washington", WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming",
+  AS: "American Samoa", GU: "Guam", MP: "Northern Mariana Islands", PR: "Puerto Rico", VI: "U.S. Virgin Islands",
+};
+const STATE_CODE_BY_NAME = Object.fromEntries(Object.entries(US_STATES).map(([code, name]) => [name.toLowerCase(), code]));
+
+/** "ma", "MA" or "Massachusetts" -> "MA"; anything else -> null. */
+function stateCode(value) {
+  const text = String(value ?? "").trim();
+  if (US_STATES[text.toUpperCase()]) return text.toUpperCase();
+  return STATE_CODE_BY_NAME[text.toLowerCase()] ?? null;
+}
+
 function supabaseConfig() {
   const config = window.SUPABASE_CONFIG ?? {};
   return config.url && config.anonKey ? config : null;
@@ -58,12 +80,37 @@ function escapeText(value) {
 
 /** Render the text inputs and one select per filter into `container`. */
 function renderOrganizationFields(container, filters, { admin = false } = {}) {
+  const formId = container.closest("form").id;
+  const stateOptions = Object.entries(US_STATES)
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([code, name]) => `<option value="${code}">${escapeText(name)} (${code})</option>`)
+    .join("");
+  const control = (field) => {
+    const required = field.required ? "required" : "";
+    if (field.key === "state") {
+      return `<select name="state" ${required}><option value="">Choose a state</option>${stateOptions}</select>`;
+    }
+    if (field.key === "city") {
+      // A datalist suggests towns for the chosen state but accepts any name.
+      return `<input name="city" type="text" ${required} list="${formId}-towns" autocomplete="off" />
+        <datalist id="${formId}-towns"></datalist>`;
+    }
+    if (field.key === "address") {
+      return `<div class="combo">
+          <input name="address" type="text" placeholder="Start typing, e.g. 123 Main St" autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-address-list" />
+          <ul id="${formId}-address-list" class="suggestions" role="listbox" hidden></ul>
+        </div>
+        <small class="field-note">Suggestions © OpenStreetMap contributors (Photon). Any address can be typed.</small>`;
+    }
+    return `<input name="${field.key}" type="text" ${required}
+      ${field.placeholder ? `placeholder="${field.placeholder}"` : ""} ${field.maxlength ? `maxlength="${field.maxlength}"` : ""} />`;
+  };
   const text = TEXT_FIELDS.map(
     (field) => `
-      <label class="field">
+      <label class="field ${field.key === "address" ? "field-address" : ""}">
         <span>${field.label}${field.required ? " *" : ""}</span>
-        <input name="${field.key}" type="text" ${field.required ? "required" : ""}
-          ${field.placeholder ? `placeholder="${field.placeholder}"` : ""} ${field.maxlength ? `maxlength="${field.maxlength}"` : ""} />
+        ${control(field)}
       </label>`,
   ).join("");
   const selects = filters
@@ -112,8 +159,11 @@ function validateOrganization(values, filters, { admin = false } = {}) {
     clean[field.key] = String(values[field.key] ?? "").trim();
     if (field.required && !clean[field.key]) errors.push(`${field.label} is required`);
   });
-  clean.state = clean.state.toUpperCase();
-  if (clean.state && !/^[A-Z]{2}$/.test(clean.state)) errors.push("State must be a two-letter code such as MA");
+  if (clean.state) {
+    const code = stateCode(clean.state);
+    if (!code) errors.push(`State "${clean.state}" is not a U.S. state; use a two-letter code such as MA`);
+    clean.state = code ?? clean.state;
+  }
   if (clean.website_url && !/^https?:\/\//i.test(clean.website_url)) clean.website_url = `https://${clean.website_url}`;
   if (clean.website_url) {
     try {
@@ -172,7 +222,10 @@ let zipCentroids; // Loaded on first need (~900 KB): ZIP -> [latitude, longitude
  * (as the pipeline does) when the Census geocoder cannot match the address.
  * Returns { latitude, longitude, location_precision } or null.
  */
-async function locateOrganization(values) {
+async function locateOrganization(values, form = null) {
+  // A picked address suggestion with a house number is already an exact point.
+  const picked = pickedSuggestion(form, values);
+  if (picked) return { latitude: picked.latitude, longitude: picked.longitude, location_precision: "address_suggestion" };
   const exact = await geocodeAddress(values);
   if (exact) return { ...exact, location_precision: "census_address_range" };
   // ponytail: ZIP center only, no city-center fallback; add data/city centroids if many ZIP-less rows appear.
@@ -190,6 +243,160 @@ function locationNote(location, values) {
     return `The street address was not found, so it is pinned at the center of ZIP ${values.postal_code.slice(0, 5)}.`;
   }
   return "";
+}
+
+/* ---------------- Town and street-address suggestions ---------------- */
+
+const PHOTON_URL = "https://photon.komoot.io/api/";
+const townLists = new Map(); // State code -> Promise of town names.
+
+function loadTowns(state) {
+  if (!US_STATES[state]) return Promise.resolve([]);
+  if (!townLists.has(state)) {
+    townLists.set(state, fetch(`data/towns/${state}.json`).then((r) => (r.ok ? r.json() : [])).catch(() => []));
+  }
+  return townLists.get(state);
+}
+
+/** The picked suggestion, if the form still holds its address and state. */
+function pickedSuggestion(form, values) {
+  const picked = form?.addressSuggestion;
+  return picked && picked.precise && picked.address === values.address && picked.state === values.state ? picked : null;
+}
+
+/** What the person typed: the leading house number and the first street word. */
+function typedAddressParts(text) {
+  const number = text.match(/^\s*(\d+[A-Za-z]?)\b/)?.[1] ?? "";
+  const word = text.slice(number.length).match(/[A-Za-z]{3,}/)?.[0]?.toLowerCase() ?? "";
+  return { number, word };
+}
+
+/**
+ * Turn one Photon result into the form's fields, or null when it should not be
+ * offered: outside the U.S. or the chosen state, a place without a house number
+ * (a bus stop, a park), or on a different street than the one typed.
+ */
+function photonSuggestion(feature, typed, chosenState) {
+  const p = feature.properties;
+  const state = STATE_CODE_BY_NAME[String(p.state ?? "").toLowerCase()];
+  if (p.countrycode !== "US" || !state || (chosenState && state !== chosenState)) return null;
+  if (p.type !== "street" && !p.housenumber) return null;
+  const street = p.street ?? (p.type === "street" ? p.name : "");
+  if (!street || (typed.word && !street.toLowerCase().includes(typed.word))) return null;
+  // Street-only results keep the typed house number; the pin then comes from the Census lookup.
+  const address = [p.housenumber ?? typed.number, street].filter(Boolean).join(" ");
+  const city = p.city ?? p.town ?? p.village ?? "";
+  const place = p.housenumber && p.name && p.name !== street ? `${p.name} · ` : "";
+  return {
+    address, city, state, postal_code: p.postcode ?? "",
+    latitude: feature.geometry.coordinates[1], longitude: feature.geometry.coordinates[0],
+    precise: Boolean(p.housenumber),
+    label: `${place}${address}, ${[city, state].filter(Boolean).join(", ")}${p.postcode ? ` ${p.postcode}` : ""}`,
+  };
+}
+
+/**
+ * Add town suggestions (per state) and street-address suggestions to an
+ * organization form rendered by renderOrganizationFields. Neither restricts
+ * what can be typed. `onPick(suggestion)` runs after an address is picked.
+ */
+function enhanceOrganizationFields(form, { onPick = () => {} } = {}) {
+  const { state, city, address, postal_code: zip } = form.elements;
+  const towns = form.querySelector("datalist");
+  const list = form.querySelector(".suggestions");
+
+  const fillTowns = async () => {
+    const names = await loadTowns(state.value);
+    towns.innerHTML = names.map((name) => `<option value="${escapeText(name)}"></option>`).join("");
+  };
+  state.addEventListener("change", fillTowns);
+  fillTowns();
+
+  let results = [];
+  let active = -1;
+  let timer;
+  let controller;
+  const close = () => {
+    list.hidden = true;
+    address.setAttribute("aria-expanded", "false");
+    address.removeAttribute("aria-activedescendant");
+    active = -1;
+  };
+  const render = () => {
+    list.innerHTML = results
+      .map((s, i) => `<li id="${list.id}-${i}" role="option" aria-selected="${i === active}" data-index="${i}">${escapeText(s.label)}</li>`)
+      .join("");
+    list.hidden = !results.length;
+    address.setAttribute("aria-expanded", String(results.length > 0));
+    if (active >= 0) address.setAttribute("aria-activedescendant", `${list.id}-${active}`);
+  };
+  const pick = (suggestion) => {
+    address.value = suggestion.address;
+    if (suggestion.city) city.value = suggestion.city;
+    if (suggestion.postal_code) zip.value = suggestion.postal_code;
+    if (state.value !== suggestion.state) {
+      state.value = suggestion.state;
+      fillTowns();
+    }
+    form.addressSuggestion = suggestion;
+    close();
+    onPick(suggestion);
+  };
+  const search = async () => {
+    const typed = address.value.trim();
+    if (typed.length < 4) return close();
+    // The chosen town and state narrow the search without limiting what can be typed.
+    const query = [typed, city.value.trim(), US_STATES[state.value]].filter(Boolean).join(", ");
+    controller?.abort();
+    controller = new AbortController();
+    try {
+      const params = new URLSearchParams({ q: query, limit: "10", lang: "en" });
+      const response = await fetch(`${PHOTON_URL}?${params}&layer=house&layer=street`, { signal: controller.signal });
+      const data = await response.json();
+      const seen = new Set();
+      const typedParts = typedAddressParts(typed);
+      results = (data.features ?? [])
+        .map((feature) => photonSuggestion(feature, typedParts, state.value))
+        .filter((s) => s && !seen.has(s.label) && seen.add(s.label))
+        .slice(0, 6);
+      active = -1;
+      render();
+    } catch (error) {
+      if (error.name !== "AbortError") close(); // No suggestions; typing still works.
+    }
+  };
+
+  address.addEventListener("input", () => {
+    form.addressSuggestion = null; // Typed text no longer matches a picked point.
+    clearTimeout(timer);
+    timer = setTimeout(search, 350);
+  });
+  address.addEventListener("keydown", (event) => {
+    if (list.hidden) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      const step = event.key === "ArrowDown" ? 1 : -1;
+      active = (active + step + results.length) % results.length;
+      render();
+    } else if (event.key === "Enter" && active >= 0) {
+      event.preventDefault();
+      pick(results[active]);
+    } else if (event.key === "Escape") {
+      close();
+    }
+  });
+  address.addEventListener("blur", () => setTimeout(close, 150));
+  // mousedown (not click) so the pick happens before the input loses focus.
+  list.addEventListener("mousedown", (event) => {
+    const item = event.target.closest("[data-index]");
+    if (!item) return;
+    event.preventDefault();
+    pick(results[Number(item.dataset.index)]);
+  });
+  form.addEventListener("reset", () => {
+    form.addressSuggestion = null;
+    setTimeout(fillTowns);
+  });
 }
 
 /** Stable id from name and state, so the same organization cannot be added twice. */
@@ -320,7 +527,7 @@ const TEXT_COLUMN_HINTS = {
   website_url: "Website address",
   address: "Street address (used for the map pin)",
   city: "Town or city",
-  state: "Two-letter state code",
+  state: "Two-letter code such as MA, or the full name such as Massachusetts",
   postal_code: "5-digit ZIP code (fallback for the map pin)",
 };
 
@@ -382,6 +589,7 @@ async function startAddPage() {
   const config = supabaseConfig();
   const filters = await loadFilterSchema();
   renderOrganizationFields(document.querySelector("#add-fields"), filters);
+  enhanceOrganizationFields(form);
   renderRules(filters);
   if (!config) {
     showMessage(message, "Submissions are not open yet. Please check back soon.", "error");
@@ -399,7 +607,7 @@ async function startAddPage() {
     button.disabled = true;
     showMessage(message, "Locating the address…");
     try {
-      const location = await locateOrganization(values);
+      const location = await locateOrganization(values, form);
       if (location) Object.assign(values, location);
       await submitPublic(config, await buildProperties(values, filters, publicOptions));
       form.reset();

@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-9" />
+    <link rel="stylesheet" href="styles.css?v=20261123-12" />
   </head>
   <body class="form-page" data-page="admin">
     <main class="form-shell">
@@ -49,10 +49,11 @@
           </summary>
           <ul class="rules-list">
             <li><strong>Your changes are live right away.</strong> Saving, adding, uploading a CSV or deleting here changes the public map immediately. Organizations sent from the public "Add your organization" page wait under <em>Waiting for review</em> until you approve them, and visitors can never mark them Verified.</li>
-            <li><strong>Required:</strong> organization name, town/city, and a two-letter state code such as <code>MA</code>. Everything else is optional.</li>
+            <li><strong>Required:</strong> organization name, town/city, and state. In the form, pick the state from the list; in a CSV, use the two-letter code (<code>MA</code>) or the full name (<code>Massachusetts</code>). Everything else is optional.</li>
             <li><strong>One organization = name + state.</strong> Uploading a CSV row with the same name and state as an existing organization you added updates it. Adding one by hand with a name and state that already exist is refused; edit the existing one instead.</li>
             <li><strong>Website:</strong> <code>example.org</code> is fine; <code>https://</code> is added automatically.</li>
-            <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code (approximate). With neither, the organization is saved but not shown on the map until you open Edit and enter latitude and longitude (right-click the spot in Google Maps to copy them).</li>
+            <li><strong>Suggestions:</strong> as you type a street address, matching addresses appear; picking one fills in the town, state and ZIP and places the pin exactly. Town/City also suggests towns in the chosen state. Both are only suggestions: you can type any address or town. Address suggestions come from Photon (OpenStreetMap), so what you type in the street address box is sent to that service.</li>
+          <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code (approximate). With neither, the organization is saved but not shown on the map until you open Edit and enter latitude and longitude (right-click the spot in Google Maps to copy them).</li>
             <li><strong>Filter columns</strong> must use one of the values listed below. Capitalization does not matter; leave a cell blank for "Unknown".</li>
             <li><strong>Verification:</strong> "Verified" or "Not Verified" (default). Marking an organization Verified records today's date as its verification.</li>
             <li><strong>Delete:</strong> organizations added through the forms or a CSV are deleted permanently. Organizations from the original map data are hidden instead, and can be restored by searching for them, opening Edit and clicking Save.</li>
@@ -133,8 +134,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <script src="supabase-config.js?v=20261123-9"></script>
-    <script src="forms.js?v=20261123-9"></script>
-    <script src="admin.js?v=20261123-9"></script>
+    <script src="supabase-config.js?v=20261123-12"></script>
+    <script src="forms.js?v=20261123-12"></script>
+    <script src="admin.js?v=20261123-12"></script>
   </body>
 </html>

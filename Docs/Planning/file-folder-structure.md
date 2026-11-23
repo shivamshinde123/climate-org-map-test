@@ -13,7 +13,8 @@ Climate Org Mapping/
 |   |-- data/
 |   |   |-- organizations.geojson     # generated
 |   |   |-- map-schema.json           # filter and field vocabulary
-|   |   `-- zip-centroids.json        # ZIP -> [lat, lng] fallback for the forms (from Data/Geocoding)
+|   |   |-- zip-centroids.json        # ZIP -> [lat, lng] fallback for the forms (from Data/Geocoding)
+|   |   `-- towns/<STATE>.json        # town suggestions per state (scripts/build_town_lists.py)
 |   |-- app.js                        # map; overlays live changes from Supabase
 |   |-- index.html
 |   |-- add.html                      # public "Add your organization" form and CSV upload
@@ -38,6 +39,7 @@ Climate Org Mapping/
 |   |-- enrich_organizations_with_jev.py         # Brave/OpenRouter discovery + Jev classification
 |   |-- website_discovery.py          # Brave Search discovery and deterministic contact crawling
 |   |-- sync_supabase.py              # loads the GeoJSON into Supabase, writes supabase-config.js
+|   |-- build_town_lists.py           # Census place + town names -> app/data/towns/
 |   `-- load_environment.py           # .env loader
 |-- supabase/
 |   `-- migrations/                   # database tables, access rules, sync function

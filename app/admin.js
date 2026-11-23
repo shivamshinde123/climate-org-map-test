@@ -126,6 +126,15 @@ async function openEditor(id) {
   }
   renderOrganizationFields(ui.editorFields, filters, { admin: true });
   if (editing.properties) fillForm(ui.editorForm, editing.properties);
+  enhanceOrganizationFields(ui.editorForm, {
+    // An exact address pick places the pin right away (shown in the coordinates).
+    onPick: (picked) => {
+      if (!picked.precise) return;
+      ui.editorForm.elements.latitude.value = picked.latitude;
+      ui.editorForm.elements.longitude.value = picked.longitude;
+      ui.editorForm.dataset.precision = "address_suggestion";
+    },
+  });
   ui.editorForm.dataset.precision = "";
   ui.remove.hidden = !editing.id;
   ui.editor.hidden = false;
@@ -139,7 +148,7 @@ function closeEditor() {
 
 /** Locate the address into `values` and the form; returns the location or null. */
 async function locateInto(values) {
-  const location = await locateOrganization(values);
+  const location = await locateOrganization(values, ui.editorForm);
   if (!location) return null;
   Object.assign(values, location);
   ui.editorForm.elements.latitude.value = location.latitude;

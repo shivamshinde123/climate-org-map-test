@@ -157,7 +157,7 @@ and Jev classification unless their inputs or version keys change.
 
 ## Add and admin flows
 
-- `add.html`: validate → geocode the street address with the Census one-line geocoder (JSONP, since it sends no CORS headers), falling back to the ZIP center from `data/zip-centroids.json` → build properties → insert as `pending` / `public_form` / `Not Verified`. CSV uploads (≤200 rows) run the same steps per row.
+- `add.html`: validate → geocode the street address with the Census one-line geocoder (JSONP, since it sends no CORS headers), falling back to the ZIP center from `data/zip-centroids.json`; a picked Photon address suggestion with a house number is used directly → build properties → insert as `pending` / `public_form` / `Not Verified`. CSV uploads (≤200 rows) run the same steps per row.
 - `admin.html`: email-link sign-in (Supabase Auth) → `is_admin()` check → approve or delete pending rows, search and edit any row (saved as `admin`, `approved`), add new ones, delete, CSV upload (live immediately, may set Verified).
 - Pipeline: `main.py` → `python -m scripts.sync_supabase`, which skips rows the admin or a visitor changed.
 

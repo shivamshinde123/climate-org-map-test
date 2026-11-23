@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-9" />
+    <link rel="stylesheet" href="styles.css?v=20261123-12" />
   </head>
   <body class="form-page" data-page="add">
     <main class="form-shell">
@@ -35,9 +35,10 @@
         <ul class="rules-list">
           <li><strong>What belongs on the map:</strong> community-focused climate and sustainability organizations, such as nonprofits, grassroots groups, coalitions and town committees.</li>
           <li><strong>Every submission is reviewed.</strong> It appears on the map once the Green Community Catalysts team approves it.</li>
-          <li><strong>Required:</strong> organization name, town/city, and a two-letter state code such as <code>MA</code>. Everything else is optional, but a website and street address help us review it faster.</li>
+          <li><strong>Required:</strong> organization name, town/city, and state. In the form, pick the state from the list; in a CSV, use the two-letter code (<code>MA</code>) or the full name (<code>Massachusetts</code>). Everything else is optional, but a website and street address help us review it faster.</li>
           <li><strong>One organization = name + state.</strong> If an organization with the same name and state has already been submitted, it is not accepted again.</li>
           <li><strong>Website:</strong> <code>example.org</code> is fine; <code>https://</code> is added automatically.</li>
+          <li><strong>Suggestions:</strong> as you type a street address, matching addresses appear; picking one fills in the town, state and ZIP and places the pin exactly. Town/City also suggests towns in the chosen state. Both are only suggestions: you can type any address or town. Address suggestions come from Photon (OpenStreetMap), so what you type in the street address box is sent to that service.</li>
           <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code. If neither works, the organization is still submitted and our team places it during review.</li>
           <li><strong>Filters</strong> (type, audience, resilience and so on): pick the closest option, or "Unknown" if you are not sure. In a CSV, use the values listed below; capitalization does not matter, and a blank cell means "Unknown".</li>
           <li><strong>Verification</strong> is done by our team, not on this page. To get an organization marked Verified, open it on the map and use <em>Claim and verify this listing</em>.</li>
@@ -83,7 +84,7 @@
     </main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <script src="supabase-config.js?v=20261123-9"></script>
-    <script src="forms.js?v=20261123-9"></script>
+    <script src="supabase-config.js?v=20261123-12"></script>
+    <script src="forms.js?v=20261123-12"></script>
   </body>
 </html>
