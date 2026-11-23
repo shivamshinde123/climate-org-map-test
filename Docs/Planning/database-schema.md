@@ -19,7 +19,7 @@ Deleting: rows added through the forms are deleted outright. Pipeline rows are a
 
 ### `admins`
 
-`email` (primary key). Readable and writable only with the service role key; filled from `ADMIN_EMAILS` by `scripts/sync_supabase.py`.
+`email` (primary key). Readable and writable only with the service role key. `scripts/sync_supabase.py` keeps it equal to `ADMIN_EMAILS` (adds and removes; an empty setting changes nothing).
 
 ### Access rules (row-level security)
 

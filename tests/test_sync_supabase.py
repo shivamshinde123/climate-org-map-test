@@ -3,7 +3,9 @@
 import json
 import unittest
 
-from scripts.sync_supabase import batches, config_js, pipeline_rows
+from urllib.parse import unquote
+
+from scripts.sync_supabase import admin_emails, batches, config_js, pipeline_rows, removal_filter
 
 
 class SyncSupabaseTests(unittest.TestCase):
@@ -13,6 +15,15 @@ class SyncSupabaseTests(unittest.TestCase):
 
     def test_batches_cover_every_row_once(self):
         self.assertEqual([len(b) for b in batches(list(range(1201)), 500)], [500, 500, 201])
+
+    def test_admin_emails_are_normalized(self):
+        self.assertEqual(admin_emails(" B@y.org, a@x.org,,b@y.org "), ["a@x.org", "b@y.org"])
+        self.assertEqual(admin_emails(""), [])
+
+    def test_removal_filter_keeps_only_listed_admins(self):
+        query = removal_filter(["a@x.org", "b.c+d@y.org"])
+        self.assertTrue(query.startswith("email="))
+        self.assertEqual(unquote(query.removeprefix("email=")), 'not.in.("a@x.org","b.c+d@y.org")')
 
     def test_config_is_valid_javascript_assignment(self):
         line = config_js("https://x.supabase.co", "anon").splitlines()[-1]

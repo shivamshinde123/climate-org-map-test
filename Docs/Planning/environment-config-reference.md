@@ -21,7 +21,7 @@ Run the migration in `supabase/migrations/` once (Supabase SQL Editor), then `py
 - `SUPABASE_URL`: project URL (Project Settings → API).
 - `SUPABASE_ANON_KEY`: public anon key; ends up in `app/supabase-config.js`, which is safe because row-level security protects the data.
 - `SUPABASE_SERVICE_ROLE_KEY`: secret; used only by the sync script. Never put it in `app/`.
-- `ADMIN_EMAILS`: comma-separated emails allowed to sign in to `admin.html`.
+- `ADMIN_EMAILS`: comma-separated emails allowed to use `admin.html`. Each sync makes the `admins` table match this list exactly: new emails are added and emails no longer listed are removed. If it is empty or missing, the table is left unchanged rather than emptied.
 
 In the Supabase dashboard, Authentication → URL Configuration must list the admin page URLs (the GitHub Pages `admin.html` and `http://localhost:8000/admin.html`) as redirect URLs for the email sign-in link.
 
