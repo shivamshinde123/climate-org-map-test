@@ -49,7 +49,7 @@ Linked from the map header by a filled "+ Add your organization" button. At the 
 
 ## Admin (admin.html)
 
-Not linked from the map. Sign-in card (email link) → a collapsed "How to add and edit organizations" rules bar at the top (admin rules, column table including verification, example CSV) → "Waiting for review" list (Approve / Edit / Delete), "Find an organization" search with Edit buttons and "add a new organization", the editor card (all fields plus Verification, latitude, longitude; Save, Locate from address, Delete, Cancel), and an admin CSV upload that goes live immediately.
+Not linked from the map. Sign-in card (email link) → a collapsed "How to add and edit organizations" rules bar at the top (admin rules, column table including verification, example CSV) → "Waiting for review" list (Approve / Edit / Delete), "Find an organization" search with Edit buttons and "add a new organization", the editor card (all fields plus Verification, latitude, longitude; Save, Find latitude & longitude (fills the coordinates from the address), Delete, Cancel), and an admin CSV upload that goes live immediately.
 
 ## States
 
