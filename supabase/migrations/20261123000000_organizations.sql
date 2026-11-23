@@ -29,7 +29,7 @@ create index if not exists organizations_changed_idx
   on public.organizations (updated_via, review_status) where updated_via <> 'pipeline';
 
 create or replace function public.touch_updated_at() returns trigger
-language plpgsql as $$
+language plpgsql set search_path = '' as $$
 begin
   new.updated_at = now();
   return new;
@@ -47,7 +47,9 @@ create or replace function public.is_admin() returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from admins where lower(email) = lower(auth.jwt() ->> 'email'));
 $$;
-grant execute on function public.is_admin() to anon, authenticated;
+-- Only signed-in users need it; it reveals nothing but the caller's own status.
+revoke execute on function public.is_admin() from public, anon;
+grant execute on function public.is_admin() to authenticated;
 
 alter table public.organizations enable row level security;
 
@@ -80,7 +82,7 @@ create policy "admin manages organizations" on public.organizations
 -- Bulk load used by scripts/sync_supabase.py with the service role key.
 -- Rows changed by the admin or a visitor are left alone.
 create or replace function public.sync_pipeline_organizations(rows jsonb) returns integer
-language sql as $$
+language sql set search_path = '' as $$
   with input as (
     select item ->> 'id' as id, item as properties from jsonb_array_elements(rows) as item
   ), written as (
