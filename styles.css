@@ -545,3 +545,18 @@ body.form-page { overflow: auto; }
    :not([hidden]) keeps the hidden attribute working. */
 #admin-area:not([hidden]) { display: grid; gap: 24px; }
 #admin-area > .form-help { margin: 0; }
+
+/* Delete confirmation: a flat card like the rest of the page, over a dimmed page. */
+.confirm-dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 24px;
+  color: var(--forest);
+  background: var(--snow);
+  border: 0;
+  border-radius: 16px;
+}
+.confirm-dialog::backdrop { background: rgba(28, 58, 19, 0.35); }
+.confirm-title { margin: 0 0 8px; font-size: 20px; font-weight: 400; line-height: 1.25; letter-spacing: -0.01em; }
+.confirm-dialog .form-help { margin-bottom: 20px; }
+.confirm-buttons { justify-content: flex-end; }
+.danger-button { background: #8a2c0d; border-color: #8a2c0d; }
