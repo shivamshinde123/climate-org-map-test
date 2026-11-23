@@ -152,41 +152,41 @@ function updateMenuLabel(menu) {
   menu.classList.toggle("has-selection", checked.length > 0);
 }
 
-// Only what the map, list, search and filters need; the popup's details
-// (website, contacts, summary) are fetched when a pin is opened.
-const MAP_FIELDS = ["name", "address", "city", "state", "postal_code", "source_id"];
-const PAGE_SIZE = 1000; // Supabase returns at most this many rows per request
+// Only what the map, list, search and filters need, in the order of the
+// database's stored `map` column (supabase/migrations/20261124010000_map_rows.sql).
+// The popup's details (website, contacts, summary) are fetched when a pin opens.
+const MAP_FIELDS = [
+  "id", "name", "address", "city", "state", "postal_code", "source_id",
+  "gcc_organization_type", "gcc_audience_focus", "gcc_resilience", "gcc_activity",
+  "gcc_action_category", "gcc_climate_category", "gcc_reach", "gcc_verification",
+  "latitude", "longitude",
+];
 
-function supabaseGet(path, headers = {}) {
+function supabaseGet(path) {
   const config = window.SUPABASE_CONFIG ?? {};
   if (!config.url || !config.anonKey) throw new Error("Supabase is not configured");
   return fetch(`${config.url}/rest/v1/${path}`, {
-    headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}`, ...headers },
+    headers: { apikey: config.anonKey, Authorization: `Bearer ${config.anonKey}` },
   }).then((response) => {
     if (!response.ok) throw new Error(`Organizations request failed with ${response.status}`);
-    return response;
+    return response.json();
   });
 }
 
-async function loadOrganizations(filterFields) {
-  // Every approved organization, a page at a time: the first request also
-  // returns the total, then the remaining pages are fetched in parallel.
-  const columns = [...MAP_FIELDS, ...filterFields].map((field) => `${field}:properties->>${field}`);
-  const query = `organizations?select=id,${columns},latitude:properties->latitude,longitude:properties->longitude`
-    + "&review_status=eq.approved&order=id";
-  const page = (offset) => `${query}&limit=${PAGE_SIZE}&offset=${offset}`;
-  const first = await supabaseGet(page(0), { Prefer: "count=exact" });
-  const total = Number(first.headers.get("content-range")?.split("/")[1] ?? 0);
-  const offsets = [];
-  for (let offset = PAGE_SIZE; offset < total; offset += PAGE_SIZE) offsets.push(offset);
-  const pages = await Promise.all([first.json(), ...offsets.map((offset) => supabaseGet(page(offset)).then((r) => r.json()))]);
-  return pages.flat().map(({ latitude, longitude, ...properties }) => ({
-    type: "Feature",
-    geometry: Number.isFinite(latitude) && Number.isFinite(longitude)
-      ? { type: "Point", coordinates: [longitude, latitude] }
-      : null,
-    properties: { ...properties, latitude, longitude },
-  }));
+async function loadOrganizations() {
+  // Every approved organization in one request, one compact array per row.
+  const rows = await supabaseGet("rpc/map_organizations");
+  return rows.map((row) => {
+    const properties = Object.fromEntries(MAP_FIELDS.map((field, index) => [field, row[index]]));
+    const { latitude, longitude } = properties;
+    return {
+      type: "Feature",
+      geometry: Number.isFinite(latitude) && Number.isFinite(longitude)
+        ? { type: "Point", coordinates: [longitude, latitude] }
+        : null,
+      properties,
+    };
+  });
 }
 
 const details = new Map();
@@ -195,7 +195,6 @@ async function organizationDetails(properties) {
   // The full record for a popup; falls back to the map fields if the request fails.
   if (!details.has(properties.id)) {
     details.set(properties.id, supabaseGet(`organizations?select=properties&id=eq.${encodeURIComponent(properties.id)}`)
-      .then((response) => response.json())
       .then((rows) => rows[0]?.properties ?? properties)
       .catch((error) => {
         console.warn(error);
@@ -368,7 +367,7 @@ function applyFilters() {
   if (source) source.setData(featureCollection(filteredFeatures));
 }
 
-function initializeMap(data) {
+function initializeMap() {
   // MapLibre renders organization layers over OpenStreetMap raster tiles. The
   // muted raster styling keeps bright organization markers visually dominant.
   map = new maplibregl.Map({
@@ -407,7 +406,9 @@ function initializeMap(data) {
     // drawing thousands of fully overlapping individual points.
     map.addSource("organizations", {
       type: "geojson",
-      data,
+      // The current filtered list, so a search typed before the map finished
+      // loading is applied to the pins too.
+      data: featureCollection(filteredFeatures),
       cluster: true,
       clusterMaxZoom: 11,
       clusterRadius: 46,
@@ -483,7 +484,7 @@ async function start() {
     const schemaResponse = await fetch(SCHEMA_URL);
     if (!schemaResponse.ok) throw new Error(`Schema request failed with ${schemaResponse.status}`);
     const schema = await schemaResponse.json();
-    const data = featureCollection(await loadOrganizations(schema.filters.map(({ field }) => field)));
+    const data = featureCollection(await loadOrganizations());
     // The schema controls order and allowed labels; observed values are appended
     // later as a compatibility safeguard for older generated datasets.
     filterOptions = Object.fromEntries(
@@ -521,7 +522,7 @@ async function start() {
     });
     elements.visibleCount.textContent = formatNumber(allFeatures.length);
     renderResults();
-    initializeMap(data);
+    initializeMap();
 
     elements.form.addEventListener("input", applyFilters);
     elements.form.addEventListener("reset", () => window.setTimeout(applyFilters));
