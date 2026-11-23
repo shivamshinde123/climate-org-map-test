@@ -314,6 +314,42 @@ function showMessage(element, html, kind = "info") {
   element.innerHTML = html;
 }
 
+// What to enter in each text column; filter columns list their allowed values.
+const TEXT_COLUMN_HINTS = {
+  name: "The organization's name",
+  website_url: "Website address",
+  address: "Street address (used for the map pin)",
+  city: "Town or city",
+  state: "Two-letter state code",
+  postal_code: "5-digit ZIP code (fallback for the map pin)",
+};
+
+/**
+ * Fill a rules card (#rules-columns, #rules-example): one row per CSV column,
+ * plus the example file. Visitors' version has no verification column.
+ */
+function renderRules(filters, { admin = false } = {}) {
+  const filterByHeader = Object.fromEntries(
+    filters.map((filter) => [CSV_FILTER_HEADERS[filter.field], filter]),
+  );
+  document.querySelector("#rules-columns").innerHTML = csvHeaders({ admin })
+    .map((header) => {
+      const textField = TEXT_FIELDS.find((field) => field.key === header);
+      const filter = filterByHeader[header];
+      const allowed = filter
+        ? `One of: ${filter.options.map((option) => `<code>${escapeText(option)}</code>`).join(", ")}`
+        : escapeText(TEXT_COLUMN_HINTS[header] ?? "");
+      return `<tr>
+        <td><code>${escapeText(header)}</code></td>
+        <td>${textField?.required ? "Yes" : "No"}</td>
+        <td>${allowed}</td>
+        <td>${escapeText(CSV_EXAMPLE[header])}</td>
+      </tr>`;
+    })
+    .join("");
+  document.querySelector("#rules-example").textContent = csvExampleText({ admin });
+}
+
 /* ---------------- Public "Add your organization" page ---------------- */
 
 async function submitPublic(config, properties) {
@@ -346,6 +382,7 @@ async function startAddPage() {
   const config = supabaseConfig();
   const filters = await loadFilterSchema();
   renderOrganizationFields(document.querySelector("#add-fields"), filters);
+  renderRules(filters);
   if (!config) {
     showMessage(message, "Submissions are not open yet. Please check back soon.", "error");
     form.querySelector("button[type=submit]").disabled = true;

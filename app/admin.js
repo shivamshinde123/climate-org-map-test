@@ -244,39 +244,6 @@ async function uploadCsv() {
   }
 }
 
-// What to enter in each text column; filter columns list their allowed values.
-const TEXT_COLUMN_HINTS = {
-  name: "The organization's name",
-  website_url: "Website address",
-  address: "Street address (used for the map pin)",
-  city: "Town or city",
-  state: "Two-letter state code",
-  postal_code: "5-digit ZIP code (fallback for the map pin)",
-};
-
-/** Fill the rules card: one row per CSV column, plus the example file. */
-function renderRules() {
-  const filterByHeader = Object.fromEntries(
-    filters.map((filter) => [CSV_FILTER_HEADERS[filter.field], filter]),
-  );
-  document.querySelector("#rules-columns").innerHTML = csvHeaders({ admin: true })
-    .map((header) => {
-      const textField = TEXT_FIELDS.find((field) => field.key === header);
-      const filter = filterByHeader[header];
-      const allowed = filter
-        ? `One of: ${filter.options.map((option) => `<code>${escapeText(option)}</code>`).join(", ")}`
-        : escapeText(TEXT_COLUMN_HINTS[header] ?? "");
-      return `<tr>
-        <td><code>${escapeText(header)}</code></td>
-        <td>${textField?.required ? "Yes" : "No"}</td>
-        <td>${allowed}</td>
-        <td>${escapeText(CSV_EXAMPLE[header])}</td>
-      </tr>`;
-    })
-    .join("");
-  document.querySelector("#rules-example").textContent = csvExampleText({ admin: true });
-}
-
 async function showSignedIn(session) {
   if (!session) {
     ui.area.hidden = true;
@@ -302,7 +269,7 @@ async function startAdmin() {
   client = window.supabase.createClient(config.url, config.anonKey);
   filters = await loadFilterSchema();
   document.querySelector("#csv-template").href = csvTemplateUrl({ admin: true });
-  renderRules();
+  renderRules(filters, { admin: true });
 
   ui.signInForm.addEventListener("submit", async (event) => {
     event.preventDefault();

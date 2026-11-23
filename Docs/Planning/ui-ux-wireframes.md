@@ -45,11 +45,11 @@ The complete left panel scrolls vertically when its content exceeds the viewport
 
 ## Add your organization (add.html)
 
-Linked from the map header. One card with the organization form (name, website, address, town, state, ZIP, filter selects; Verification is not offered), a second card for CSV upload with a downloadable template. Messages: submitted ("will appear once reviewed"), validation errors, per-row CSV problems.
+Linked from the map header by a filled "+ Add your organization" button. At the top, a collapsed "How to add an organization" bar (Show rules / Hide rules) with the visitor rules, a column table with allowed values, and an example CSV. Then one card with the organization form (name, website, address, town, state, ZIP, filter selects; Verification is not offered), a second card for CSV upload with a downloadable template. Messages: submitted ("will appear once reviewed"), validation errors, per-row CSV problems.
 
 ## Admin (admin.html)
 
-Not linked from the map. Sign-in card (email link) → "Waiting for review" list (Approve / Edit / Delete), "Find an organization" search with Edit buttons and "add a new organization", the editor card (all fields plus Verification, latitude, longitude; Save, Locate from address, Delete, Cancel), and an admin CSV upload that goes live immediately.
+Not linked from the map. Sign-in card (email link) → a collapsed "How to add and edit organizations" rules bar at the top (admin rules, column table including verification, example CSV) → "Waiting for review" list (Approve / Edit / Delete), "Find an organization" search with Edit buttons and "add a new organization", the editor card (all fields plus Verification, latitude, longitude; Save, Locate from address, Delete, Cancel), and an admin CSV upload that goes live immediately.
 
 ## States
 
