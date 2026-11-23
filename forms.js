@@ -91,9 +91,12 @@ function renderOrganizationFields(container, filters, { admin = false } = {}) {
       return `<select name="state" ${required}><option value="">Choose a state</option>${stateOptions}</select>`;
     }
     if (field.key === "city") {
-      // A datalist suggests towns for the chosen state but accepts any name.
-      return `<input name="city" type="text" ${required} list="${formId}-towns" autocomplete="off" />
-        <datalist id="${formId}-towns"></datalist>`;
+      // Suggests towns for the chosen state but accepts any name.
+      return `<div class="combo">
+          <input name="city" type="text" ${required} autocomplete="off"
+            role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="${formId}-town-list" />
+          <ul id="${formId}-town-list" class="suggestions" role="listbox" hidden></ul>
+        </div>`;
     }
     if (field.key === "address") {
       return `<div class="combo">
@@ -296,107 +299,127 @@ function photonSuggestion(feature, typed, chosenState) {
 }
 
 /**
+ * Show a site-styled suggestion list under `input` (role=combobox) in `list`
+ * (role=listbox). `search(text)` returns suggestions (strings or objects with
+ * a `label`); `pick(item)` fills the form. Typing anything else is always fine.
+ */
+function attachSuggestions(input, list, { search, pick, delay = 0 }) {
+  let results = [];
+  let active = -1;
+  let timer;
+  let latest = 0;
+  const label = (item) => (typeof item === "string" ? item : item.label);
+  const close = () => {
+    list.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    input.removeAttribute("aria-activedescendant");
+    active = -1;
+  };
+  const render = () => {
+    list.innerHTML = results
+      .map((item, i) => `<li id="${list.id}-${i}" role="option" aria-selected="${i === active}" data-index="${i}">${escapeText(label(item))}</li>`)
+      .join("");
+    list.hidden = !results.length;
+    input.setAttribute("aria-expanded", String(results.length > 0));
+    if (active >= 0) {
+      input.setAttribute("aria-activedescendant", `${list.id}-${active}`);
+      list.children[active]?.scrollIntoView({ block: "nearest" });
+    }
+  };
+  const choose = (item) => {
+    close();
+    pick(item);
+  };
+  input.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const request = ++latest;
+      const found = await search(input.value.trim());
+      if (request !== latest) return; // A newer keystroke already answered.
+      results = found;
+      active = -1;
+      render();
+    }, delay);
+  });
+  input.addEventListener("keydown", (event) => {
+    if (list.hidden) return;
+    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+      event.preventDefault();
+      active = (active + (event.key === "ArrowDown" ? 1 : -1) + results.length) % results.length;
+      render();
+    } else if (event.key === "Enter" && active >= 0) {
+      event.preventDefault();
+      choose(results[active]);
+    } else if (event.key === "Escape") {
+      close();
+    }
+  });
+  input.addEventListener("blur", () => setTimeout(close, 150));
+  // mousedown (not click) so the pick happens before the input loses focus.
+  list.addEventListener("mousedown", (event) => {
+    const item = event.target.closest("[data-index]");
+    if (!item) return;
+    event.preventDefault();
+    choose(results[Number(item.dataset.index)]);
+  });
+}
+
+/** Up to `limit` towns matching `text`: names starting with it first, then names containing it. */
+function matchTowns(names, text, limit = 8) {
+  const query = text.toLowerCase();
+  if (!query) return [];
+  const starts = names.filter((name) => name.toLowerCase().startsWith(query));
+  const contains = names.filter((name) => !name.toLowerCase().startsWith(query) && name.toLowerCase().includes(query));
+  return [...starts, ...contains].slice(0, limit);
+}
+
+/**
  * Add town suggestions (per state) and street-address suggestions to an
  * organization form rendered by renderOrganizationFields. Neither restricts
  * what can be typed. `onPick(suggestion)` runs after an address is picked.
  */
 function enhanceOrganizationFields(form, { onPick = () => {} } = {}) {
   const { state, city, address, postal_code: zip } = form.elements;
-  const towns = form.querySelector("datalist");
-  const list = form.querySelector(".suggestions");
 
-  const fillTowns = async () => {
-    const names = await loadTowns(state.value);
-    towns.innerHTML = names.map((name) => `<option value="${escapeText(name)}"></option>`).join("");
-  };
-  state.addEventListener("change", fillTowns);
-  fillTowns();
+  attachSuggestions(city, city.nextElementSibling, {
+    search: async (text) => matchTowns(await loadTowns(state.value), text),
+    pick: (name) => (city.value = name),
+  });
 
-  let results = [];
-  let active = -1;
-  let timer;
   let controller;
-  const close = () => {
-    list.hidden = true;
-    address.setAttribute("aria-expanded", "false");
-    address.removeAttribute("aria-activedescendant");
-    active = -1;
-  };
-  const render = () => {
-    list.innerHTML = results
-      .map((s, i) => `<li id="${list.id}-${i}" role="option" aria-selected="${i === active}" data-index="${i}">${escapeText(s.label)}</li>`)
-      .join("");
-    list.hidden = !results.length;
-    address.setAttribute("aria-expanded", String(results.length > 0));
-    if (active >= 0) address.setAttribute("aria-activedescendant", `${list.id}-${active}`);
-  };
-  const pick = (suggestion) => {
-    address.value = suggestion.address;
-    if (suggestion.city) city.value = suggestion.city;
-    if (suggestion.postal_code) zip.value = suggestion.postal_code;
-    if (state.value !== suggestion.state) {
+  attachSuggestions(address, address.nextElementSibling, {
+    delay: 350,
+    search: async (typed) => {
+      if (typed.length < 4) return [];
+      // The chosen town and state narrow the search without limiting what can be typed.
+      const query = [typed, city.value.trim(), US_STATES[state.value]].filter(Boolean).join(", ");
+      controller?.abort();
+      controller = new AbortController();
+      try {
+        const params = new URLSearchParams({ q: query, limit: "10", lang: "en" });
+        const response = await fetch(`${PHOTON_URL}?${params}&layer=house&layer=street`, { signal: controller.signal });
+        const data = await response.json();
+        const seen = new Set();
+        const typedParts = typedAddressParts(typed);
+        return (data.features ?? [])
+          .map((feature) => photonSuggestion(feature, typedParts, state.value))
+          .filter((s) => s && !seen.has(s.label) && seen.add(s.label))
+          .slice(0, 6);
+      } catch {
+        return []; // No suggestions; typing still works.
+      }
+    },
+    pick: (suggestion) => {
+      address.value = suggestion.address;
+      if (suggestion.city) city.value = suggestion.city;
+      if (suggestion.postal_code) zip.value = suggestion.postal_code;
       state.value = suggestion.state;
-      fillTowns();
-    }
-    form.addressSuggestion = suggestion;
-    close();
-    onPick(suggestion);
-  };
-  const search = async () => {
-    const typed = address.value.trim();
-    if (typed.length < 4) return close();
-    // The chosen town and state narrow the search without limiting what can be typed.
-    const query = [typed, city.value.trim(), US_STATES[state.value]].filter(Boolean).join(", ");
-    controller?.abort();
-    controller = new AbortController();
-    try {
-      const params = new URLSearchParams({ q: query, limit: "10", lang: "en" });
-      const response = await fetch(`${PHOTON_URL}?${params}&layer=house&layer=street`, { signal: controller.signal });
-      const data = await response.json();
-      const seen = new Set();
-      const typedParts = typedAddressParts(typed);
-      results = (data.features ?? [])
-        .map((feature) => photonSuggestion(feature, typedParts, state.value))
-        .filter((s) => s && !seen.has(s.label) && seen.add(s.label))
-        .slice(0, 6);
-      active = -1;
-      render();
-    } catch (error) {
-      if (error.name !== "AbortError") close(); // No suggestions; typing still works.
-    }
-  };
-
-  address.addEventListener("input", () => {
-    form.addressSuggestion = null; // Typed text no longer matches a picked point.
-    clearTimeout(timer);
-    timer = setTimeout(search, 350);
+      form.addressSuggestion = suggestion;
+      onPick(suggestion);
+    },
   });
-  address.addEventListener("keydown", (event) => {
-    if (list.hidden) return;
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      active = (active + step + results.length) % results.length;
-      render();
-    } else if (event.key === "Enter" && active >= 0) {
-      event.preventDefault();
-      pick(results[active]);
-    } else if (event.key === "Escape") {
-      close();
-    }
-  });
-  address.addEventListener("blur", () => setTimeout(close, 150));
-  // mousedown (not click) so the pick happens before the input loses focus.
-  list.addEventListener("mousedown", (event) => {
-    const item = event.target.closest("[data-index]");
-    if (!item) return;
-    event.preventDefault();
-    pick(results[Number(item.dataset.index)]);
-  });
-  form.addEventListener("reset", () => {
-    form.addressSuggestion = null;
-    setTimeout(fillTowns);
-  });
+  address.addEventListener("input", () => (form.addressSuggestion = null)); // Typed text no longer matches a picked point.
+  form.addEventListener("reset", () => (form.addressSuggestion = null));
 }
 
 /** Stable id from name and state, so the same organization cannot be added twice. */
