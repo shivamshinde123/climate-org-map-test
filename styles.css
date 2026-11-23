@@ -629,3 +629,23 @@ body.form-page { overflow: auto; }
 .rules[open] .rules-summary { margin-bottom: 20px; }
 .rules-summary-title { font-size: 16px; font-weight: 500; }
 .rules-summary-hint { color: var(--pewter); font-size: 13px; }
+
+/* Street-address suggestions: a flat list under the field. */
+.combo { position: relative; }
+.suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  left: 0;
+  z-index: 5;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--snow);
+  border: 1px solid var(--frost);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(28, 58, 19, 0.12);
+}
+.suggestions li { padding: 8px 10px; color: var(--forest); font-size: 14px; line-height: 1.35; border-radius: 6px; cursor: pointer; }
+.suggestions li:hover, .suggestions li[aria-selected="true"] { background: var(--stone); }
+.field-note { color: var(--pewter); font-size: 11px; }
