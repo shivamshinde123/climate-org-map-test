@@ -12,7 +12,7 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300..500&family=JetBrains+Mono:wght@400&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=20261123-4" />
+    <link rel="stylesheet" href="styles.css?v=20261123-6" />
   </head>
   <body class="form-page" data-page="admin">
     <main class="form-shell">
@@ -85,6 +85,33 @@
           </label>
           <div id="csv-message" class="notice" role="status" hidden></div>
         </section>
+
+        <section class="form-card rules">
+          <h2 class="section-label">Rules for adding and editing organizations</h2>
+          <ul class="rules-list">
+            <li><strong>Your changes are live right away.</strong> Saving, adding, uploading a CSV or deleting here changes the public map immediately. Organizations sent from the public "Add your organization" page wait under <em>Waiting for review</em> until you approve them, and visitors can never mark them Verified.</li>
+            <li><strong>Required:</strong> organization name, town/city, and a two-letter state code such as <code>MA</code>. Everything else is optional.</li>
+            <li><strong>One organization = name + state.</strong> Uploading a CSV row with the same name and state as an existing organization you added updates it. Adding one by hand with a name and state that already exist is refused; edit the existing one instead.</li>
+            <li><strong>Website:</strong> <code>example.org</code> is fine; <code>https://</code> is added automatically.</li>
+            <li><strong>Map pin:</strong> placed at the street address. If the address is not found, the pin goes to the center of the ZIP code (approximate). With neither, the organization is saved but not shown on the map until you open Edit and enter latitude and longitude (right-click the spot in Google Maps to copy them).</li>
+            <li><strong>Filter columns</strong> must use one of the values listed below. Capitalization does not matter; leave a cell blank for "Unknown".</li>
+            <li><strong>Verification:</strong> "Verified" or "Not Verified" (default). Marking an organization Verified records today's date as its verification.</li>
+            <li><strong>Delete:</strong> organizations added through the forms or a CSV are deleted permanently. Organizations from the original map data are hidden instead, and can be restored by searching for them, opening Edit and clicking Save.</li>
+            <li><strong>CSV files:</strong> the first row must be the column names below (the same as the template). Column order does not matter and other columns are ignored. Save the file as CSV (in Excel: <em>File → Save As → CSV UTF-8</em>).</li>
+          </ul>
+
+          <h3 class="rules-heading">Columns</h3>
+          <div class="table-scroll">
+            <table class="rules-table">
+              <thead><tr><th>Column</th><th>Required</th><th>What to enter</th><th>Example</th></tr></thead>
+              <tbody id="rules-columns"></tbody>
+            </table>
+          </div>
+
+          <h3 class="rules-heading">Example CSV</h3>
+          <p class="form-help">A file with this content (one header row, one organization) uploads correctly:</p>
+          <pre id="rules-example" class="rules-example"></pre>
+        </section>
       </div>
     </main>
 
@@ -102,8 +129,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-    <script src="supabase-config.js?v=20261123-4"></script>
-    <script src="forms.js?v=20261123-4"></script>
-    <script src="admin.js?v=20261123-4"></script>
+    <script src="supabase-config.js?v=20261123-6"></script>
+    <script src="forms.js?v=20261123-6"></script>
+    <script src="admin.js?v=20261123-6"></script>
   </body>
 </html>
