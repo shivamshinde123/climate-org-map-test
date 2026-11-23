@@ -603,3 +603,26 @@ body.form-page { overflow: auto; }
 /* Grid children may shrink below their content, so wide tables scroll inside their card. */
 .form-shell > *, #admin-area > * { min-width: 0; }
 .rules-table code { white-space: nowrap; }
+
+/* Rules: a collapsible bar at the top of the admin area. */
+.rules > summary { list-style: none; cursor: pointer; }
+.rules > summary::-webkit-details-marker { display: none; }
+.rules-summary { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; }
+.rules-summary::after {
+  content: "+";
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--forest);
+  background: var(--lime);
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+}
+.rules[open] .rules-summary::after { content: "−"; }
+.rules[open] .rules-summary { margin-bottom: 20px; }
+.rules-summary-title { font-size: 16px; font-weight: 500; }
+.rules-summary-hint { color: var(--pewter); font-size: 13px; }
