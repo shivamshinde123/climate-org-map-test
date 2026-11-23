@@ -560,3 +560,46 @@ body.form-page { overflow: auto; }
 .confirm-dialog .form-help { margin-bottom: 20px; }
 .confirm-buttons { justify-content: flex-end; }
 .danger-button { background: #8a2c0d; border-color: #8a2c0d; }
+
+/* Map header call to action: a filled pill so visitors can find it at a glance. */
+.add-org-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: -8px 0 32px;
+  padding: 10px 20px 10px 12px;
+  color: var(--snow);
+  background: var(--forest);
+  border-radius: var(--pill);
+  font-size: 15px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 140ms ease;
+}
+.add-org-button:hover { background: var(--eucalyptus); }
+.add-org-plus {
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  color: var(--forest);
+  background: var(--lime);
+  border-radius: 50%;
+  font-size: 18px;
+  line-height: 1;
+}
+
+/* Admin rules card. */
+.rules-list { display: grid; gap: 10px; margin: 0; padding-left: 18px; font-size: 14px; line-height: 1.55; }
+.rules-heading { margin: 24px 0 10px; font-size: 15px; font-weight: 500; }
+.table-scroll { overflow-x: auto; background: var(--snow); border-radius: 10px; }
+.rules-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.45; }
+.rules-table th, .rules-table td { padding: 8px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--stone); }
+.rules-table th { color: var(--pewter); font-weight: 500; white-space: nowrap; }
+.rules-table td:first-child, .rules-table td:nth-child(2) { white-space: nowrap; }
+.rules-table tr:last-child td { border-bottom: 0; }
+.rules code, .rules-example { font-family: var(--mono); font-size: 12px; }
+.rules-example { margin: 0; padding: 12px 14px; overflow-x: auto; background: var(--snow); border-radius: 10px; white-space: pre; }
+/* Grid children may shrink below their content, so wide tables scroll inside their card. */
+.form-shell > *, #admin-area > * { min-width: 0; }
+.rules-table code { white-space: nowrap; }

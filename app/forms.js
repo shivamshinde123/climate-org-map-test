@@ -253,14 +253,28 @@ function parseCsv(file) {
   });
 }
 
-function csvTemplateUrl({ admin = false } = {}) {
+// One example organization, used for the CSV template and the admin rules.
+const CSV_EXAMPLE = {
+  name: "Example Climate Group", website_url: "example.org", address: "123 Main St", city: "Boston",
+  state: "MA", postal_code: "02130", organization_type: "Nonprofit / Grassroots", audience_focus: "Residents",
+  resilience: "Both", activity: "Action", action_category: "Community Engagement",
+  climate_category: "Energy Efficiency", reach: "Town / City", verification: "Not Verified",
+};
+
+function csvHeaders({ admin = false } = {}) {
   const filterHeaders = Object.values(CSV_FILTER_HEADERS).filter((header) => admin || header !== "verification");
-  const headers = [...TEXT_FIELDS.map((field) => field.key), ...filterHeaders];
-  const example = ["Example Climate Group", "example.org", "123 Main St", "Boston", "MA", "02130",
-    "Nonprofit / Grassroots", "Residents", "Both", "Action", "Community Engagement", "Energy Efficiency", "Town / City", "Not Verified"]
-    .slice(0, headers.length);
-  const csv = [headers, example].map((row) => row.map((cell) => `"${cell}"`).join(",")).join("\n");
-  return `data:text/csv;charset=utf-8,${encodeURIComponent(`${csv}\n`)}`;
+  return [...TEXT_FIELDS.map((field) => field.key), ...filterHeaders];
+}
+
+function csvExampleText({ admin = false } = {}) {
+  const headers = csvHeaders({ admin });
+  return [headers, headers.map((header) => CSV_EXAMPLE[header])]
+    .map((row) => row.map((cell) => `"${cell}"`).join(","))
+    .join("\n");
+}
+
+function csvTemplateUrl({ admin = false } = {}) {
+  return `data:text/csv;charset=utf-8,${encodeURIComponent(`${csvExampleText({ admin })}\n`)}`;
 }
 
 /**
