@@ -85,8 +85,30 @@ async function setReviewStatus(id, review_status) {
  * file and would be re-sent by the next sync, so they keep a "removed" marker
  * that hides them on the map and stops the sync from restoring them.
  */
+/** Site-styled confirmation (native <dialog>: focus trap and Escape come built in). */
+function confirmAction(title, text, confirmLabel) {
+  const dialog = document.querySelector("#confirm-dialog");
+  dialog.querySelector("#confirm-title").textContent = title;
+  dialog.querySelector("#confirm-text").textContent = text;
+  dialog.querySelector("button[value=confirm]").textContent = confirmLabel;
+  dialog.returnValue = "";
+  dialog.showModal();
+  dialog.querySelector("button[value=cancel]").focus();
+  return new Promise((resolve) => {
+    dialog.addEventListener("close", () => resolve(dialog.returnValue === "confirm"), { once: true });
+  });
+}
+
 async function deleteOrganization(id, name) {
-  if (!confirm(`Delete ${name}? This cannot be undone.`)) return false;
+  const added = id.startsWith("added_");
+  const confirmed = await confirmAction(
+    `Delete ${name}?`,
+    added
+      ? "It will be removed from the map and the database. This cannot be undone."
+      : "It will be hidden from the map. You can restore it later by searching for it, opening Edit and clicking Save.",
+    "Delete",
+  );
+  if (!confirmed) return false;
   if (id.startsWith("added_")) check(await client.from("organizations").delete().eq("id", id));
   else check(await client.from("organizations").update({ review_status: "removed", updated_via: "admin" }).eq("id", id));
   showMessage(ui.message, `Deleted <strong>${escapeText(name)}</strong>.`, "success");
@@ -115,14 +137,15 @@ function closeEditor() {
   ui.editor.hidden = true;
 }
 
+/** Locate the address into `values` and the form; returns the location or null. */
 async function locateInto(values) {
-  const location = await geocodeAddress(values);
-  if (!location) return false;
-  Object.assign(values, location, { location_precision: "census_address_range" });
+  const location = await locateOrganization(values);
+  if (!location) return null;
+  Object.assign(values, location);
   ui.editorForm.elements.latitude.value = location.latitude;
   ui.editorForm.elements.longitude.value = location.longitude;
-  ui.editorForm.dataset.precision = "census_address_range";
-  return true;
+  ui.editorForm.dataset.precision = location.location_precision;
+  return location;
 }
 
 async function saveEditor(event) {
@@ -134,8 +157,10 @@ async function saveEditor(event) {
   // A changed address moves the pin unless the coordinates were also edited by hand.
   const addressChanged = !base || ADDRESS_KEYS.some((key) => String(base[key] ?? "") !== values[key]);
   const coordinatesEdited = base && (String(base.latitude ?? "") !== values.latitude || String(base.longitude ?? "") !== values.longitude);
-  if (addressChanged && !coordinatesEdited && !ui.editorForm.dataset.precision && !(await locateInto(values)) && values.address) {
-    showMessage(ui.message, "The address was not found, so the map pin was not moved. Enter latitude and longitude to place it.", "error");
+  let note = "";
+  if (addressChanged && !coordinatesEdited && !ui.editorForm.dataset.precision) {
+    const location = await locateInto(values);
+    note = location ? locationNote(location, values) : "The address was not found, so the map pin was not moved. Enter latitude and longitude to place it.";
   }
   const properties = await buildProperties(values, filters, base ? { base } : { source: "GCC admin", note: "Added by the GCC admin." });
   if (values.gcc_verification === "Verified" && base?.gcc_verification !== "Verified") {
@@ -144,14 +169,26 @@ async function saveEditor(event) {
   const row = { properties, review_status: "approved", updated_via: "admin" };
   if (editing.id) check(await client.from("organizations").update(row).eq("id", editing.id));
   else check(await client.from("organizations").insert({ id: properties.id, ...row }));
-  showMessage(ui.message, `Saved <strong>${escapeText(properties.name)}</strong>. It is live on the map.`, "success");
+  const live = Number.isFinite(properties.latitude) ? "It is live on the map." : "It has no map pin yet, so it is not shown on the map.";
+  showMessage(ui.message, `Saved <strong>${escapeText(properties.name)}</strong>. ${live}${note ? ` ${escapeText(note)}` : ""}`, "success");
   closeEditor();
+  await refreshLists();
+}
+
+let lastQuery = "";
+
+/** Reload the review list and re-run the last search so statuses are current. */
+async function refreshLists() {
   await loadPending();
+  if (lastQuery) await search();
 }
 
 async function search(event) {
-  event.preventDefault();
-  const query = readForm(ui.searchForm).query.replace(/[%_,()]/g, " ");
+  if (event) {
+    event.preventDefault();
+    lastQuery = readForm(ui.searchForm).query.replace(/[%_,()]/g, " ");
+  }
+  const query = lastQuery;
   const rows = check(
     await client
       .from("organizations")
@@ -197,7 +234,8 @@ async function uploadCsv() {
       );
     }
     const issues = problems.length ? `<ul>${problems.map((p) => `<li>${escapeText(p)}</li>`).join("")}</ul>` : "";
-    showMessage(ui.csvMessage, `${ready.length} of ${rows.length} organizations saved and live on the map.${issues}`, ready.length ? "success" : "error");
+    showMessage(ui.csvMessage, `${ready.length} of ${rows.length} organizations saved and live on the map (except any without a map pin, listed below).${issues}`, ready.length ? "success" : "error");
+    await refreshLists();
   } catch (error) {
     showMessage(ui.csvMessage, escapeText(error.message), "error");
   } finally {
@@ -249,7 +287,7 @@ async function startAdmin() {
       if (button.dataset.action === "edit") return await openEditor(id);
       if (button.dataset.action === "approve") await setReviewStatus(id, "approved");
       else if (!(await deleteOrganization(id, button.closest("[data-id]").querySelector("strong").textContent))) return;
-      await loadPending();
+      await refreshLists();
     } catch (error) {
       fail(error);
     }
@@ -262,15 +300,18 @@ async function startAdmin() {
   ui.newOrganization.addEventListener("click", () => openEditor(null).catch(fail));
   ui.editorForm.addEventListener("submit", (event) => saveEditor(event).catch(fail));
   ui.locate.addEventListener("click", async () => {
-    const found = await locateInto(readForm(ui.editorForm));
-    showMessage(ui.message, found ? "Address located; save to keep the new pin." : "The address was not found.", found ? "success" : "error");
+    const values = readForm(ui.editorForm);
+    const location = await locateInto(values);
+    const text = location
+      ? `${locationNote(location, values) || "Address located."} Save to keep the new pin.`
+      : "The address was not found, and there is no ZIP code to fall back on. Enter latitude and longitude to place it.";
+    showMessage(ui.message, escapeText(text), location ? "success" : "error");
   });
   ui.remove.addEventListener("click", async () => {
     try {
       if (!(await deleteOrganization(editing.id, editing.properties.name))) return;
       closeEditor();
-      ui.searchResults.innerHTML = "";
-      await loadPending();
+      await refreshLists();
     } catch (error) {
       fail(error);
     }

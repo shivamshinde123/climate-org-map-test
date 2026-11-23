@@ -165,6 +165,33 @@ function geocodeAddress({ address, city, state, postal_code }) {
   });
 }
 
+let zipCentroids; // Loaded on first need (~900 KB): ZIP -> [latitude, longitude].
+
+/**
+ * Find map coordinates: the street address first, then the ZIP code's center
+ * (as the pipeline does) when the Census geocoder cannot match the address.
+ * Returns { latitude, longitude, location_precision } or null.
+ */
+async function locateOrganization(values) {
+  const exact = await geocodeAddress(values);
+  if (exact) return { ...exact, location_precision: "census_address_range" };
+  // ponytail: ZIP center only, no city-center fallback; add data/city centroids if many ZIP-less rows appear.
+  const zip = String(values.postal_code ?? "").trim().slice(0, 5);
+  if (!/^\d{5}$/.test(zip)) return null;
+  zipCentroids ??= fetch("data/zip-centroids.json").then((r) => (r.ok ? r.json() : {})).catch(() => ({}));
+  const center = (await zipCentroids)[zip];
+  return center ? { latitude: center[0], longitude: center[1], location_precision: "zip_level_fallback" } : null;
+}
+
+/** Plain-language note about where a located organization was pinned. */
+function locationNote(location, values) {
+  if (!location) return "No map location could be found, so it has no pin yet.";
+  if (location.location_precision === "zip_level_fallback") {
+    return `The street address was not found, so it is pinned at the center of ZIP ${values.postal_code.slice(0, 5)}.`;
+  }
+  return "";
+}
+
 /** Stable id from name and state, so the same organization cannot be added twice. */
 async function organizationId(name, state) {
   const bytes = new TextEncoder().encode(`${name}|${state}`.toLowerCase());
@@ -252,9 +279,10 @@ async function prepareCsvRows(rows, filters, { admin = false, source, note, onPr
       continue;
     }
     onProgress(`Locating row ${line} of ${rows.length + 1}…`);
-    const location = await geocodeAddress(values);
-    if (location) Object.assign(values, location, { location_precision: "census_address_range" });
-    else if (values.address) problems.push(`Row ${line}: address not found; saved without a map pin`);
+    const location = await locateOrganization(values);
+    if (location) Object.assign(values, location);
+    const note = locationNote(location, values);
+    if (note) problems.push(`Row ${line} (${values.name}): ${note}`);
     const properties = await buildProperties(values, filters, { source, note });
     if (seen.has(properties.id)) {
       problems.push(`Row ${line}: duplicate of an earlier row (same name and state); skipped`);
@@ -320,11 +348,12 @@ async function startAddPage() {
     button.disabled = true;
     showMessage(message, "Locating the address…");
     try {
-      const location = await geocodeAddress(values);
-      if (location) Object.assign(values, location, { location_precision: "census_address_range" });
+      const location = await locateOrganization(values);
+      if (location) Object.assign(values, location);
       await submitPublic(config, await buildProperties(values, filters, publicOptions));
       form.reset();
-      showMessage(message, `Thank you. <strong>${escapeText(values.name)}</strong> was submitted and will appear on the map once it is reviewed.`, "success");
+      const note = locationNote(location, values);
+      showMessage(message, `Thank you. <strong>${escapeText(values.name)}</strong> was submitted and will appear on the map once it is reviewed.${note ? ` ${escapeText(note)}` : ""}`, "success");
     } catch (error) {
       showMessage(message, escapeText(error.message), "error");
     } finally {

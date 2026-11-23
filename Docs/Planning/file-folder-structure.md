@@ -12,7 +12,8 @@ Climate Org Mapping/
 |-- app/
 |   |-- data/
 |   |   |-- organizations.geojson     # generated
-|   |   `-- map-schema.json           # filter and field vocabulary
+|   |   |-- map-schema.json           # filter and field vocabulary
+|   |   `-- zip-centroids.json        # ZIP -> [lat, lng] fallback for the forms (from Data/Geocoding)
 |   |-- app.js                        # map; overlays live changes from Supabase
 |   |-- index.html
 |   |-- add.html                      # public "Add your organization" form and CSV upload

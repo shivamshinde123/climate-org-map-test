@@ -76,6 +76,12 @@ The `app/` directory is deployed automatically to GitHub Pages on every push to 
 
 After a website is confirmed, `website_discovery.crawl_for_contacts` fetches the homepage and the first same-domain contact page found through link-text matching. It checks `robots.txt` before each fetch and extracts `email`, `phone`, and `contact_page_url` from `mailto:` and `tel:` links first, then falls back to text regex. The function returns `accessible=False` when `robots.txt` denies the crawler or the site is unreachable. In that case, `enrich_organizations_with_jev` makes a second OpenAI web-search call using `contact_search_payload` and the low-cost `search_context_size: low` setting to surface contacts from OpenAI's cached index. No contact details are inferred or guessed. Named individual contacts are not stored. Contact fields remain blank when neither path finds a public organizational contact.
 
+## 2026-11-23 — Forms fall back to the ZIP center; site-styled delete confirmation
+
+Owner testing found the Census geocoder misses some real addresses (389 Congress St, Portland, ME; 1 City Hall Sq, Boston), which left those organizations with no pin and invisible on the map although the upload said "live". The forms now fall back to the ZIP code's center, as the pipeline does (`app/data/zip-centroids.json`, 33,791 ZCTA centers built from `Data/Geocoding/zip_centroids.csv`, about 900 KB, loaded only when needed), and every form says when a pin is approximate or missing. There is no city-center fallback in the browser yet; an organization with neither a matched address nor a ZCTA ZIP still needs latitude and longitude entered by hand.
+
+Delete now asks in a dialog styled like the site (native `<dialog>`, so focus and Escape work without code) instead of the browser's own box, and says whether the delete is permanent (form-added rows) or can be undone (pipeline rows). After a save, delete, approval or CSV upload the admin page reloads the review list and re-runs the last search, so a restored organization no longer shows as "removed".
+
 ## 2026-11-23 — Supabase database, public add form, admin page
 
 At the project owner's request, organizations move into a Supabase table so new and verified organizations can be added, edited and deleted without editing files and pushing to GitHub. All current organizations are loaded; the pipeline keeps producing the GeoJSON and `scripts/sync_supabase.py` copies it in, never overwriting a row the admin or a visitor changed.
