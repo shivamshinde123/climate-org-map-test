@@ -4,7 +4,7 @@ __pycache__/
 *.py[cod]
 experimentation/irs_eda_cache.json
 
-# Large raw source data — re-download from IRS as needed
+# Large raw source data — main.py --rebuild downloads it from irs.gov
 Data/IRS EO BMF/
 
 # Pipeline caches and generated outputs

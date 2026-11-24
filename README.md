@@ -211,7 +211,7 @@ Do not open `app/index.html` directly from the filesystem. Browsers normally blo
 
 ## Build options
 
-Force a rebuild from the IRS files (existing website and Jev enrichment is kept):
+Force a rebuild from the IRS files (existing website and Jev enrichment is kept). The rebuild first downloads the 51 state files from irs.gov into `Data/IRS EO BMF/`, fetching only files the IRS has updated since the local copy; if irs.gov is unreachable it uses the local copies:
 
 ```powershell
 python main.py --rebuild --no-serve

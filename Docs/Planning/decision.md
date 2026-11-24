@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — A rebuild downloads the IRS files itself
+
+The 51 `eo_*.csv` files (325 MB) were downloaded by hand, which a GitHub run can't do. `download_irs_files` in `build_irs_dataset.py` fetches them from `irs.gov/pub/irs-soi/` at the start of every rebuild. It sends `If-Modified-Since` from the local file's time; irs.gov answers 304 for unchanged files (checked live), so a laptop rebuild re-downloads only what the IRS changed, and a GitHub run (empty disk) gets everything. If irs.gov is down, existing local copies are used with a warning rather than failing the run; a file with no local copy stops the run. Only `--rebuild` downloads, never ordinary extraction runs, which don't read IRS files.
+
 ## 2026-11-24 — Survey organizations owned by the database
 
 Every run re-added the 30 survey-only organizations from `Data/Survey/survey-organizations.csv` and re-applied the 9 survey verifications from the `survey_verifications` table, only so an IRS rebuild could not overwrite them. Checked first: all 39 rows were already in Supabase with the survey answers applied. Migration `20261124020000_survey_rows_admin_owned.sql` marks them `updated_via = 'admin'`, which gets the same protection from the existing merge rule (an admin row keeps its non-empty values), and drops the table; the CSV, `survey_organizations.py` and `apply_survey_verifications` are deleted. New verifications already come through the admin portal's survey queue, so the files were a second, stale path. Side effect, the same as for any admin-edited row: a later IRS refresh only fills these rows' empty fields. The Jev skip still works because it reads `verification_source` from the row.

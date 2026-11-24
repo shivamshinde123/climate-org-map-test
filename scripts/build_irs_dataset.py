@@ -15,8 +15,12 @@ values while the original NTEE fields remain intact.
 from __future__ import annotations
 
 import csv
+import email.utils
 import hashlib
 import re
+import shutil
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +36,47 @@ IRS_SOURCE_URL = (
     "https://www.irs.gov/charities-non-profits/"
     "exempt-organizations-business-master-file-extract-eo-bmf"
 )
+
+# One EO BMF extract per state, published by the IRS about monthly.
+IRS_FILE_URL = "https://www.irs.gov/pub/irs-soi/eo_{}.csv"
+IRS_STATES = (
+    "ak al ar az ca co ct dc de fl ga hi ia id il in ks ky la ma md me mi mn mo ms mt nc nd ne "
+    "nh nj nm nv ny oh ok or pa ri sc sd tn tx ut va vt wa wi wv wy"
+).split()
+
+
+def download_irs_files(directory: Path) -> int:
+    """Fetch every state's EO BMF file from irs.gov into ``directory``; return how many changed.
+
+    A file already present is only downloaded again when the IRS has published a
+    newer one (``If-Modified-Since`` -> HTTP 304). If irs.gov can't be reached,
+    the local copy is used with a warning; a missing file is an error.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    downloaded = 0
+    for state in IRS_STATES:
+        path = directory / f"eo_{state}.csv"
+        request = urllib.request.Request(IRS_FILE_URL.format(state), headers={"User-Agent": "climate-org-map/1.0"})
+        if path.exists():
+            request.add_header("If-Modified-Since", email.utils.formatdate(path.stat().st_mtime, usegmt=True))
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                temporary = path.with_name(path.name + ".tmp")
+                with temporary.open("wb") as stream:
+                    shutil.copyfileobj(response, stream)
+                temporary.replace(path)
+            downloaded += 1
+        except urllib.error.HTTPError as error:
+            if error.code != 304:
+                if not path.exists():
+                    raise
+                print(f"      Warning: {path.name} not refreshed (HTTP {error.code}); using the local copy.", flush=True)
+        except (urllib.error.URLError, TimeoutError) as error:
+            if not path.exists():
+                raise
+            print(f"      Warning: {path.name} not refreshed ({error}); using the local copy.", flush=True)
+    return downloaded
+
 
 # Only codes selected by the project requirements are described here.  The
 # external text file remains the actual inclusion configuration.

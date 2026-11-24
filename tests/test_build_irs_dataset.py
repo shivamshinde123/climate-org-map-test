@@ -115,5 +115,36 @@ class BuildIrsDatasetTests(unittest.TestCase):
             )
 
 
+class DownloadIrsFilesTests(unittest.TestCase):
+    def test_downloads_new_skips_unchanged_and_keeps_local_copy_on_failure(self):
+        import io
+        import urllib.error
+        from unittest import mock
+
+        from scripts import build_irs_dataset as module
+
+        def fake_urlopen(request, timeout):
+            state = request.full_url.rsplit("_", 1)[1][:2]
+            if state == "ak":  # new on irs.gov
+                return io.BytesIO(b"EIN,NAME")
+            if state == "al":  # unchanged since the local copy
+                assert request.get_header("If-modified-since")
+                raise urllib.error.HTTPError(request.full_url, 304, "Not Modified", {}, None)
+            raise urllib.error.URLError("offline")
+
+        with tempfile.TemporaryDirectory() as directory, \
+                mock.patch.object(module, "IRS_STATES", ["ak", "al", "ar"]), \
+                mock.patch.object(module.urllib.request, "urlopen", fake_urlopen):
+            folder = Path(directory)
+            (folder / "eo_al.csv").write_text("old", encoding="utf-8")
+            (folder / "eo_ar.csv").write_text("old", encoding="utf-8")
+            self.assertEqual(module.download_irs_files(folder), 1)
+            self.assertEqual((folder / "eo_ak.csv").read_text(encoding="utf-8"), "EIN,NAME")
+            self.assertEqual((folder / "eo_ar.csv").read_text(encoding="utf-8"), "old")
+            (folder / "eo_ar.csv").unlink()
+            with self.assertRaises(urllib.error.URLError):  # no local copy to fall back on
+                module.download_irs_files(folder)
+
+
 if __name__ == "__main__":
     unittest.main()

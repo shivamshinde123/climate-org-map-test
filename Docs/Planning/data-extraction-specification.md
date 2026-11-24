@@ -2,7 +2,7 @@
 
 ## IRS input
 
-- Directory: `Data/`
+- Directory: `Data/` (a rebuild first downloads `https://www.irs.gov/pub/irs-soi/eo_{state}.csv` for 50 states + DC into `Data/IRS EO BMF/`, with `If-Modified-Since` so unchanged files are skipped; local copies are used if irs.gov is unreachable)
 - Files: `eo_*.csv` discovered recursively below the input directory
 - Encoding: Latin-1
 - Classification field: `NTEE_CD`

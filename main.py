@@ -23,7 +23,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from scripts import supabase_store as store
-from scripts.build_irs_dataset import build_dataset
+from scripts.build_irs_dataset import build_dataset, download_irs_files
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
 from scripts.enrich_organizations_with_jev import (
@@ -236,6 +236,8 @@ def run_pipeline(args: argparse.Namespace) -> None:
     if should_build:
         enrichment_overlay = load_enrichment_overlay(payload)
         print(f"[1/{phase_count}] Building normalized IRS dataset...", flush=True)
+        changed = download_irs_files(args.input_dir / "IRS EO BMF")
+        print(f"      IRS files downloaded (new or updated): {changed:,}")
         payload, stats = build_dataset(args.input_dir, args.codes, args.limit)
         print(f"      Scanned {stats.source_rows:,} IRS rows")
         print(f"      Selected {stats.emitted:,} organizations")

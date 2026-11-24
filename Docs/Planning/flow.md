@@ -103,7 +103,7 @@ and Jev classification unless their inputs or version keys change.
 ## Main entry-point flow
 
 1. `main.py` loads missing settings from `.env` (the Supabase URL and service role key are required), parses command options, and loads every approved organization from Supabase.
-2. Reuse those records, or run the IRS build flow when the table is empty or `--rebuild` is explicit.
+2. Reuse those records, or run the IRS build flow when the table is empty or `--rebuild` is explicit (it starts by downloading new or updated IRS state files from irs.gov).
 3. Reuse complete existing coordinates, run safe fallback assignment when needed, or enable Census submissions with `--use-census`.
 4. When `--enrich-with-jev` is explicit, discover official websites, collect evidence and summaries, and classify all schema fields with Jev through OpenRouter.
 5. Validate point geometry, coordinate ranges, and fallback count, then save new and changed records to Supabase through `sync_pipeline_organizations` (if enrichment stops early, finished records are saved first).

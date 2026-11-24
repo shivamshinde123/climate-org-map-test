@@ -26,7 +26,7 @@ Climate Org Mapping/
 |   |-- supabase-config.js            # public Supabase URL + anon key (written by sync script)
 |   `-- styles.css
 |-- Data/
-|   |-- IRS EO BMF/                   # supplied IRS state CSV files (gitignored, 324 MB)
+|   |-- IRS EO BMF/                   # IRS state CSV files, downloaded by --rebuild (gitignored, 324 MB)
 |   `-- ProPublica/
 |       |-- category-crosswalk.json   # versioned NTEE-to-GCC mappings (single source of truth)
 |       `-- README.md

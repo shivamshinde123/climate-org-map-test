@@ -31,7 +31,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
   survey-verified rows as admin-owned (the merge rule then keeps their values), and
   delete `Data/Survey/survey-organizations.csv`, the `survey_verifications` table
   and the code that re-adds them each run. Verification is now the admin portal's job.
-- [ ] **IRS files downloaded by the run.** `eo_*.csv` (51 files, 325 MB) come from
+- [x] **IRS files downloaded by the run.** `eo_*.csv` (51 files, 325 MB) come from
   irs.gov when a rebuild needs them instead of being downloaded by hand.
 
 ### C. Run extraction from the admin portal (includes geocoding)
