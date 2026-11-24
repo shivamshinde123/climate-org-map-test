@@ -86,11 +86,13 @@ async function setReviewStatus(id, review_status) {
  * that hides them on the map and stops the sync from restoring them.
  */
 /** Site-styled confirmation (native <dialog>: focus trap and Escape come built in). */
-function confirmAction(title, text, confirmLabel) {
+function confirmAction(title, text, confirmLabel, { danger = true } = {}) {
   const dialog = document.querySelector("#confirm-dialog");
   dialog.querySelector("#confirm-title").textContent = title;
   dialog.querySelector("#confirm-text").textContent = text;
-  dialog.querySelector("button[value=confirm]").textContent = confirmLabel;
+  const confirm = dialog.querySelector("button[value=confirm]");
+  confirm.textContent = confirmLabel;
+  confirm.classList.toggle("danger-button", danger);
   dialog.returnValue = "";
   dialog.showModal();
   dialog.querySelector("button[value=cancel]").focus();
@@ -211,8 +213,122 @@ let lastQuery = "";
 
 /** Reload the review lists and re-run the last search so statuses are current. */
 async function refreshLists() {
-  await Promise.all([loadPending(), loadSurveyResponses()]);
+  await Promise.all([loadPending(), loadSurveyResponses(), loadRuns()]);
   if (lastQuery) await search();
+}
+
+/* ---------------- Extraction runs (pipeline_runs, .github/workflows/pipeline.yml) ---------------- */
+
+// Average spend per organization in the Massachusetts and California runs
+// (about $40 for 3,355): Brave searches, OpenRouter fallbacks and Jev.
+const COST_PER_ORGANIZATION = 0.012;
+const RUN_STATUS = {
+  queued: "queued", running: "running", succeeded: "finished", failed: "failed", cancelled: "cancelled",
+};
+let pendingByState = {};
+let runPoll = null;
+
+/** GitHub's answer when a run never started (shown only for queued runs). */
+async function dispatchProblem(run) {
+  const minutes = (Date.now() - new Date(run.created_at)) / 60000;
+  const [result] = check(await client.rpc("pipeline_dispatch_result", { run_id: run.id }));
+  if (result?.status_code && result.status_code !== 204) {
+    return `GitHub refused to start it (${result.status_code}: ${result.message ?? ""}). The GitHub token in Supabase Vault may have expired, or the workflow isn't on the master branch yet. Cancel it, fix that, and run again.`;
+  }
+  return minutes > 10 ? "Queued for over 10 minutes. GitHub may be busy, or the start request was lost; check the Actions tab, or cancel and run again." : "";
+}
+
+function runSummary(run) {
+  const s = run.summary ?? {};
+  if (run.status === "succeeded" && run.kind === "extract") {
+    return `${s.processed ?? 0} processed · ${s.websites_found ?? 0} websites found · ${s.failed ?? 0} errors · ${s.remaining ?? 0} still waiting in ${run.state}`;
+  }
+  if (run.status === "succeeded") return `${s.organizations ?? 0} organizations, ${s.saved ?? 0} changed`;
+  return run.error ?? "";
+}
+
+async function loadRuns() {
+  const [pending, runs] = await Promise.all([
+    client.rpc("extraction_pending").then(check),
+    client.from("pipeline_runs").select("*").order("id", { ascending: false }).limit(10).then(check),
+  ]);
+  pendingByState = Object.fromEntries(pending.map((row) => [row.state, row.pending]));
+  const select = document.querySelector("#run-form").elements.state;
+  const chosen = select.value;
+  select.innerHTML = `<option value="">Choose a state</option>${Object.entries(US_STATES)
+    .filter(([code]) => !["AS", "GU", "MP", "PR", "VI"].includes(code)) // territories aren't in the IRS state files
+    .sort(([, a], [, b]) => a.localeCompare(b))
+    .map(([code, name]) => {
+      const waiting = pendingByState[code] ?? 0;
+      return `<option value="${code}" ${waiting ? "" : "disabled"}>${escapeText(name)} (${waiting.toLocaleString()} waiting)</option>`;
+    })
+    .join("")}`;
+  select.value = chosen;
+  updateEstimate();
+
+  const problems = await Promise.all(runs.map((run) => (run.status === "queued" ? dispatchProblem(run) : "")));
+  const active = runs.find((run) => run.status === "queued" || run.status === "running");
+  document.querySelector("#run-status").textContent = active ? `(${RUN_STATUS[active.status]})` : "";
+  document.querySelector("#run-list").innerHTML = runs.length
+    ? runs.map((run, index) => {
+        const what = run.kind === "extract" ? `${US_STATES[run.state] ?? run.state}, up to ${run.org_limit}` : "IRS data refresh";
+        const when = new Date(run.created_at).toLocaleString();
+        const log = run.run_url?.startsWith("https://") ? ` · <a class="popup-link" href="${escapeText(run.run_url)}" target="_blank" rel="noopener noreferrer">log</a>` : "";
+        const detail = problems[index] || runSummary(run);
+        const warn = run.status === "failed" || problems[index];
+        return `
+          <div class="admin-row" data-run="${run.id}">
+            <div class="admin-row-copy">
+              <strong>${escapeText(what)}</strong>
+              <span>${escapeText(RUN_STATUS[run.status])} · ${escapeText(when)}${run.requested_by ? ` · ${escapeText(run.requested_by)}` : ""}${log}</span>
+              ${detail ? `<span class="${warn ? "warning-text" : ""}">${escapeText(detail)}</span>` : ""}
+            </div>
+            ${run.status === "queued" || run.status === "running" ? `<button class="text-button danger" data-action="cancel-run" type="button">Cancel</button>` : ""}
+          </div>`;
+      }).join("")
+    : `<p class="form-help">No runs yet.</p>`;
+
+  // Follow an active run without reloading the page.
+  clearTimeout(runPoll);
+  if (active) runPoll = setTimeout(() => loadRuns().catch(fail), 30000);
+}
+
+function updateEstimate() {
+  const { state, org_limit } = readForm(document.querySelector("#run-form"));
+  const waiting = pendingByState[state] ?? 0;
+  const count = Math.min(Number(org_limit) || 0, waiting);
+  document.querySelector("#run-estimate").textContent = state
+    ? `${waiting.toLocaleString()} organizations waiting in ${US_STATES[state]}. This run processes ${count.toLocaleString()}: about $${(count * COST_PER_ORGANIZATION).toFixed(2)} (estimate).`
+    : "";
+}
+
+async function startRun(event) {
+  event.preventDefault();
+  const { state, org_limit } = readForm(event.target);
+  const count = Math.min(Number(org_limit), pendingByState[state] ?? 0);
+  const confirmed = await confirmAction(
+    `Run extraction for ${US_STATES[state]}?`,
+    `Processes up to ${count.toLocaleString()} organizations, about $${(count * COST_PER_ORGANIZATION).toFixed(2)}. It runs on GitHub; you can close this page.`,
+    "Start run",
+    { danger: false },
+  );
+  if (!confirmed) return;
+  const { error } = await client.from("pipeline_runs").insert({ kind: "extract", state, org_limit: Number(org_limit) });
+  if (error?.code === "23505") throw new Error("Another run is queued or running. Wait for it to finish, or cancel it below.");
+  check({ error });
+  showMessage(ui.message, `Run requested for <strong>${escapeText(US_STATES[state])}</strong>. Its progress shows under <em>Find websites and contacts</em>.`, "success");
+  await loadRuns();
+}
+
+async function cancelRun(id) {
+  const confirmed = await confirmAction(
+    "Cancel this run?",
+    "A queued run won't start. A run already working on GitHub keeps going until you also cancel it in the GitHub Actions tab (its log link); what it finished is kept.",
+    "Cancel run",
+  );
+  if (!confirmed) return;
+  check(await client.from("pipeline_runs").update({ status: "cancelled" }).eq("id", id));
+  await loadRuns();
 }
 
 /* ---------------- Survey responses ---------------- */
@@ -491,6 +607,13 @@ async function startAdmin() {
   document.querySelector("#survey-show-all").addEventListener("change", () => loadSurveyResponses().catch(fail));
   document.querySelector("#survey-download").addEventListener("click", () => downloadResponses().catch(fail));
   ui.csvInput.addEventListener("change", uploadCsv);
+  const runForm = document.querySelector("#run-form");
+  runForm.addEventListener("submit", (event) => startRun(event).catch(fail));
+  runForm.addEventListener("input", updateEstimate);
+  document.querySelector("#run-list").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action=cancel-run]");
+    if (button) cancelRun(Number(button.closest("[data-run]").dataset.run)).catch(fail);
+  });
 
   client.auth.onAuthStateChange((_event, session) => {
     // Supabase warns against awaiting its own calls inside this callback.
