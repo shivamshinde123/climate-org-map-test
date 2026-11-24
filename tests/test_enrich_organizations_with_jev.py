@@ -22,7 +22,7 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
 
     def setUp(self):
         """Create one reusable organization, discovery result, and Jev decision."""
-        FakeStore(self)
+        self.store = FakeStore(self)
         self.properties = {
             "id": "org_test",
             "name": "New Hampshire Climate Action Network",
@@ -142,6 +142,10 @@ class EnrichOrganizationsWithJevTests(unittest.TestCase):
         self.assertEqual(len(discovery_calls), 1)
         self.assertEqual(len(jev_calls), 1)
         self.assertEqual(result["features"][0]["properties"]["website_url"], "https://example.org/")
+        # The admin portal's pending count reads the settings the run used.
+        self.assertEqual(self.store.settings["search_model"], "openai/gpt-5.4-nano")
+        self.assertEqual(set(self.store.settings), {
+            "discovery_version", "search_model", "jev_model", "jev_questions_version", "contact_version"})
 
 
     def test_not_found_rerun_clears_previous_website_and_contacts(self):

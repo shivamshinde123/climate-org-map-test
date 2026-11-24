@@ -46,6 +46,26 @@ Paid API answers, so a rerun never pays twice for the same question. Service rol
 
 `id` (identity), `created_at`, `entry` (jsonb): one row per Brave/OpenRouter request or routing decision, written by `scripts/api_log.py`. Request and response bodies are cut at 4,000 characters to keep the database small. Service role only.
 
+### `pipeline_runs`
+
+One row per pipeline run request (`supabase/migrations/20261124030000_pipeline_runs.sql`).
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | bigint identity, primary key | |
+| `kind` | text | `extract` (website, contacts, summary, Jev for one state) or `irs_refresh` (download IRS files, rebuild, geocode; no paid calls). |
+| `state`, `org_limit` | text, integer | Required for `extract`. `org_limit` 1–1000 caps spend and keeps a run under GitHub's 6-hour job limit. |
+| `status` | text | `queued` → `running` → `succeeded` / `failed`, or `cancelled` by an admin. A unique partial index allows only one `queued` or `running` row. |
+| `requested_by` | text | Email from the admin's sign-in token (default). |
+| `created_at`, `started_at`, `finished_at` | timestamptz | |
+| `run_url`, `summary`, `error` | text, jsonb, text | Written by the GitHub run: log link, counts, failure message. |
+
+Admins may read all rows, insert only `kind`, `state`, `org_limit` (column grants), and set a `queued` or `running` row to `cancelled` (for a run that never started or died). Everything else is written with the service role.
+
+### `pipeline_settings`
+
+One row (`id = true`): `discovery_version`, `search_model`, `jev_model`, `jev_questions_version`, `contact_version`, `updated_at`. Written by `enrich_payload` at the start of every extraction; admins can read it. `extraction_pending()` (admins only) returns `(state, pending)`: approved organizations an extraction would still process, the same rule as `enrichment_is_complete()` in Python. Checked equal per state on 2026-11-24 (17,223 pending).
+
 ### `admins`
 
 `email` (primary key). Readable and writable only with the service role key. `scripts/sync_supabase.py` keeps it equal to `ADMIN_EMAILS` (adds and removes; an empty setting changes nothing).

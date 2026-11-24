@@ -569,6 +569,9 @@ def identity_material(properties: dict) -> dict:
 def enrichment_is_complete(properties: dict, search_model: str, jev_model: str) -> bool:
     """Return whether current version/model settings already processed a record.
 
+    extraction_pending() in supabase/migrations/20261124030000_pipeline_runs.sql
+    repeats this rule in SQL for the admin portal's count; change both together.
+
     Definitive not-found and ambiguous discovery results count as complete to
     avoid paying for the same unsuccessful search on every run. Found sites also
     require a current Jev result before the feature is considered complete.
@@ -617,6 +620,12 @@ def enrich_payload(
     termination. Summary counts are returned; the caller saves ``payload``.
     """
     features = payload.get("features", [])
+    # The admin portal's pending count (extraction_pending() in Supabase) uses
+    # the settings of the latest run, so record them before any work.
+    store.save_settings({
+        "discovery_version": DISCOVERY_VERSION, "search_model": search_model, "jev_model": jev_model,
+        "jev_questions_version": JEV_QUESTIONS_VERSION, "contact_version": CONTACT_VERSION,
+    })
     discovery_cache = store.load_cache("discovery")
     contact_cache = store.load_cache("contact")
     # Paid web-search answers, kept apart from the discovery cache so that a

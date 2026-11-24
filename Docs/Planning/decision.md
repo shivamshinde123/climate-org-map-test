@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — Run requests and the pending count live in Supabase
+
+`pipeline_runs` is the queue and history for pipeline runs; a unique partial index allows one queued or running row, so two runs never pay for the same organizations. Admins can insert only `kind`, `state` and `org_limit` (column grants) and can cancel a queued or stuck run, since a run that never started would otherwise block all later ones. The portal's pending count must match the pipeline's `enrichment_is_complete()`, which depends on code versions and model names. Instead of copying those into SQL, each extraction writes its settings to the one-row `pipeline_settings`, and `extraction_pending()` repeats only the rule (cross-referenced in both places). Checked against the Python rule on live data: identical in all 51 states.
+
 ## 2026-11-24 — A rebuild downloads the IRS files itself
 
 The 51 `eo_*.csv` files (325 MB) were downloaded by hand, which a GitHub run can't do. `download_irs_files` in `build_irs_dataset.py` fetches them from `irs.gov/pub/irs-soi/` at the start of every rebuild. It sends `If-Modified-Since` from the local file's time; irs.gov answers 304 for unchanged files (checked live), so a laptop rebuild re-downloads only what the IRS changed, and a GitHub run (empty disk) gets everything. If irs.gov is down, existing local copies are used with a warning rather than failing the run; a file with no local copy stops the run. Only `--rebuild` downloads, never ordinary extraction runs, which don't read IRS files.

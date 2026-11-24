@@ -36,9 +36,10 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
 
 ### C. Run extraction from the admin portal (includes geocoding)
 
-- [ ] `pipeline_runs` table (one queued/running row at a time), a trigger that calls
-  GitHub `workflow_dispatch` through `pg_net`, with the GitHub token in Supabase Vault
-  (ships as a migration; no Edge Function to deploy).
+- [x] `pipeline_runs` table (one queued/running row at a time), plus `pipeline_settings`
+  and `extraction_pending()` for the per-state pending count.
+- [ ] A trigger that calls GitHub `workflow_dispatch` through `pg_net`, with the GitHub
+  token in Supabase Vault (ships as a migration; no Edge Function to deploy).
 - [ ] Pipeline workflow: `main.py --enrich-with-jev --enrichment-state XX
   --enrichment-limit N`, `concurrency: pipeline`, writes status, counts and the run
   link back to its row.

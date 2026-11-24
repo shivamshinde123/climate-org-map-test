@@ -14,6 +14,7 @@ import os
 import re
 import urllib.parse
 import urllib.request
+from datetime import datetime, timezone
 
 PAGE_SIZE = 1000  # PostgREST's default maximum rows per response
 BATCH_SIZE = 500
@@ -116,6 +117,16 @@ def save_cache(kind: str, results: dict) -> None:
             "POST",
             "resolution=merge-duplicates,return=minimal",
         )
+
+
+def save_settings(settings: dict) -> None:
+    """Record the versions and models of the current extraction run (one row)."""
+    _request(
+        "pipeline_settings?on_conflict=id",
+        {"id": True, **settings, "updated_at": datetime.now(timezone.utc).isoformat()},
+        "POST",
+        "resolution=merge-duplicates,return=minimal",
+    )
 
 
 def write_log(entry: dict) -> None:
