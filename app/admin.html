@@ -58,6 +58,7 @@
             <li><strong>Verification:</strong> "Verified" or "Not Verified" (default). Marking an organization Verified records today's date as its verification.</li>
             <li><strong>Verification surveys:</strong> answers to the verification survey (the map's "Claim and verify this listing" link) arrive under <em>Verification surveys to review</em>. An organization's response waits there: <em>Review &amp; verify</em> opens the editor with its listing (or a new one) filled in from the answers and set to Verified; Save puts it on the map. Municipal and individual responses are research only. <em>Download all responses</em> gives every answer as a CSV with the same columns as the old Google Sheet.</li>
             <li><strong>Find websites and contacts:</strong> choose a state and how many organizations to process, then <em>Run extraction</em>. The run happens on GitHub and takes a few seconds per organization; this page shows its progress and result, with a link to the full log. Results appear on the map when it finishes. A run that stays <em>queued</em> for more than a few minutes didn't start: the message under it says why (usually an expired GitHub token), and <em>Cancel</em> frees the slot for the next run.</li>
+            <li><strong>Admins:</strong> add an email under <em>Admins</em> and that person can sign in here. You can remove other admins, never yourself, so the page always has at least one admin.</li>
             <li><strong>Delete:</strong> organizations added through the forms or a CSV are deleted permanently. Organizations from the original map data are hidden instead, and can be restored by searching for them, opening Edit and clicking Save.</li>
             <li><strong>CSV files:</strong> the first row must be the column names below (the same as the template). Column order does not matter and other columns are ignored. Save the file as CSV (in Excel: <em>File → Save As → CSV UTF-8</em>).</li>
           </ul>
@@ -164,6 +165,22 @@
           </label>
           <div id="csv-message" class="notice" role="status" hidden></div>
         </section>
+
+        <section class="form-card">
+          <h2 class="section-label">Admins</h2>
+          <p class="form-help">
+            People who can sign in to this page. A new admin opens this page and asks for a sign-in link with the email
+            added here. You can remove other admins but not yourself, so there is always at least one.
+          </p>
+          <form id="admin-form" class="inline-form">
+            <label class="field">
+              <span>Email</span>
+              <input name="email" type="email" required autocomplete="off" />
+            </label>
+            <button class="primary-button" type="submit">Add admin</button>
+          </form>
+          <div id="admin-list" class="admin-list"></div>
+        </section>
       </div>
     </main>
 
@@ -183,6 +200,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
     <script src="supabase-config.js?v=20261123-24"></script>
     <script src="forms.js?v=20261123-24"></script>
-    <script src="admin.js?v=20261124-1"></script>
+    <script src="admin.js?v=20261124-2"></script>
   </body>
 </html>

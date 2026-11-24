@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — Admins are managed on the admin page
+
+Adding or removing an admin meant editing `ADMIN_EMAILS` and rerunning the sync on a laptop. Access rules now let an admin read the list, add an email and remove another admin. Removing yourself is not allowed (an access rule), and a trigger refuses to remove the last admin, so the page can't lock everyone out. Emails are stored lowercase (check constraint), matching `is_admin()`. The sync used to make the table equal `ADMIN_EMAILS`, which would delete every admin added on the page; it now only adds, as first-admin setup. Also revoked the unused visitor (anon) privileges on `admins`, which row-level security already blocked.
+
 ## 2026-11-24 — Monthly IRS refresh from the database; rebuilds keep contacts
 
 The refresh is a pg_cron job inside Supabase, not a scheduled GitHub workflow: it only inserts an `irs_refresh` row, and the existing trigger starts the run, so it shows in the admin history like any run. It checks daily and queues when the last successful refresh is 28+ days old, so a failed or skipped refresh (another run active) is retried the next day instead of waiting a month, and a failing one adds at most one row a day. The migration is left for the deploy to apply at the merge, because before that GitHub can't start `pipeline.yml`.

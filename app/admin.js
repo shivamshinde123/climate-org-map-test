@@ -213,7 +213,7 @@ let lastQuery = "";
 
 /** Reload the review lists and re-run the last search so statuses are current. */
 async function refreshLists() {
-  await Promise.all([loadPending(), loadSurveyResponses(), loadRuns()]);
+  await Promise.all([loadPending(), loadSurveyResponses(), loadRuns(), loadAdmins()]);
   if (lastQuery) await search();
 }
 
@@ -318,6 +318,40 @@ async function startRun(event) {
   check({ error });
   showMessage(ui.message, `Run requested for <strong>${escapeText(US_STATES[state])}</strong>. Its progress shows under <em>Find websites and contacts</em>.`, "success");
   await loadRuns();
+}
+
+/* ---------------- Admins (migration 20261124060000) ---------------- */
+
+async function loadAdmins() {
+  const rows = check(await client.from("admins").select("email").order("email"));
+  const me = ui.email.textContent.toLowerCase();
+  document.querySelector("#admin-list").innerHTML = rows
+    .map(
+      ({ email }) => `
+      <div class="admin-row" data-email="${escapeText(email)}">
+        <div class="admin-row-copy"><strong>${escapeText(email)}</strong>${email === me ? "<span>you</span>" : ""}</div>
+        ${email === me ? "" : `<button class="text-button danger" data-action="remove-admin" type="button">Remove</button>`}
+      </div>`,
+    )
+    .join("");
+}
+
+async function addAdmin(event) {
+  event.preventDefault();
+  const email = readForm(event.target).email.trim().toLowerCase();
+  const { error } = await client.from("admins").insert({ email });
+  if (error?.code === "23505") throw new Error(`${email} is already an admin.`);
+  check({ error });
+  event.target.reset();
+  showMessage(ui.message, `Added <strong>${escapeText(email)}</strong>. They can now sign in on this page with that email.`, "success");
+  await loadAdmins();
+}
+
+async function removeAdmin(email) {
+  if (!(await confirmAction(`Remove ${email}?`, "They will no longer be able to use this page. You can add them again later.", "Remove"))) return;
+  check(await client.from("admins").delete().eq("email", email));
+  showMessage(ui.message, `Removed <strong>${escapeText(email)}</strong>.`, "success");
+  await loadAdmins();
 }
 
 async function cancelRun(id) {
@@ -610,6 +644,11 @@ async function startAdmin() {
   const runForm = document.querySelector("#run-form");
   runForm.addEventListener("submit", (event) => startRun(event).catch(fail));
   runForm.addEventListener("input", updateEstimate);
+  document.querySelector("#admin-form").addEventListener("submit", (event) => addAdmin(event).catch(fail));
+  document.querySelector("#admin-list").addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action=remove-admin]");
+    if (button) removeAdmin(button.closest("[data-email]").dataset.email).catch(fail);
+  });
   document.querySelector("#run-list").addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action=cancel-run]");
     if (button) cancelRun(Number(button.closest("[data-run]").dataset.run)).catch(fail);

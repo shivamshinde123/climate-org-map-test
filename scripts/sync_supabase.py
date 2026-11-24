@@ -1,11 +1,12 @@
 """Apply the Supabase settings from ``.env``.
 
-Run whenever ``ADMIN_EMAILS`` or the Supabase project changes:
+Run once when setting up a Supabase project (or when it changes):
 
     python -m scripts.sync_supabase
 
-It makes the ``admins`` table match ``ADMIN_EMAILS`` exactly (adding and removing emails;
-an empty ``ADMIN_EMAILS`` leaves it unchanged), and writes the public URL and anon key to ``app/supabase-config.js``
+It adds the ``ADMIN_EMAILS`` to the ``admins`` table, so the first admin can sign
+in; after that, admins are added and removed on the admin page, and this never
+removes anyone. It also writes the public URL and anon key to ``app/supabase-config.js``
 for the map and the forms. The service role key stays in ``.env``. (The
 pipeline writes organizations to Supabase itself; see ``supabase_store.py``.)
 """
@@ -15,7 +16,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -41,17 +41,11 @@ def admin_emails(value: str) -> list[str]:
     return sorted({email.strip().lower() for email in value.split(",") if email.strip()})
 
 
-def removal_filter(keep: list[str]) -> str:
-    """PostgREST filter for admin rows whose email is not in `keep`."""
-    quoted = ",".join('"' + email.replace("\\", "\\\\").replace('"', '\\"') + '"' for email in keep)
-    return "email=" + urllib.parse.quote(f"not.in.({quoted})", safe="")
-
-
-def _post(url: str, key: str, path: str, body, prefer: str = "return=minimal", method: str = "POST") -> bytes:
+def _post(url: str, key: str, path: str, body, prefer: str = "return=minimal") -> bytes:
     request = urllib.request.Request(
         f"{url}/rest/v1/{path}",
-        data=json.dumps(body).encode() if body is not None else None,
-        method=method,
+        data=json.dumps(body).encode(),
+        method="POST",
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json", "Prefer": prefer},
     )
     with urllib.request.urlopen(request, timeout=120) as response:
@@ -65,17 +59,10 @@ def main() -> None:
     service_key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
 
     admins = admin_emails(os.environ.get("ADMIN_EMAILS", ""))
+    # Add only: admins added on the admin page must survive a later sync.
     if admins:
-        # The table matches ADMIN_EMAILS exactly: add new emails, then remove the rest.
         _post(url, service_key, "admins", [{"email": email} for email in admins], "resolution=ignore-duplicates,return=minimal")
-        removed = json.loads(_post(url, service_key, f"admins?{removal_filter(admins)}", None, "return=representation", "DELETE"))
-        if removed:
-            print(f"      Removed admins: {', '.join(row['email'] for row in removed)}")
-    else:
-        # An empty setting is more likely a mistake than a wish to lock everyone out.
-        print("      ADMIN_EMAILS is empty; admin list left unchanged.")
-
-    print(f"      Admins: {len(admins)}")
+    print(f"      Admin emails ensured: {len(admins)} (manage the rest on admin.html)")
 
     CONFIG_JS.write_text(config_js(url, os.environ["SUPABASE_ANON_KEY"]), encoding="utf-8")
     print(f"      Wrote {CONFIG_JS.relative_to(PROJECT_ROOT)}")

@@ -21,7 +21,7 @@ Migrations in `supabase/migrations/` are applied by the deploy workflow (`supaba
 - `SUPABASE_URL`: project URL (Project Settings → API).
 - `SUPABASE_ANON_KEY`: public anon key; ends up in `app/supabase-config.js`, which is safe because row-level security protects the data.
 - `SUPABASE_SERVICE_ROLE_KEY`: secret; used by the pipeline and the sync script. Never put it in `app/`.
-- `ADMIN_EMAILS`: comma-separated emails allowed to use `admin.html`. Each sync makes the `admins` table match this list exactly: new emails are added and emails no longer listed are removed. If it is empty or missing, the table is left unchanged rather than emptied.
+- `ADMIN_EMAILS`: comma-separated emails added to the `admins` table by the sync, so the first admin of a new project can sign in. The sync only adds; after that, add and remove admins on `admin.html` (*Admins*).
 
 GitHub Actions secrets (repository Settings → Secrets and variables → Actions):
 

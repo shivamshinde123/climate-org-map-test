@@ -55,7 +55,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
 
 ### E. Manage admins in the portal
 
-- [ ] Admin-only access rules on `admins` (guard: the last admin can't be removed).
+- [x] Admin-only access rules on `admins` (guard: the last admin can't be removed).
   `ADMIN_EMAILS` + `scripts/sync_supabase.py` then only bootstrap the first admin.
 
 ### Limits that shape the design

@@ -72,7 +72,7 @@ One row (`id = true`): `discovery_version`, `search_model`, `jev_model`, `jev_qu
 
 ### `admins`
 
-`email` (primary key). Readable and writable only with the service role key. `scripts/sync_supabase.py` keeps it equal to `ADMIN_EMAILS` (adds and removes; an empty setting changes nothing).
+`email` (primary key, lowercase, checked). Managed on `admin.html` (*Admins*, migration `20261124060000`): admins may read the list, add emails, and remove other admins but not themselves; a `before delete` trigger refuses to remove the last admin. Visitors have no access. `scripts/sync_supabase.py` only adds `ADMIN_EMAILS` (first-admin setup) and never removes anyone.
 
 ### Access rules (row-level security)
 

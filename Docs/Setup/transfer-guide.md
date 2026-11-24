@@ -73,7 +73,7 @@ At this point the map shows the organizations from the data file but has no data
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
 4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
 5. New query again; paste and run `supabase/migrations/20261124010000_map_rows.sql`.
-6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`, then `20261124030000_pipeline_runs.sql`, `20261124040000_dispatch_pipeline_runs.sql` and `20261124050000_monthly_irs_refresh.sql`, the same way.
+6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`, then `20261124030000_pipeline_runs.sql`, `20261124040000_dispatch_pipeline_runs.sql`, `20261124050000_monthly_irs_refresh.sql` and `20261124060000_admins_in_portal.sql`, the same way.
 7. Check **Table Editor**: seven tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log`, `pipeline_runs` and `pipeline_settings`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
@@ -121,7 +121,7 @@ ADMIN_EMAILS=ceo@example.org
 ```
 
 - `SUPABASE_URL` is under **Project Settings → Data API** (or **Connect**), like `https://abcdefghijklmnop.supabase.co`.
-- `ADMIN_EMAILS` can list several addresses separated by commas. The sync in Step 7 makes the admin list match it exactly, so leave out anyone who should no longer be an admin.
+- `ADMIN_EMAILS` is only for the first sign-in: the sync in Step 7 adds these emails as admins. After that, add or remove admins on the admin page (*Admins* section); the sync never removes anyone.
 - **The service_role key is a secret.** It stays in `.env`, which Git ignores. Never paste it into a file under `app/`, an email or a chat.
 - `OPENROUTER_API_KEY` and `BRAVE_API_KEY` are only for re-running the website-discovery pipeline; see `Docs/Setup/api-keys-setup.md` if the CEO will do that.
 
@@ -194,7 +194,7 @@ Saved website searches, address lookups, category answers and request logs are i
 
 | Task | How |
 |---|---|
-| Add or remove an admin | Edit `ADMIN_EMAILS` in `.env`, run `python -m scripts.sync_supabase`. |
+| Add or remove an admin | Admin page → *Admins*. You can't remove yourself, and the last admin can't be removed. |
 | Review new organizations and surveys | `admin.html`: *New organizations to approve* and *Verification surveys to review*. |
 | Refresh the data from a new IRS release | Automatic: a daily database check starts an *IRS data refresh* run when the last successful one is 28 days old. It appears in the admin page's run history; new organizations then show in the *waiting* counts for extraction. By hand: `python main.py --rebuild --use-census --no-serve`. |
 | Keep the database awake | Automatic: the *Keep Supabase awake* workflow reads one row every 3 days, because free Supabase projects pause after about a week without activity (the map, forms and admin page then stop until someone clicks **Restore** in Supabase). Check the **Actions** tab now and then that it still runs green. If the repository is public, GitHub turns off scheduled workflows after 60 days without commits; **Enable workflow** turns it back on. |
@@ -212,6 +212,6 @@ Saved website searches, address lookups, category answers and request logs are i
 | Deploy fails at the *migrate* step | `SUPABASE_DB_URL` secret missing or wrong (Step 4): use the Session pooler string with the real password, URL-encoded. The job log shows the database's error. |
 | Sync stops with *relation "admins" does not exist* | Step 4 was skipped or a file failed; run the SQL files again. |
 | Sign-in link opens an error or the wrong site | The redirect URLs in Step 5 do not match the site address exactly (check `https`, the repository name and `/admin.html`). |
-| Admin page says *… is not an admin* | That email is not in `ADMIN_EMAILS`; add it and run the sync. |
+| Admin page says *… is not an admin* | Another admin adds that email under *Admins* (or, with no admin left to do it, add it to `ADMIN_EMAILS` and run the sync). |
 | Sign-in email never arrives | Supabase's built-in sender limit (a few per hour); wait, or set up SMTP (Step 5). Check the spam folder. |
 | Changes on the admin page do not show on the map | Reload the map; browsers can keep an old copy for a few minutes. |
