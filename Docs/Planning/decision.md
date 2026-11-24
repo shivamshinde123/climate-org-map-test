@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — The database starts GitHub runs; the admin panel shows why one didn't start
+
+An `after insert` trigger on `pipeline_runs` calls GitHub's `workflow_dispatch` through pg_net, reading a fine-grained token (this repository, *Actions: Read and write*) and the repository name from Supabase Vault. No Edge Function, no extra deploy step, and the token never reaches the browser or git. pg_net is asynchronous, so the trigger stores its request id and `pipeline_dispatch_result()` lets the admin page show GitHub's answer for a run still queued (401 expired token, 404 workflow not on `master`). Missing Vault secrets fail the row at once so it doesn't hold the one-run slot. The panel's cost estimate uses $0.012 per organization, the average of the Massachusetts and California runs; it is labelled an estimate. Known gap: GitHub only dispatches workflows that exist on `master`, so the full chain is tested after the merge.
+
 ## 2026-11-24 — One workflow runs one queued request
 
 `pipeline.yml` takes a `pipeline_runs` id; `scripts/pipeline_run.py` claims the row only while it is still `queued` (so a cancelled request never runs), marks it `running` with the GitHub log link, runs `main.py` in-process, and records `succeeded` with the counts `run_pipeline` now returns, or `failed` with the error. The interrupt GitHub sends on cancel or timeout is caught the same way, after `main.py` has saved finished organizations. Every run passes `--use-census`, so new organizations are geocoded in the same run (only uncached addresses are sent). `timeout-minutes: 350` leaves time to save before GitHub's 6-hour kill. Workflow `concurrency` is a second guard behind the database's one-active-run index. Tested on the laptop with the real database: a 1-organization California run (the record that failed in the November CA run) finished in 1.5 minutes and recorded its summary.

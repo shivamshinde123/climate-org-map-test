@@ -27,6 +27,7 @@ GitHub Actions secrets (repository Settings → Secrets and variables → Action
 
 - `SUPABASE_DB_URL`: Session pooler connection string with the database password (URL-encoded). Used only by the *migrate* job in `deploy.yml`. GitHub runners have no IPv6, so the direct connection string does not work.
 - `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY`, `BRAVE_API_KEY`: used by `pipeline.yml` (the same values as in `.env`). Models use the code defaults (`openai/gpt-5.4-nano`, `typesafe/jev-1.13`); the paid contact lookup stays off. The Supabase URL is read from `app/supabase-config.js`.
+- Supabase Vault (not GitHub): `github_dispatch_token` (fine-grained GitHub token, this repository only, *Actions: Read and write*, expires within a year) and `github_repo` (`owner/name`). The `pipeline_runs` insert trigger reads them to start `pipeline.yml`; without them a new run is marked failed at once. Setup: `Docs/Setup/transfer-guide.md` Step 4.
 - `keep-awake.yml` needs no secret: it reads the public URL and anon key from `app/supabase-config.js`.
 
 In the Supabase dashboard, Authentication → URL Configuration must list the admin page URLs (the GitHub Pages `admin.html` and `http://localhost:8000/admin.html`) as redirect URLs for the email sign-in link.

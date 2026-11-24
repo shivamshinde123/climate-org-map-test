@@ -73,12 +73,12 @@ At this point the map shows the organizations from the data file but has no data
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
 4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
 5. New query again; paste and run `supabase/migrations/20261124010000_map_rows.sql`.
-6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`.
-7. Check **Table Editor**: five tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache` and `api_log`, each marked *RLS enabled*.
+6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`, then `20261124030000_pipeline_runs.sql`, then `20261124040000_dispatch_pipeline_runs.sql`, the same way.
+7. Check **Table Editor**: seven tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log`, `pipeline_runs` and `pipeline_settings`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
 
-Then let GitHub apply future database changes itself. Every deploy runs `supabase db push`, which applies any new file in `supabase/migrations/` before the site goes live (files already applied are skipped; the first deploy reapplies these six once, which is safe).
+Then let GitHub apply future database changes itself. Every deploy runs `supabase db push`, which applies any new file in `supabase/migrations/` before the site goes live (files already applied are skipped; the first deploy reapplies these once, which is safe).
 
 1. In Supabase: **Connect** (top bar) → **Session pooler** → copy the connection string. Replace `[YOUR-PASSWORD]` with the database password from Step 3. If the password has characters such as `@`, `#` or `/`, URL-encode them (for example `@` becomes `%40`).
 2. In the CEO's GitHub repository: **Settings → Secrets and variables → Actions → New repository secret**. Name: `SUPABASE_DB_URL`. Value: the connection string.
@@ -86,6 +86,14 @@ Then let GitHub apply future database changes itself. Every deploy runs `supabas
 Without this secret the deploy stops at the *migrate* step and the site is not updated. Use the Session pooler string, not the direct connection: GitHub's machines can't reach the direct one.
 
 3. For the admin page's *Run extraction* button, add three more secrets the same way, with the same values as in `.env` (Step 6): `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY` and `BRAVE_API_KEY`.
+4. Let Supabase start GitHub runs. In GitHub (signed in as the CEO): **Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**. Repository access: *Only select repositories* → this repository. Permissions → Repository permissions → **Actions: Read and write**. Expiration: up to one year; **put a reminder in the calendar a week before it expires**. Copy the token, then in the Supabase **SQL Editor** run (with the real values):
+
+```sql
+select vault.create_secret('<the token>', 'github_dispatch_token');
+select vault.create_secret('<ceo-username>/<repo-name>', 'github_repo');
+```
+
+To replace an expired token later: `select vault.update_secret((select id from vault.secrets where name = 'github_dispatch_token'), '<new token>');`. Supabase Vault stores both encrypted; they are never in the repository.
 
 ## Step 5 — Set up the admin sign-in
 
@@ -200,6 +208,7 @@ Saved website searches, address lookups, category answers and request logs are i
 | Add form says submissions are not open | `app/supabase-config.js` was not committed and pushed after Step 7, or is still empty. |
 | Sync stops with *401* or *Invalid API key* | `SUPABASE_SERVICE_ROLE_KEY` is wrong or is the anon key. Use the legacy *service_role* key (Step 6). |
 | Map says *The organization data could not be loaded* | `app/supabase-config.js` is empty or not pushed, the project is paused, or Step 7's import was skipped. |
+| A run stays *queued* on the admin page | The message under it gives GitHub's answer. *401*: the token in Vault expired or is wrong (Step 4.4). *404*: `github_repo` is wrong, or `pipeline.yml` isn't on `master` yet. Cancel the run, fix it, and run again. |
 | Deploy fails at the *migrate* step | `SUPABASE_DB_URL` secret missing or wrong (Step 4): use the Session pooler string with the real password, URL-encoded. The job log shows the database's error. |
 | Sync stops with *relation "admins" does not exist* | Step 4 was skipped or a file failed; run the SQL files again. |
 | Sign-in link opens an error or the wrong site | The redirect URLs in Step 5 do not match the site address exactly (check `https`, the repository name and `/admin.html`). |
