@@ -85,6 +85,8 @@ Then let GitHub apply future database changes itself. Every deploy runs `supabas
 
 Without this secret the deploy stops at the *migrate* step and the site is not updated. Use the Session pooler string, not the direct connection: GitHub's machines can't reach the direct one.
 
+3. For the admin page's *Run extraction* button, add three more secrets the same way, with the same values as in `.env` (Step 6): `SUPABASE_SERVICE_ROLE_KEY`, `OPENROUTER_API_KEY` and `BRAVE_API_KEY`.
+
 ## Step 5 — Set up the admin sign-in
 
 The admin page signs in with a link sent by email, so Supabase must know the site's address.

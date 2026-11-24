@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — One workflow runs one queued request
+
+`pipeline.yml` takes a `pipeline_runs` id; `scripts/pipeline_run.py` claims the row only while it is still `queued` (so a cancelled request never runs), marks it `running` with the GitHub log link, runs `main.py` in-process, and records `succeeded` with the counts `run_pipeline` now returns, or `failed` with the error. The interrupt GitHub sends on cancel or timeout is caught the same way, after `main.py` has saved finished organizations. Every run passes `--use-census`, so new organizations are geocoded in the same run (only uncached addresses are sent). `timeout-minutes: 350` leaves time to save before GitHub's 6-hour kill. Workflow `concurrency` is a second guard behind the database's one-active-run index. Tested on the laptop with the real database: a 1-organization California run (the record that failed in the November CA run) finished in 1.5 minutes and recorded its summary.
+
 ## 2026-11-24 — Run requests and the pending count live in Supabase
 
 `pipeline_runs` is the queue and history for pipeline runs; a unique partial index allows one queued or running row, so two runs never pay for the same organizations. Admins can insert only `kind`, `state` and `org_limit` (column grants) and can cancel a queued or stuck run, since a run that never started would otherwise block all later ones. The portal's pending count must match the pipeline's `enrichment_is_complete()`, which depends on code versions and model names. Instead of copying those into SQL, each extraction writes its settings to the one-row `pipeline_settings`, and `extraction_pending()` repeats only the rule (cross-referenced in both places). Checked against the Python rule on live data: identical in all 51 states.

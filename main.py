@@ -103,7 +103,7 @@ def restore_enrichment(payload: dict, overlay: dict[str, dict]) -> int:
     return restored
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Define and validate the public command-line interface."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
@@ -159,7 +159,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=8000)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
@@ -226,8 +226,8 @@ def dataset_has_complete_coordinates(payload: dict) -> bool:
     return bool(features) and all(resolved(feature) for feature in features)
 
 
-def run_pipeline(args: argparse.Namespace) -> None:
-    """Execute enabled stages in dependency order and print concise progress."""
+def run_pipeline(args: argparse.Namespace) -> dict:
+    """Execute enabled stages in dependency order, print progress, and return summary counts."""
     phase_count = 4 if args.enrich_with_jev else 3
     payload = store.load_payload()
     # An empty database must be built; existing records are authoritative
@@ -268,6 +268,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
         if restored:
             print(f"      Preserved existing enrichment: {restored:,} organizations")
 
+    enrichment_stats: dict = {}
     try:
         if args.enrich_with_jev:
             print("[3/4] Discovering websites and classifying with Jev through OpenRouter...", flush=True)
@@ -283,6 +284,7 @@ def run_pipeline(args: argparse.Namespace) -> None:
                 state=args.enrichment_state,
                 contact_fallback=args.contact_fallback,
             )
+            enrichment_stats = stats
             print(f"      Organizations processed: {stats['processed']:,}")
             print(f"      Official websites found: {stats['websites_found']:,}")
             print(f"        - by Brave Search: {stats['brave_matches']:,}")
@@ -304,7 +306,9 @@ def run_pipeline(args: argparse.Namespace) -> None:
     print(f"      Validated {records:,} records and {points:,} map points")
     print(f"      Approximate ZIP/city points: {fallback_points:,}")
     print(f"      Records without a map point: {records - points:,}")
-    print(f"      Organizations saved to Supabase: {store.save_payload(payload):,}")
+    saved = store.save_payload(payload)
+    print(f"      Organizations saved to Supabase: {saved:,}")
+    return {"organizations": records, "map_points": points, "saved": saved, **enrichment_stats}
 
 
 def serve_map(host: str, port: int) -> None:

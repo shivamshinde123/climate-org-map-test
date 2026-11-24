@@ -40,7 +40,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
   and `extraction_pending()` for the per-state pending count.
 - [ ] A trigger that calls GitHub `workflow_dispatch` through `pg_net`, with the GitHub
   token in Supabase Vault (ships as a migration; no Edge Function to deploy).
-- [ ] Pipeline workflow: `main.py --enrich-with-jev --enrichment-state XX
+- [x] Pipeline workflow (`pipeline.yml` + `scripts/pipeline_run.py`; tested locally as run 1): `main.py --enrich-with-jev --enrichment-state XX
   --enrichment-limit N`, `concurrency: pipeline`, writes status, counts and the run
   link back to its row.
 - [ ] Admin panel: state, pending count, per-run limit, cost estimate (~$0.012 per

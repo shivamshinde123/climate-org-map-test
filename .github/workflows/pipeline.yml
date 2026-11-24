@@ -1,0 +1,44 @@
+name: Pipeline run
+
+# Runs one row of the Supabase pipeline_runs table (an admin's "Run extraction"
+# request or the monthly IRS refresh). Started through workflow_dispatch with
+# the row id; GitHub only offers this for workflows on the default branch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "pipeline_runs id"
+        required: true
+
+permissions:
+  contents: read
+
+# One run at a time; a second request waits instead of paying for the same organizations.
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    # GitHub stops jobs at 6 hours; stopping a little earlier lets the run save
+    # finished organizations and mark its row failed. org_limit keeps runs well under.
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Read the public Supabase URL
+        run: |
+          config=$(sed -n 's/^window\.SUPABASE_CONFIG = \(.*\);$/\1/p' app/supabase-config.js)
+          echo "SUPABASE_URL=$(jq -r .url <<<"$config")" >> "$GITHUB_ENV"
+      - name: Run the pipeline
+        run: python -m scripts.pipeline_run "$RUN_ID"
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          BRAVE_API_KEY: ${{ secrets.BRAVE_API_KEY }}

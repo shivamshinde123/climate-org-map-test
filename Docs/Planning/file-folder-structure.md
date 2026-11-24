@@ -9,7 +9,8 @@ Climate Org Mapping/
 |-- .github/
 |   `-- workflows/
 |       |-- deploy.yml                # on push to master: supabase db push, then deploy app/ to GitHub Pages
-|       `-- keep-awake.yml            # every 3 days: one read so the free Supabase project never pauses
+|       |-- keep-awake.yml            # every 3 days: one read so the free Supabase project never pauses
+|       `-- pipeline.yml              # runs one pipeline_runs request (extraction or IRS refresh)
 |-- app/
 |   |-- data/
 |   |   |-- map-schema.json           # filter and field vocabulary
@@ -43,6 +44,7 @@ Climate Org Mapping/
 |   |-- website_discovery.py          # Brave Search discovery and deterministic contact crawling
 |   |-- supabase_store.py             # pipeline reads/writes organizations, caches, API log in Supabase
 |   |-- sync_supabase.py              # admin emails -> admins table, writes supabase-config.js
+|   |-- pipeline_run.py               # claims a queued pipeline_runs row, runs main.py, records the outcome
 |   |-- build_town_lists.py           # Census place + town names -> app/data/towns/
 |   `-- load_environment.py           # .env loader
 |-- supabase/
