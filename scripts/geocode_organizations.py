@@ -538,7 +538,7 @@ def geocode_dataset(
     for feature in features:
         properties = feature["properties"]
         if properties.get("source") == "GCC survey":
-            continue  # placed by survey_organizations.py (town ZIP or center); never re-placed here
+            continue  # survey organizations keep the place their survey answer gave (admin-owned rows)
         result = cache.get(properties["id"])
         if result is None or result.address_key != make_address_key(properties):
             properties.setdefault("geocoding_status", "Not_Submitted")

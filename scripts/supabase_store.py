@@ -2,7 +2,7 @@
 
 Every stage reads organizations from and writes them back to the
 ``organizations`` table, paid API answers go to ``pipeline_cache``, the request
-audit to ``api_log``, and survey evidence comes from ``survey_verifications``.
+audit to ``api_log``.
 All calls use the service role key from ``.env`` (``SUPABASE_URL``,
 ``SUPABASE_SERVICE_ROLE_KEY``), so they bypass the browser's access rules.
 """
@@ -120,8 +120,3 @@ def save_cache(kind: str, results: dict) -> None:
 
 def write_log(entry: dict) -> None:
     _request("api_log", {"entry": entry}, "POST")
-
-
-def survey_verifications() -> dict[str, dict]:
-    """Survey evidence by EIN."""
-    return {row["ein"]: row["record"] for row in _select_all("survey_verifications?select=ein,record&order=ein")}

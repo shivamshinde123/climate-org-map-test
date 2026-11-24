@@ -26,8 +26,6 @@ from scripts import supabase_store as store
 from scripts.build_irs_dataset import build_dataset
 from scripts.geocode_organizations import DEFAULT_ENDPOINT, geocode_dataset
 from scripts.load_environment import load_environment
-from scripts.survey_organizations import add_survey_organizations
-from scripts.survey_verifications import apply_survey_verifications
 from scripts.enrich_organizations_with_jev import (
     DEFAULT_JEV_MODEL,
     DEFAULT_SEARCH_MODEL,
@@ -244,15 +242,6 @@ def run_pipeline(args: argparse.Namespace) -> None:
     else:
         print(f"[1/{phase_count}] Loaded {len(payload['features']):,} organizations from Supabase", flush=True)
 
-    # Survey-only organizations (no IRS record) are re-added on every run, so a
-    # rebuild never drops them; they arrive already placed at their town center.
-    added = add_survey_organizations(payload)
-    # Applied before enrichment too, so the paid run skips Jev for survey-verified records.
-    survey_evidence = store.survey_verifications()
-    apply_survey_verifications(payload["features"], survey_evidence)
-    if added:
-        print(f"      GCC survey organizations added: {added:,}")
-
     mode = "Census geocoding with ZIP/city fallback" if args.use_census else "cached coordinates and ZIP/city fallback"
     # Fallback-only coordinates are complete for map rendering.  Census mode is
     # nevertheless allowed to revisit them because it is an explicit upgrade.
@@ -307,11 +296,6 @@ def run_pipeline(args: argparse.Namespace) -> None:
         # Enrichment stopped early (error, Brave key, Ctrl+C): keep the finished paid work.
         print(f"      Organizations saved to Supabase: {store.save_payload(payload):,}")
         raise
-
-    # Survey verification is applied last so no earlier stage can overwrite it.
-    marked = apply_survey_verifications(payload["features"], survey_evidence)
-    if marked:
-        print(f"      Verified from GCC survey: {marked:,} organizations")
 
     print(f"[{phase_count}/{phase_count}] Validating and saving to Supabase...", flush=True)
     records, points, fallback_points = validate_map_dataset(payload)

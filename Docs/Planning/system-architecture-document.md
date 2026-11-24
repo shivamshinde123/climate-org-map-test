@@ -20,7 +20,7 @@ main.py orchestration
 Supabase (only data store)
   organizations         <-- add.html (visitor submissions, pending)
   pipeline_cache        <-- admin.html (approve, verify, edit, delete, CSV; email sign-in)
-  api_log, survey_verifications
+  api_log
         |
         v  approved rows, map fields only (REST, anon key)
 Static MapLibre web application (GitHub Pages, auto-deploy of app/ on push)

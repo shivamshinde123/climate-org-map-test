@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — Survey organizations owned by the database
+
+Every run re-added the 30 survey-only organizations from `Data/Survey/survey-organizations.csv` and re-applied the 9 survey verifications from the `survey_verifications` table, only so an IRS rebuild could not overwrite them. Checked first: all 39 rows were already in Supabase with the survey answers applied. Migration `20261124020000_survey_rows_admin_owned.sql` marks them `updated_via = 'admin'`, which gets the same protection from the existing merge rule (an admin row keeps its non-empty values), and drops the table; the CSV, `survey_organizations.py` and `apply_survey_verifications` are deleted. New verifications already come through the admin portal's survey queue, so the files were a second, stale path. Side effect, the same as for any admin-edited row: a later IRS refresh only fills these rows' empty fields. The Jev skip still works because it reads `verification_source` from the row.
+
 ## 2026-11-24 — Census lookup cache moved to Supabase
 
 A GitHub run starts with an empty disk, so a local `census_geocodes.csv` would be lost after every run and each run would resubmit all ~20,600 addresses. The 20,577 cached results now live in `pipeline_cache` (kind `census`, key = organization id), saved after every Census batch like the other API caches; the import was checked identical and an offline geocoding pass over all organizations moved no pin. The city and ZIP centroid CSVs stay local and gitignored: they are fixed public Census data that `geocode_organizations.py` downloads when missing, not project data.

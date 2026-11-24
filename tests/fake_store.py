@@ -6,9 +6,9 @@ from scripts import supabase_store as store, website_discovery
 
 
 class FakeStore:
-    """Patch ``supabase_store`` for one test: caches, the API log and survey evidence live in memory."""
+    """Patch ``supabase_store`` for one test: caches and the API log live in memory."""
 
-    def __init__(self, test, survey: dict | None = None):
+    def __init__(self, test):
         self.caches: dict[str, dict] = {}
         self.log: list[dict] = []
         for name, replacement in (
@@ -16,7 +16,6 @@ class FakeStore:
             ("append_cache", lambda kind, key, result: self.caches.setdefault(kind, {}).__setitem__(key, result)),
             ("save_cache", lambda kind, results: self.caches.setdefault(kind, {}).update(results)),
             ("write_log", self.log.append),
-            ("survey_verifications", lambda: dict(survey or {})),
         ):
             patcher = mock.patch.object(store, name, replacement)
             patcher.start()

@@ -27,7 +27,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
   becomes `pipeline_cache` kind `census`, shared by laptop and GitHub runs.
   (City and ZIP centroid files stay local: public Census data the code downloads
   when missing.)
-- [ ] **Survey organizations owned by the database.** Mark the survey-only and
+- [x] **Survey organizations owned by the database.** Mark the survey-only and
   survey-verified rows as admin-owned (the merge rule then keeps their values), and
   delete `Data/Survey/survey-organizations.csv`, the `survey_verifications` table
   and the code that re-adds them each run. Verification is now the admin portal's job.

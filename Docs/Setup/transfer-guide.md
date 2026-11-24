@@ -73,11 +73,12 @@ At this point the map shows the organizations from the data file but has no data
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
 4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
 5. New query again; paste and run `supabase/migrations/20261124010000_map_rows.sql`.
-6. Check **Table Editor**: six tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log` and `survey_verifications`, each marked *RLS enabled*.
+6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`.
+7. Check **Table Editor**: five tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache` and `api_log`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
 
-Then let GitHub apply future database changes itself. Every deploy runs `supabase db push`, which applies any new file in `supabase/migrations/` before the site goes live (files already applied are skipped; the first deploy reapplies these five once, which is safe).
+Then let GitHub apply future database changes itself. Every deploy runs `supabase db push`, which applies any new file in `supabase/migrations/` before the site goes live (files already applied are skipped; the first deploy reapplies these six once, which is safe).
 
 1. In Supabase: **Connect** (top bar) → **Session pooler** → copy the connection string. Replace `[YOUR-PASSWORD]` with the database password from Step 3. If the password has characters such as `@`, `#` or `/`, URL-encode them (for example `@` becomes `%40`).
 2. In the CEO's GitHub repository: **Settings → Secrets and variables → Actions → New repository secret**. Name: `SUPABASE_DB_URL`. Value: the connection string.

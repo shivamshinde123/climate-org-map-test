@@ -46,10 +46,6 @@ Paid API answers, so a rerun never pays twice for the same question. Service rol
 
 `id` (identity), `created_at`, `entry` (jsonb): one row per Brave/OpenRouter request or routing decision, written by `scripts/api_log.py`. Request and response bodies are cut at 4,000 characters to keep the database small. Service role only.
 
-### `survey_verifications`
-
-`ein` (primary key), `record` (jsonb: `survey`, `evidence`, `survey_categories`): organizations that answered the GCC survey themselves. The pipeline marks them Verified and uses their own answers as categories. Service role only.
-
 ### `admins`
 
 `email` (primary key). Readable and writable only with the service role key. `scripts/sync_supabase.py` keeps it equal to `ADMIN_EMAILS` (adds and removes; an empty setting changes nothing).
@@ -60,7 +56,8 @@ Paid API answers, so a rerun never pays twice for the same question. Service rol
 - Anyone may insert a row only if it is `pending`, `public_form`, `Not Verified`, and under 16 KB.
 - An email in `admins` (checked by `is_admin()`) may read, change and delete every row.
 - `sync_pipeline_organizations(rows jsonb)` is the pipeline's write. Pipeline rows take the pipeline's values; rows the admin or a visitor changed keep every non-empty value and only gain empty fields and the pipeline's bookkeeping fields (website discovery, Jev, contacts, geocoding). Only the service role may call it.
-- `pipeline_cache`, `api_log` and `survey_verifications` have no policies: only the service role can use them.
+- Organizations that answered the GCC survey themselves (source `GCC survey`, or `verification_source` starting with `GCC survey`) are `updated_via = 'admin'` rows, so the pipeline keeps their answers; enrichment skips Jev for them. (They used to be re-added each run from `Data/Survey/survey-organizations.csv` and the `survey_verifications` table, both removed on 2026-11-24.)
+- `pipeline_cache` and `api_log` have no policies: only the service role can use them.
 
 ## Planned logical entities (longer term)
 

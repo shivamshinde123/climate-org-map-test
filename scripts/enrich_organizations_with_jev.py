@@ -33,9 +33,7 @@ try:
     )
     from . import api_log
     from . import supabase_store as store
-    from .survey_verifications import is_survey_verified
 except ImportError:  # Allows direct execution from the repository root.
-    from survey_verifications import is_survey_verified  # type: ignore
     from normalize_external_data_without_llm import CATEGORY_OPTIONS  # type: ignore
     from load_environment import load_environment  # type: ignore
     from website_discovery import (  # type: ignore
@@ -132,6 +130,15 @@ OPTION_DESCRIPTIONS = {
     "Not Verified": "No explicit GCC verification evidence is present.",
     "Unknown": "The supplied evidence is insufficient to choose another option.",
 }
+
+
+def is_survey_verified(properties: dict) -> bool:
+    """True when the organization answered the GCC survey itself (its answers beat Jev).
+
+    Survey organizations are admin-owned rows in Supabase, so the pipeline never
+    overwrites their answers; new verifications come from the admin portal.
+    """
+    return str(properties.get("verification_source", "")).startswith("GCC survey")
 
 
 def discovery_schema() -> dict:
