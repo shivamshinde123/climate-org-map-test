@@ -16,12 +16,17 @@ Future geocoding, map-tile, CRM, and third-party source credentials must be supp
 
 ## Supabase
 
-Run each migration in `supabase/migrations/` once, in order (Supabase SQL Editor), then `python -m scripts.sync_supabase`. The script records the admin emails and writes `app/supabase-config.js` (public URL and anon key) for the map and forms; re-run it when `ADMIN_EMAILS` changes. The pipeline (`main.py`) reads and writes organizations in Supabase itself, so it needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on every run.
+Migrations in `supabase/migrations/` are applied by the deploy workflow (`supabase db push`, tracked in `supabase_migrations.schema_migrations`); on a new project run them once in the SQL Editor, in order, then `python -m scripts.sync_supabase`. The script records the admin emails and writes `app/supabase-config.js` (public URL and anon key) for the map and forms; re-run it when `ADMIN_EMAILS` changes. The pipeline (`main.py`) reads and writes organizations in Supabase itself, so it needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` on every run.
 
 - `SUPABASE_URL`: project URL (Project Settings → API).
 - `SUPABASE_ANON_KEY`: public anon key; ends up in `app/supabase-config.js`, which is safe because row-level security protects the data.
 - `SUPABASE_SERVICE_ROLE_KEY`: secret; used by the pipeline and the sync script. Never put it in `app/`.
 - `ADMIN_EMAILS`: comma-separated emails allowed to use `admin.html`. Each sync makes the `admins` table match this list exactly: new emails are added and emails no longer listed are removed. If it is empty or missing, the table is left unchanged rather than emptied.
+
+GitHub Actions secrets (repository Settings → Secrets and variables → Actions):
+
+- `SUPABASE_DB_URL`: Session pooler connection string with the database password (URL-encoded). Used only by the *migrate* job in `deploy.yml`. GitHub runners have no IPv6, so the direct connection string does not work.
+- `keep-awake.yml` needs no secret: it reads the public URL and anon key from `app/supabase-config.js`.
 
 In the Supabase dashboard, Authentication → URL Configuration must list the admin page URLs (the GitHub Pages `admin.html` and `http://localhost:8000/admin.html`) as redirect URLs for the email sign-in link.
 

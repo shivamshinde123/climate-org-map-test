@@ -15,7 +15,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Apply new files in supabase/migrations/ before the site that needs them goes
+  # live. The CLI records applied files in supabase_migrations.schema_migrations
+  # and skips them next time. SUPABASE_DB_URL is the Session pooler connection
+  # string (Dashboard → Connect); GitHub runners can't reach the IPv6-only
+  # direct connection.
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.3.0
+      - run: supabase db push --db-url "$SUPABASE_DB_URL"
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
   deploy:
+    needs: migrate
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -1,0 +1,27 @@
+name: Keep Supabase awake
+
+# Free-plan Supabase projects pause after about a week without activity, and
+# the map then loads nothing until someone restores the project by hand. One
+# small read every 3 days counts as activity. Uses only the public anon key
+# from app/supabase-config.js, so no secrets are needed.
+# GitHub runs scheduled workflows from the default branch only.
+
+on:
+  schedule:
+    - cron: "0 12 */3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read one organization
+        run: |
+          config=$(sed -n 's/^window\.SUPABASE_CONFIG = \(.*\);$/\1/p' app/supabase-config.js)
+          url=$(jq -r .url <<<"$config")
+          key=$(jq -r .anonKey <<<"$config")
+          curl -fsS "$url/rest/v1/organizations?select=id&limit=1" -H "apikey: $key" -H "Authorization: Bearer $key"

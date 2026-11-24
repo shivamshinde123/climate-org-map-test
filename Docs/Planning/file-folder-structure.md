@@ -8,7 +8,8 @@ Climate Org Mapping/
 |-- main.py                           # complete build, geocode, validate, and serve entry point
 |-- .github/
 |   `-- workflows/
-|       `-- deploy.yml                # GitHub Actions: auto-deploys app/ to GitHub Pages on push
+|       |-- deploy.yml                # on push to master: supabase db push, then deploy app/ to GitHub Pages
+|       `-- keep-awake.yml            # every 3 days: one read so the free Supabase project never pauses
 |-- app/
 |   |-- data/
 |   |   |-- map-schema.json           # filter and field vocabulary
@@ -45,6 +46,7 @@ Climate Org Mapping/
 |   |-- build_town_lists.py           # Census place + town names -> app/data/towns/
 |   `-- load_environment.py           # .env loader
 |-- supabase/
+|   |-- config.toml                   # minimal Supabase CLI config for db push
 |   `-- migrations/                   # database tables, access rules, pipeline write function
 |-- tests/
 |   |-- test_build_irs_dataset.py

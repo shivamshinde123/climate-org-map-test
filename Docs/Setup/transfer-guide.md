@@ -63,7 +63,7 @@ At this point the map shows the organizations from the data file but has no data
 ## Step 3 — Create the Supabase project
 
 1. Signed in to Supabase as the CEO: **New project**.
-2. Name: for example `climate-organizations-map`. Region: a US region (for example *East US*). Set a database password and keep it in a password manager (it is not needed later in this guide).
+2. Name: for example `climate-organizations-map`. Region: a US region (for example *East US*). Set a database password and keep it in a password manager; Step 4 puts it in a GitHub secret.
 3. Wait until the project shows as ready (about two minutes).
 
 ## Step 4 — Create the tables
@@ -72,9 +72,17 @@ At this point the map shows the organizations from the data file but has no data
 2. Open `supabase/migrations/20261123000000_organizations.sql` from the repository, paste all of it, and click **Run**. It should say *Success. No rows returned*.
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
 4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
-5. Check **Table Editor**: six tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log` and `survey_verifications`, each marked *RLS enabled*.
+5. New query again; paste and run `supabase/migrations/20261124010000_map_rows.sql`.
+6. Check **Table Editor**: six tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log` and `survey_verifications`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
+
+Then let GitHub apply future database changes itself. Every deploy runs `supabase db push`, which applies any new file in `supabase/migrations/` before the site goes live (files already applied are skipped; the first deploy reapplies these five once, which is safe).
+
+1. In Supabase: **Connect** (top bar) → **Session pooler** → copy the connection string. Replace `[YOUR-PASSWORD]` with the database password from Step 3. If the password has characters such as `@`, `#` or `/`, URL-encode them (for example `@` becomes `%40`).
+2. In the CEO's GitHub repository: **Settings → Secrets and variables → Actions → New repository secret**. Name: `SUPABASE_DB_URL`. Value: the connection string.
+
+Without this secret the deploy stops at the *migrate* step and the site is not updated. Use the Session pooler string, not the direct connection: GitHub's machines can't reach the direct one.
 
 ## Step 5 — Set up the admin sign-in
 
@@ -178,7 +186,8 @@ Saved website searches, category answers and request logs are in the database an
 | Add or remove an admin | Edit `ADMIN_EMAILS` in `.env`, run `python -m scripts.sync_supabase`. |
 | Review new organizations and surveys | `admin.html`: *New organizations to approve* and *Verification surveys to review*. |
 | Refresh the data from a new IRS release | Run the pipeline (`python main.py --rebuild --no-serve`, see README). It saves straight to Supabase; nothing to commit. |
-| Keep the database awake | Free Supabase projects pause after about a week without visits. The map, forms and admin page all stop until someone clicks **Restore** in Supabase. Supabase's paid plan avoids this. |
+| Keep the database awake | Automatic: the *Keep Supabase awake* workflow reads one row every 3 days, because free Supabase projects pause after about a week without activity (the map, forms and admin page then stop until someone clicks **Restore** in Supabase). Check the **Actions** tab now and then that it still runs green. If the repository is public, GitHub turns off scheduled workflows after 60 days without commits; **Enable workflow** turns it back on. |
+| Change the database | Add a new file to `supabase/migrations/` and push; the deploy applies it. Never edit a file that has already been applied. |
 
 ## Troubleshooting
 
@@ -188,6 +197,7 @@ Saved website searches, category answers and request logs are in the database an
 | Add form says submissions are not open | `app/supabase-config.js` was not committed and pushed after Step 7, or is still empty. |
 | Sync stops with *401* or *Invalid API key* | `SUPABASE_SERVICE_ROLE_KEY` is wrong or is the anon key. Use the legacy *service_role* key (Step 6). |
 | Map says *The organization data could not be loaded* | `app/supabase-config.js` is empty or not pushed, the project is paused, or Step 7's import was skipped. |
+| Deploy fails at the *migrate* step | `SUPABASE_DB_URL` secret missing or wrong (Step 4): use the Session pooler string with the real password, URL-encoded. The job log shows the database's error. |
 | Sync stops with *relation "admins" does not exist* | Step 4 was skipped or a file failed; run the SQL files again. |
 | Sign-in link opens an error or the wrong site | The redirect URLs in Step 5 do not match the site address exactly (check `https`, the repository name and `/admin.html`). |
 | Admin page says *… is not an admin* | That email is not in `ADMIN_EMAILS`; add it and run the sync. |
