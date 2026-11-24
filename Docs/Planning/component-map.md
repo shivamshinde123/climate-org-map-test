@@ -14,7 +14,7 @@
 - `scripts/supabase_store.py`: the pipeline's only data store: loads and saves organizations, API caches, the API log and survey evidence in Supabase.
 - Supabase `organizations` table: every organization; the map, admin portal and pipeline all read it.
 - `app/data/map-schema.json`: runtime field and filter vocabulary.
-- `Data/Geocoding/census_geocodes.csv`: resumable geocoding cache.
+- Supabase `pipeline_cache` kind `census`: resumable geocoding cache (saved after every Census batch). `Data/Geocoding/` holds only the Census city and ZIP centroid files, downloaded on first use.
 
 ## Frontend components
 

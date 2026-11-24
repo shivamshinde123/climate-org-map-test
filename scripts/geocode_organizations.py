@@ -2,7 +2,7 @@
 """Assign map coordinates to normalized organization records.
 
 This stage is the only pipeline component responsible for geometry. It first
-reuses address-keyed results from the local cache, optionally submits new
+reuses address-keyed results cached in Supabase (``pipeline_cache`` kind ``census``), optionally submits new
 addresses to the U.S. Census batch geocoder, and falls back to a ZIP or city
 centroid when no usable address match exists. Records with neither get no
 point. Every fallback is explicitly labeled so the UI never implies
@@ -51,6 +51,11 @@ USER_AGENT = "GCC-Climate-Organization-Map/0.1 (batch geocoding)"
 # 0.005° ≈ 550 m. Coastal centroids (e.g. Beverly, MA) sit ~1 km from shore,
 # so a wider radius drops pins into the sea.
 FALLBACK_SPREAD = 0.005
+
+
+CACHE_KIND = "census"
+# Public Census Gazetteer centroids, downloaded on first use (gitignored).
+CENTROID_DIR = Path(__file__).resolve().parents[1] / "Data" / "Geocoding"
 
 
 @dataclass
@@ -334,28 +339,16 @@ def apply_fallback(
     return True
 
 
-def load_cache(path: Path) -> dict[str, GeocodeResult]:
-    """Load the durable Census-result cache keyed by organization identifier."""
-    if not path.exists():
-        return {}
-    with path.open("r", encoding="utf-8", newline="") as stream:
-        return {
-            row["id"]: GeocodeResult(**row)
-            for row in csv.DictReader(stream)
-        }
+def load_cache() -> dict[str, GeocodeResult]:
+    """Census results stored in Supabase, keyed by organization identifier."""
+    return {key: GeocodeResult(id=key, **result) for key, result in store.load_cache(CACHE_KIND).items()}
 
 
-def save_cache(path: Path, results: dict[str, GeocodeResult]) -> None:
-    """Atomically rewrite the cache so interrupted runs cannot corrupt it."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    temporary = path.with_suffix(path.suffix + ".tmp")
-    fieldnames = list(GeocodeResult.__dataclass_fields__)
-    with temporary.open("w", encoding="utf-8", newline="") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fieldnames)
-        writer.writeheader()
-        for result_id in sorted(results):
-            writer.writerow(asdict(results[result_id]))
-    temporary.replace(path)
+def save_cache(results: dict[str, GeocodeResult]) -> None:
+    """Store new Census results in Supabase (the id is the cache key)."""
+    store.save_cache(
+        CACHE_KIND, {key: {k: v for k, v in asdict(result).items() if k != "id"} for key, result in results.items()}
+    )
 
 
 def chunks(items: list[dict], size: int) -> Iterable[list[dict]]:
@@ -494,7 +487,6 @@ def apply_result(feature: dict, result: GeocodeResult) -> bool:
 
 def geocode_dataset(
     payload: dict,
-    cache_path: Path,
     endpoint: str,
     batch_size: int,
     limit: int | None,
@@ -507,7 +499,7 @@ def geocode_dataset(
     applied Census matches, cached non-matches, and ZIP/city fallbacks.
     """
     features = payload.get("features", [])
-    cache = load_cache(cache_path)
+    cache = load_cache()
 
     # A cached value is reusable only while its address hash still matches.
     eligible: list[dict] = []
@@ -529,13 +521,14 @@ def geocode_dataset(
         timestamp = datetime.now(timezone.utc).isoformat()
         requested = {feature["properties"]["id"]: feature for feature in batch}
         response_text = submit_batch(batch, endpoint)
-        cache.update(parse_batch_response(response_text, requested, timestamp))
+        results = parse_batch_response(response_text, requested, timestamp)
+        cache.update(results)
         # Persist after every batch so a later failure does not waste prior work.
-        save_cache(cache_path, cache)
+        save_cache(results)
         print(f"Cached {len(cache):,} total geocoding results", flush=True)
 
-    city_centroids = load_city_centroids(cache_path.parent / "city_centroids.csv")
-    zip_centroids = load_zip_centroids(cache_path.parent / "zip_centroids.csv")
+    city_centroids = load_city_centroids(CENTROID_DIR / "city_centroids.csv")
+    zip_centroids = load_zip_centroids(CENTROID_DIR / "zip_centroids.csv")
 
     # Resolve every feature through the same precedence chain: current cached
     # Census result first, then ZIP centroid, then city centroid, then no point.
@@ -564,9 +557,6 @@ def geocode_dataset(
 def parse_args() -> argparse.Namespace:
     """Parse and validate the geocoder command-line interface."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--cache", type=Path, default=Path("Data/Geocoding/census_geocodes.csv")
-    )
     parser.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
     parser.add_argument("--batch-size", type=int, default=5000)
     parser.add_argument("--limit", type=int, default=None)
@@ -588,7 +578,6 @@ def main() -> None:
     payload = store.load_payload()
     submitted, matched, unmatched, fallbacks = geocode_dataset(
         payload,
-        args.cache,
         args.endpoint,
         args.batch_size,
         args.limit,

@@ -3,12 +3,16 @@
 import unittest
 
 from scripts.geocode_organizations import (
+    GeocodeResult,
     apply_fallback,
     apply_result,
     make_address_key,
     match_city,
+    load_cache,
     parse_batch_response,
+    save_cache,
 )
+from tests.fake_store import FakeStore
 
 
 class GeocodeOrganizationTests(unittest.TestCase):
@@ -105,6 +109,13 @@ class GeocodeOrganizationTests(unittest.TestCase):
         self.assertFalse(apply_result(self.feature, result))
         self.assertEqual(self.feature["geometry"]["coordinates"], [-71.0, 42.0])
         self.assertEqual(self.feature["properties"]["geocoding_status"], "No_Match")
+
+    def test_cache_round_trip_keys_results_by_organization_id(self):
+        fake = FakeStore(self)
+        result = GeocodeResult("org_1", "key", "Match", "Exact", "1 MAIN ST", "-71.0", "42.0", "9", "L")
+        save_cache({"org_1": result})
+        self.assertNotIn("id", fake.caches["census"]["org_1"])
+        self.assertEqual(load_cache(), {"org_1": result})
 
 
 if __name__ == "__main__":

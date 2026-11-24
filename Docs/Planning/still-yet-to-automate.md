@@ -23,7 +23,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
 
 ### B. Pipeline depends only on Supabase (needed before it can run on GitHub)
 
-- [ ] **Census lookup cache into Supabase.** `Data/Geocoding/census_geocodes.csv`
+- [x] **Census lookup cache into Supabase.** `Data/Geocoding/census_geocodes.csv`
   becomes `pipeline_cache` kind `census`, shared by laptop and GitHub runs.
   (City and ZIP centroid files stay local: public Census data the code downloads
   when missing.)

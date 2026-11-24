@@ -14,6 +14,7 @@ class FakeStore:
         for name, replacement in (
             ("load_cache", lambda kind: dict(self.caches.get(kind, {}))),
             ("append_cache", lambda kind, key, result: self.caches.setdefault(kind, {}).__setitem__(key, result)),
+            ("save_cache", lambda kind, results: self.caches.setdefault(kind, {}).update(results)),
             ("write_log", self.log.append),
             ("survey_verifications", lambda: dict(survey or {})),
         ):

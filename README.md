@@ -171,7 +171,7 @@ Discovery, crawl results, and Jev responses are cached in the Supabase `pipeline
 
 The pipeline is incremental by default. It loads the organizations from Supabase and reuses them instead of rescanning IRS files, then saves only new and changed records back. It needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in `.env`. Completed coordinates are also reused. Enrichment excludes records already completed with the current discovery version, search model, Jev question version, and Jev model before applying `--enrichment-limit`. Use `python main.py --rebuild` only when the IRS source data or normalization logic has changed.
 
-This command transmits each organization's public IRS street, city, state, and ZIP fields to `geocoding.geo.census.gov`. Results and non-matches are cached in `Data/Geocoding/census_geocodes.csv`, so unchanged addresses are not resubmitted. The public OpenStreetMap Nominatim server is intentionally not used for this nationwide bulk operation.
+This command transmits each organization's public IRS street, city, state, and ZIP fields to `geocoding.geo.census.gov`. Results and non-matches are cached in Supabase (`pipeline_cache`, kind `census`), so unchanged addresses are not resubmitted. The public OpenStreetMap Nominatim server is intentionally not used for this nationwide bulk operation.
 
 Internally, both geocoding modes are implemented by `geocode_organizations.py`. The IRS dataset builder always emits `geometry: null` and `location_precision: ungeocoded`; it contains no temporary coordinate generation.
 

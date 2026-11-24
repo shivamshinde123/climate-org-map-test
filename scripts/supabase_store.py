@@ -106,6 +106,18 @@ def append_cache(kind: str, key: str, result) -> None:
     )
 
 
+def save_cache(kind: str, results: dict) -> None:
+    """Store many answers of one kind at once (``key -> result``)."""
+    items = [{"kind": kind, "key": key, "result": result} for key, result in results.items()]
+    for start in range(0, len(items), BATCH_SIZE):
+        _request(
+            "pipeline_cache?on_conflict=kind,key",
+            items[start : start + BATCH_SIZE],
+            "POST",
+            "resolution=merge-duplicates,return=minimal",
+        )
+
+
 def write_log(entry: dict) -> None:
     _request("api_log", {"entry": entry}, "POST")
 

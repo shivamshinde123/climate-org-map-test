@@ -48,7 +48,6 @@ DEFAULT_CODES_PATH = (
     / "Research and Requirements"
     / "NTEE_Codes_to_Consider.txt"
 )
-DEFAULT_CACHE_PATH = PROJECT_ROOT / "Data" / "Geocoding" / "census_geocodes.csv"
 DEFAULT_APP_DIR = PROJECT_ROOT / "app"
 
 # These fields are restored after a forced IRS rebuild when the preceding
@@ -111,7 +110,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--input-dir", type=Path, default=DEFAULT_INPUT_DIR)
     parser.add_argument("--codes", type=Path, default=DEFAULT_CODES_PATH)
-    parser.add_argument("--cache", type=Path, default=DEFAULT_CACHE_PATH)
     parser.add_argument(
         "--rebuild",
         action="store_true",
@@ -263,7 +261,6 @@ def run_pipeline(args: argparse.Namespace) -> None:
         print(f"[2/{phase_count}] Applying {mode}...", flush=True)
         submitted, matched, unmatched, fallbacks = geocode_dataset(
             payload,
-            args.cache,
             args.endpoint,
             args.batch_size,
             args.limit,

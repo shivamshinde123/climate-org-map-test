@@ -1,5 +1,9 @@
 # Decision Log
 
+## 2026-11-24 — Census lookup cache moved to Supabase
+
+A GitHub run starts with an empty disk, so a local `census_geocodes.csv` would be lost after every run and each run would resubmit all ~20,600 addresses. The 20,577 cached results now live in `pipeline_cache` (kind `census`, key = organization id), saved after every Census batch like the other API caches; the import was checked identical and an offline geocoding pass over all organizations moved no pin. The city and ZIP centroid CSVs stay local and gitignored: they are fixed public Census data that `geocode_organizations.py` downloads when missing, not project data.
+
 ## 2026-11-24 — Apply migrations on deploy; ping Supabase every 3 days
 
 Migrations were pasted into the SQL Editor by hand, so code and schema could drift, and a free-plan project pauses after about a week idle, which now blanks the whole map. The deploy workflow runs `supabase db push --db-url` before publishing, and publishing waits for it, so a failed migration never ships a site that needs it. One secret (`SUPABASE_DB_URL`, Session pooler) instead of an access token plus a password, because `--db-url` needs nothing else; the pooler because GitHub runners lack IPv6. The four hand-applied files were never recorded in `schema_migrations`; they are all rerun-safe (`if not exists`, `drop policy if exists`, `create or replace`, `on conflict`), so the first push reapplies and records them instead of a one-off `migration repair`. New migrations must stay rerun-safe for the same reason a new owner may run them by hand first. The keep-awake job reads one row with the public anon key from `app/supabase-config.js`, so it needs no secret. Both only take effect once merged to `master`: GitHub runs schedules from the default branch only.

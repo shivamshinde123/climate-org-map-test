@@ -173,9 +173,9 @@ The map, forms and admin page do not need these. They are only needed to rebuild
 | Folder | Size | What it is |
 |---|---|---|
 | `Data/IRS EO BMF/` | ~325 MB | IRS source files (can also be downloaded again from the IRS) |
-| `Data/Geocoding/` | ~6 MB | Saved address lookups |
+| `Data/Geocoding/` | ~2 MB | Census city and ZIP centers (downloaded again automatically if missing) |
 
-Saved website searches, category answers and request logs are in the database and move with Step 7. To hand the files over, zip them and share them privately (for example a shared drive folder), then unzip into the same paths in the new copy.
+Saved website searches, address lookups, category answers and request logs are in the database and move with Step 7. To hand the files over, zip them and share them privately (for example a shared drive folder), then unzip into the same paths in the new copy.
 
 ---
 

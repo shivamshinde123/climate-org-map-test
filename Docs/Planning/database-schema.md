@@ -36,7 +36,7 @@ Access: visitors may only insert, with the status their connection requires (`pe
 
 | Column | Type | Notes |
 |---|---|---|
-| `kind`, `key` | text, primary key | `kind` is `brave`, `discovery`, `websearch`, `picker`, `contact` or `jev`; `key` is the Brave query or a hash of the request. |
+| `kind`, `key` | text, primary key | `kind` is `brave`, `discovery`, `websearch`, `picker`, `contact`, `jev` or `census`; `key` is the Brave query, a hash of the request, or (for `census`) the organization id, whose result carries the address hash it was geocoded from. |
 | `result` | jsonb | The API answer. Brave results keep only `url`, `title` and `description`, the fields the matcher reads. |
 | `created_at` | timestamptz | |
 

@@ -10,7 +10,7 @@ Existing normalized data and complete coordinates are reused by default. `--rebu
 
 The ingestion script accepts input directory, code file, output file, and optional record limit arguments. Run its `--help` option for current details.
 
-The geocoding script accepts input, output, cache, endpoint, batch-size, and optional limit arguments. Its default endpoint is the official U.S. Census batch location geocoder. The endpoint is configurable so the provider can be replaced without changing application code.
+The geocoding script accepts endpoint, batch-size, limit and `--fallback-only` arguments; it reads and saves organizations and the Census result cache in Supabase. Its default endpoint is the official U.S. Census batch location geocoder. The endpoint is configurable so the provider can be replaced without changing application code.
 
 Future geocoding, map-tile, CRM, and third-party source credentials must be supplied through environment variables and must never be committed. Variable names are TBD.
 
