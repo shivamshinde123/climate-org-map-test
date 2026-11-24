@@ -49,7 +49,7 @@ workflows that exist on `master`, so phases C and D are tested end to end after 
 
 ### D. Monthly IRS refresh
 
-- [ ] Scheduled workflow inserts a `pipeline_runs` row of kind `irs_refresh`:
+- [x] Daily pg_cron check (`queue_irs_refresh()`) inserts a `pipeline_runs` row of kind `irs_refresh` when the last success is 28 days old (applied by the deploy at the merge, when `pipeline.yml` reaches `master`):
   download, rebuild, geocode. No paid extraction; new organizations show up in C's
   pending count.
 

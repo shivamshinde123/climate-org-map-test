@@ -38,6 +38,9 @@ class MainPipelineTests(unittest.TestCase):
                     "id": "org_1",
                     "website_url": "https://example.org/",
                     "summary": "Evidence-based summary.",
+                    "email": "info@example.org",
+                    "phone": "(617) 555-0100",
+                    "contact_version": "gcc-contacts-v3",
                     "jev_classification_status": "classified",
                     "gcc_activity": "Advocacy",
                     "advocacy_vs_action": "Advocacy",
@@ -55,6 +58,8 @@ class MainPipelineTests(unittest.TestCase):
                     "id": "org_1",
                     "website_url": "",
                     "summary": "",
+                    "email": "",
+                    "phone": "",
                     "gcc_activity": "Unknown",
                     "advocacy_vs_action": "Unknown",
                 },
@@ -66,6 +71,11 @@ class MainPipelineTests(unittest.TestCase):
         self.assertEqual(restored, 1)
         self.assertEqual(properties["website_url"], "https://example.org/")
         self.assertEqual(properties["gcc_activity"], "Advocacy")
+        # Contacts survive too (a rebuild used to blank every email and phone).
+        self.assertEqual((properties["email"], properties["phone"]), ("info@example.org", "(617) 555-0100"))
+        self.assertEqual(properties["contact_version"], "gcc-contacts-v3")
+        # The IRS-derived categories Jev replaced come from the rebuilt record.
+        self.assertEqual(properties["pre_enrichment_categories"]["gcc_activity"], "Unknown")
 
 
 if __name__ == "__main__":

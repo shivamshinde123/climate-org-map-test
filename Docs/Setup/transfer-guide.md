@@ -73,7 +73,7 @@ At this point the map shows the organizations from the data file but has no data
 3. New query again; paste and run `supabase/migrations/20261123020000_survey_responses.sql`.
 4. New query again; paste and run `supabase/migrations/20261124000000_database_only.sql`.
 5. New query again; paste and run `supabase/migrations/20261124010000_map_rows.sql`.
-6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`, then `20261124030000_pipeline_runs.sql`, then `20261124040000_dispatch_pipeline_runs.sql`, the same way.
+6. New query again; paste and run `supabase/migrations/20261124020000_survey_rows_admin_owned.sql`, then `20261124030000_pipeline_runs.sql`, `20261124040000_dispatch_pipeline_runs.sql` and `20261124050000_monthly_irs_refresh.sql`, the same way.
 7. Check **Table Editor**: seven tables, `organizations`, `admins`, `survey_responses`, `pipeline_cache`, `api_log`, `pipeline_runs` and `pipeline_settings`, each marked *RLS enabled*.
 
 These files create the tables and the access rules: visitors can only add pending submissions and survey responses, and only admins can read, approve, edit or delete.
@@ -196,7 +196,7 @@ Saved website searches, address lookups, category answers and request logs are i
 |---|---|
 | Add or remove an admin | Edit `ADMIN_EMAILS` in `.env`, run `python -m scripts.sync_supabase`. |
 | Review new organizations and surveys | `admin.html`: *New organizations to approve* and *Verification surveys to review*. |
-| Refresh the data from a new IRS release | Run the pipeline (`python main.py --rebuild --no-serve`, see README). It saves straight to Supabase; nothing to commit. |
+| Refresh the data from a new IRS release | Automatic: a daily database check starts an *IRS data refresh* run when the last successful one is 28 days old. It appears in the admin page's run history; new organizations then show in the *waiting* counts for extraction. By hand: `python main.py --rebuild --use-census --no-serve`. |
 | Keep the database awake | Automatic: the *Keep Supabase awake* workflow reads one row every 3 days, because free Supabase projects pause after about a week without activity (the map, forms and admin page then stop until someone clicks **Restore** in Supabase). Check the **Actions** tab now and then that it still runs green. If the repository is public, GitHub turns off scheduled workflows after 60 days without commits; **Enable workflow** turns it back on. |
 | Change the database | Add a new file to `supabase/migrations/` and push; the deploy applies it. Never edit a file that has already been applied. |
 

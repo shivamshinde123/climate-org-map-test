@@ -62,6 +62,8 @@ One row per pipeline run request (`supabase/migrations/20261124030000_pipeline_r
 
 `dispatch_request_id` (bigint) is pg_net's id for the GitHub start request: an `after insert` trigger (`dispatch_pipeline_run()`, migration `20261124040000`) posts `workflow_dispatch` for `pipeline.yml` on `master` with the row id, using the Vault secrets `github_dispatch_token` and `github_repo`; if either is missing the row is marked `failed` immediately. `pipeline_dispatch_result(run_id)` (admins only) returns GitHub's status code and message from `net._http_response` (204 = started; pg_net keeps answers 6 hours).
 
+`queue_irs_refresh()` (pg_cron job `irs-refresh`, daily 09:00 UTC, migration `20261124050000`) inserts an `irs_refresh` row when no refresh succeeded in the last 28 days, none was queued in the last 20 hours, and no run is active.
+
 Admins may read all rows, insert only `kind`, `state`, `org_limit` (column grants), and set a `queued` or `running` row to `cancelled` (for a run that never started or died). Everything else is written with the service role.
 
 ### `pipeline_settings`

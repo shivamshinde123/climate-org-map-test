@@ -60,6 +60,10 @@ JEV_SCHEMA_FIELDS = {
 }
 
 
+# Found by website discovery and the contact crawl; kept through a rebuild like websites.
+REUSABLE_FIELDS = {"website_url", "summary", "email", "phone", "contact_page_url", "facebook_url", "contact_version"}
+
+
 def load_enrichment_overlay(payload: dict) -> dict[str, dict]:
     """Read reusable enrichment keyed by stable organization ID.
 
@@ -75,7 +79,7 @@ def load_enrichment_overlay(payload: dict) -> dict[str, dict]:
             for key, value in properties.items()
             if value not in (None, "", [], {})
             and (
-                key in {"website_url", "summary"}
+                key in REUSABLE_FIELDS
                 or key.startswith("website_")
                 or key.startswith("jev_")
             )
@@ -98,6 +102,12 @@ def restore_enrichment(payload: dict, overlay: dict[str, dict]) -> int:
         properties = feature.get("properties", {})
         saved = overlay.get(str(properties.get("id", "")))
         if saved:
+            if saved.get("jev_classification_status") == "classified":
+                # The categories Jev replaces, from this rebuild's IRS data, so a
+                # later run that rejects the website restores current values.
+                # (Same shape as apply_enrichment's snapshot, including validated=False.)
+                properties["pre_enrichment_categories"] = {key: properties.get(key) for key in JEV_SCHEMA_FIELDS} | {
+                    "validated": properties.get("validated", False)}
             properties.update(saved)
             restored += 1
     return restored
